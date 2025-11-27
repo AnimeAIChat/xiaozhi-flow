@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 body {
   margin: 0;
   color: #fff;
@@ -5,6 +9,7 @@ body {
   background-image: linear-gradient(to bottom, #020917, #101725);
 }
 
+/* 保留原有样式，防止组件样式破坏 */
 .content {
   display: flex;
   min-height: 100vh;
@@ -23,4 +28,99 @@ body {
   font-size: 1.2rem;
   font-weight: 400;
   opacity: 0.5;
+}
+
+/* 自定义工具类 */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+.flex {
+  display: flex;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.max-w-2xl {
+  max-width: 42rem;
+}
+
+.w-96 {
+  width: 24rem;
+}
+
+.p-6 {
+  padding: 1.5rem;
+}
+
+.mt-8 {
+  margin-top: 2rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.text-2xl {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.text-blue-500 {
+  --tw-text-opacity: 1;
+  color: rgb(59 130 246 / var(--tw-text-opacity));
+}
+
+/* 动画类 */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.h-12 {
+  height: 3rem;
+}
+
+.w-12 {
+  width: 3rem;
+}
+
+.border-b-2 {
+  border-bottom-width: 2px;
+}
+
+.border-blue-500 {
+  --tw-border-opacity: 1;
+  border-color: rgb(59 130 246 / var(--tw-border-opacity));
+}
+
+.inline-block {
+  display: inline-block;
 }

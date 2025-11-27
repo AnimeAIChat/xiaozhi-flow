@@ -46,6 +46,106 @@ const docTemplate = `{
                 }
             }
         },
+        "/admin/system/init": {
+            "post": {
+                "description": "初始化Xiaozhi-Flow系统，创建数据库和管理员用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "系统初始化",
+                "parameters": [
+                    {
+                        "description": "初始化配置",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.InitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/system/status": {
+            "get": {
+                "description": "获取当前系统的运行状态和服务信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取系统状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/system/test-connection": {
+            "post": {
+                "description": "测试与指定数据库的连接状态和延迟",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "测试数据库连接",
+                "parameters": [
+                    {
+                        "description": "数据库配置",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.DatabaseConfig"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.ConnectionTestResult"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/cfg": {
             "get": {
                 "description": "检查配置服务的运行状态",
@@ -337,6 +437,86 @@ const docTemplate = `{
                     "description": "分析结果（成功时）",
                     "type": "string"
                 }
+            }
+        },
+        "webapi.AdminConfig": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "\"random\" 或 \"custom\"",
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.ConnectionTestResult": {
+            "type": "object",
+            "properties": {
+                "latency": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "boolean"
+                    }
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.DatabaseConfig": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.InitRequest": {
+            "type": "object",
+            "properties": {
+                "adminConfig": {
+                    "$ref": "#/definitions/webapi.AdminConfig"
+                },
+                "databaseConfig": {
+                    "$ref": "#/definitions/webapi.DatabaseConfig"
+                },
+                "providers": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "systemConfig": {}
             }
         },
         "webapi.SystemConfig": {

@@ -1,18 +1,21 @@
 package storage
 
 import (
+	"crypto/rand"
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"xiaozhi-server-go/internal/platform/storage/migrations"
 	"gorm.io/datatypes"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
-	"crypto/rand"
-	"math/big"
 )
 
 // InitConfigStore ensures the underlying configuration store is ready.
@@ -30,35 +33,139 @@ func ConfigStore() interface{} {
 // Global database instance for backward compatibility
 var db *gorm.DB
 
-// InitDatabase initializes the SQLite database for authentication and other services.
+// InitDatabaseWithConfig initializes database using the provided configuration
+func InitDatabaseWithConfig(config DatabaseConnection) error {
+	if err := initDatabaseWithConnection(config); err != nil {
+		return err
+	}
+
+	fmt.Printf("数据库已使用配置文件成功连接\n")
+	return nil
+}
+
+// ConnectDatabaseWithConfig connects to an existing database using the provided configuration
+// This function only connects to an existing database without reinitializing tables
+func ConnectDatabaseWithConfig(config DatabaseConnection) error {
+	dbPath := config.Path
+
+	// For SQLite, ensure the database file exists
+	if config.Type == "sqlite" {
+		if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+			return fmt.Errorf("database file does not exist: %s", dbPath)
+		}
+	}
+
+	var err error
+	var gormDB *gorm.DB
+
+	switch config.Type {
+	case "sqlite":
+		gormDB, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+	case "mysql":
+		dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&parseTime=True&loc=Local",
+			config.Username, config.Password, config.Host, config.Port, config.Database, config.Charset)
+		gormDB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+	case "postgresql":
+		dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=%s",
+			config.Host, config.Username, config.Password, config.Database, config.Port, config.SSLMode)
+		gormDB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+	default:
+		return fmt.Errorf("unsupported database type: %s", config.Type)
+	}
+
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
+
+	// Test the connection
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying database: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Set connection pool parameters for long-running connections
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(25)  // 保持所有连接都处于空闲状态以复用
+	sqlDB.SetConnMaxLifetime(0)  // 连接永不自动过期，SQLite专用
+	sqlDB.SetConnMaxIdleTime(0)  // 空闲连接永不自动关闭，SQLite专用
+
+	// Verify the database connection is fully operational by running a test query
+	var testResult int64
+	if err := gormDB.Raw("SELECT 1").Count(&testResult).Error; err != nil {
+		return fmt.Errorf("database connection test query failed: %w", err)
+	}
+
+	// Set global database instance only after successful validation
+	SetDB(gormDB)
+
+	// For existing databases, DO NOT run AutoMigrate
+	// AutoMigrate can reset data in existing tables
+	// The database should already have the correct schema from previous initialization
+	fmt.Printf("数据库已成功连接\n")
+	return nil
+}
+
+// InitDatabase checks database initialization status without creating it automatically.
 func InitDatabase() error {
-	if db != nil {
-		return nil
-	}
-
-	// Create data directory if it doesn't exist
-	dataDir := "./data"
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return fmt.Errorf("failed to create data directory: %w", err)
-	}
-
 	// Use environment variable for database path if set (for testing)
 	dbPath := os.Getenv("XIAOZHI_DB_PATH")
 	if dbPath == "" {
+		dataDir := "./data"
 		dbPath = filepath.Join(dataDir, "xiaozhi.db")
 	}
 
+	// Check if database file exists (only for SQLite)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		fmt.Printf("数据库文件不存在: %s，请通过配置页面进行初始化\n", dbPath)
+		return nil // Don't treat missing database as an error
+	} else if err != nil {
+		return fmt.Errorf("failed to check database file: %w", err)
+	}
+
+	// Database file exists, try to open and initialize it
 	var err error
 	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to open database: %w", err)
+		return fmt.Errorf("failed to open existing database: %w", err)
 	}
 
-	// Auto-migrate tables (fallback for backward compatibility)
+	// Test the database connection before proceeding
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying database: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Set connection pool parameters for SQLite (never expire connections)
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(25)
+	sqlDB.SetConnMaxLifetime(0)  // SQLite专用：连接永不自动过期
+	sqlDB.SetConnMaxIdleTime(0)  // SQLite专用：空闲连接永不自动关闭
+
+	// Verify the database connection is fully operational by running a test query
+	var testResult int64
+	if err := db.Raw("SELECT 1").Count(&testResult).Error; err != nil {
+		return fmt.Errorf("database connection test query failed: %w", err)
+	}
+
+	// Auto-migrate tables for existing database
 	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
-		return fmt.Errorf("failed to migrate database: %w", err)
+		return fmt.Errorf("failed to migrate existing database: %w", err)
 	}
 
 	// Run migrations
@@ -68,23 +175,69 @@ func InitDatabase() error {
 	migrationManager.AddMigration(&migrations.Migration003ModelSelections{})
 
 	if err := migrationManager.RunMigrations(); err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
+		return fmt.Errorf("failed to run migrations on existing database: %w", err)
 	}
 
-	// Initialize default admin user
+	// Check admin user status
 	if err := initializeAdminUser(db); err != nil {
-		return fmt.Errorf("failed to initialize admin user: %w", err)
+		return fmt.Errorf("failed to check admin user status: %w", err)
 	}
 
+	fmt.Printf("数据库已存在并成功连接: %s\n", dbPath)
 	return nil
+}
+
+// ValidateDBConnection validates that the database connection is fully operational
+func ValidateDBConnection(database *gorm.DB) bool {
+	if database == nil {
+		return false
+	}
+
+	// Get underlying SQL connection
+	sqlDB, err := database.DB()
+	if err != nil {
+		fmt.Printf("[DEBUG] ValidateDBConnection: Failed to get underlying DB: %v\n", err)
+		return false
+	}
+
+	// Test the connection with a ping
+	if err := sqlDB.Ping(); err != nil {
+		fmt.Printf("[DEBUG] ValidateDBConnection: Ping failed: %v\n", err)
+		return false
+	}
+
+	// Verify with a simple test query
+	var testResult int64
+	if err := database.Raw("SELECT 1").Count(&testResult).Error; err != nil {
+		fmt.Printf("[DEBUG] ValidateDBConnection: Test query failed: %v\n", err)
+		return false
+	}
+
+	return true
 }
 
 // GetDB returns the global database instance.
 func GetDB() *gorm.DB {
 	if db == nil {
-		panic("database not initialized, call InitDatabase() first")
+		// Database not initialized yet, return nil instead of panic
+		return nil
 	}
+
+	// 对于SQLite，连接配置为永不超时，所以不需要频繁Ping
+	// 只在获取底层连接失败时才返回nil
+	_, err := db.DB()
+	if err != nil {
+		fmt.Printf("[DEBUG] GetDB: Failed to get underlying DB: %v\n", err)
+		return nil
+	}
+
+	// 直接返回，信任SQLite连接池配置
 	return db
+}
+
+// SetDB sets the global database instance.
+func SetDB(database *gorm.DB) {
+	db = database
 }
 
 // AuthClient represents the authentication client model for GORM
@@ -217,7 +370,7 @@ type VerificationCode struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
-// initializeAdminUser 初始化管理员用户
+// initializeAdminUser 检查管理员用户状态（不再自动创建）
 func initializeAdminUser(db *gorm.DB) error {
 	// 检查是否已存在管理员用户
 	var count int64
@@ -226,55 +379,12 @@ func initializeAdminUser(db *gorm.DB) error {
 	}
 
 	if count > 0 {
-		// 管理员用户已存在，跳过初始化
-		return nil
+		// 管理员用户已存在，系统已初始化
+		fmt.Printf("系统已初始化，找到 %d 个管理员用户\n", count)
+	} else {
+		// 管理员用户不存在，需要通过配置页面进行初始化
+		fmt.Printf("系统尚未初始化，请访问配置页面进行初始化\n")
 	}
-
-	// 生成随机密码
-	password := generateRandomPassword(12)
-
-	// 创建管理员用户
-	adminUser := &User{
-		Username:  "admin",
-		Password:  password, // 注意：实际应用中应该加密密码
-		Nickname:  "管理员",
-		Role:      "admin",
-		Status:    1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-
-	if err := db.Create(adminUser).Error; err != nil {
-		return fmt.Errorf("failed to create admin user: %w", err)
-	}
-
-	// 为管理员用户创建默认的模型选择
-	defaultModelSelection := &ModelSelection{
-		UserID:       int(adminUser.ID),
-		ASRProvider:  "DoubaoASR",
-		TTSProvider:  "EdgeTTS",
-		LLMProvider:  "ChatGLMLLM",
-		VLLMProvider: "ChatGLMVLLM",
-		IsActive:     true,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-	}
-
-	if err := db.Create(defaultModelSelection).Error; err != nil {
-		return fmt.Errorf("failed to create default model selection for admin user: %w", err)
-	}
-
-	// 打印管理员账号密码到控制台
-	fmt.Printf("=====================================\n")
-	fmt.Printf("管理员用户已创建\n")
-	fmt.Printf("用户名: %s\n", adminUser.Username)
-	fmt.Printf("密码: %s\n", password)
-	fmt.Printf("默认模型选择已创建:\n")
-	fmt.Printf("  LLM: %s\n", defaultModelSelection.LLMProvider)
-	fmt.Printf("  TTS: %s\n", defaultModelSelection.TTSProvider)
-	fmt.Printf("  ASR: %s\n", defaultModelSelection.ASRProvider)
-	fmt.Printf("请妥善保存此密码，首次登录后请修改密码\n")
-	fmt.Printf("=====================================\n")
 
 	return nil
 }
@@ -288,4 +398,90 @@ func generateRandomPassword(length int) string {
 		password[i] = charset[n.Int64()]
 	}
 	return string(password)
+}
+
+// initDatabaseWithConnection 使用指定连接配置初始化数据库
+func initDatabaseWithConnection(config DatabaseConnection) error {
+	var err error
+
+	// 根据数据库类型创建连接
+	switch strings.ToLower(config.Type) {
+	case "sqlite":
+		// 确保目录存在
+		if config.Path != "" {
+			dir := filepath.Dir(config.Path)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return fmt.Errorf("failed to create database directory: %w", err)
+			}
+		}
+
+		db, err = gorm.Open(sqlite.Open(config.Path), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Silent),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to connect to sqlite database: %w", err)
+		}
+
+	case "mysql":
+		// 需要导入 MySQL 驱动
+		// 注意：需要在 import 中添加 _ "gorm.io/driver/mysql"
+		return fmt.Errorf("MySQL support not yet implemented")
+
+	case "postgresql", "postgres":
+		// 需要导入 PostgreSQL 驱动
+		// 注意：需要在 import 中添加 _ "gorm.io/driver/postgres"
+		return fmt.Errorf("PostgreSQL support not yet implemented")
+
+	default:
+		return fmt.Errorf("unsupported database type: %s", config.Type)
+	}
+
+	// 配置连接池
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying sql.DB: %w", err)
+	}
+
+	// Use enhanced connection pool settings for better stability
+	maxOpenConns := config.ConnectionPool.MaxOpenConns
+	if maxOpenConns == 0 {
+		maxOpenConns = 25
+	}
+	maxIdleConns := config.ConnectionPool.MaxIdleConns
+	if maxIdleConns == 0 {
+		maxIdleConns = 25
+	}
+
+	sqlDB.SetMaxOpenConns(maxOpenConns)
+	sqlDB.SetMaxIdleConns(maxIdleConns)
+	sqlDB.SetConnMaxLifetime(0)  // SQLite专用：连接永不自动过期
+	sqlDB.SetConnMaxIdleTime(0)  // SQLite专用：空闲连接永不自动关闭
+
+	// Test the database connection before proceeding with migrations
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Verify the database connection is fully operational by running a test query
+	var testResult int64
+	if err := db.Raw("SELECT 1").Count(&testResult).Error; err != nil {
+		return fmt.Errorf("database connection test query failed: %w", err)
+	}
+
+	// Auto-migrate tables
+	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
+		return fmt.Errorf("failed to migrate database: %w", err)
+	}
+
+	// Run migrations
+	migrationManager := NewMigrationManager(db)
+	migrationManager.AddMigration(&migrations.Migration001Initial{})
+	migrationManager.AddMigration(&migrations.Migration002ConfigTables{})
+	migrationManager.AddMigration(&migrations.Migration003ModelSelections{})
+
+	if err := migrationManager.RunMigrations(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return nil
 }

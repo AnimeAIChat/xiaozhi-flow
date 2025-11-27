@@ -79,6 +79,59 @@ definitions:
         description: 分析结果（成功时）
         type: string
     type: object
+  webapi.AdminConfig:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      type:
+        description: '"random" 或 "custom"'
+        type: string
+      username:
+        type: string
+    type: object
+  webapi.ConnectionTestResult:
+    properties:
+      latency:
+        type: integer
+      message:
+        type: string
+      services:
+        additionalProperties:
+          type: boolean
+        type: object
+      success:
+        type: boolean
+      version:
+        type: string
+    type: object
+  webapi.DatabaseConfig:
+    properties:
+      database:
+        type: string
+      host:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      type:
+        type: string
+      username:
+        type: string
+    type: object
+  webapi.InitRequest:
+    properties:
+      adminConfig:
+        $ref: '#/definitions/webapi.AdminConfig'
+      databaseConfig:
+        $ref: '#/definitions/webapi.DatabaseConfig'
+      providers:
+        additionalProperties: true
+        type: object
+      systemConfig: {}
+    type: object
   webapi.SystemConfig:
     properties:
       prompt:
@@ -116,6 +169,71 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取系统配置
+      tags:
+      - Admin
+  /admin/system/init:
+    post:
+      consumes:
+      - application/json
+      description: 初始化Xiaozhi-Flow系统，创建数据库和管理员用户
+      parameters:
+      - description: 初始化配置
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.InitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+      summary: 系统初始化
+      tags:
+      - Admin
+  /admin/system/status:
+    get:
+      description: 获取当前系统的运行状态和服务信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: 获取系统状态
+      tags:
+      - Admin
+  /admin/system/test-connection:
+    post:
+      consumes:
+      - application/json
+      description: 测试与指定数据库的连接状态和延迟
+      parameters:
+      - description: 数据库配置
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.DatabaseConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.ConnectionTestResult'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+      summary: 测试数据库连接
       tags:
       - Admin
   /cfg:

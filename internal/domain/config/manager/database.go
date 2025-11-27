@@ -130,6 +130,11 @@ func (r *DatabaseRepository) InitDefaultConfig() (*config.Config, error) {
 
 // IsInitialized 检查配置是否已初始化
 func (r *DatabaseRepository) IsInitialized() (bool, error) {
+	// 检查数据库是否为nil
+	if r.db == nil {
+		return false, nil // 数据库未初始化，配置也未初始化
+	}
+
 	var count int64
 	if err := r.db.Model(&storage.ConfigRecord{}).Where("is_active = ?", true).Count(&count).Error; err != nil {
 		return false, errors.Wrap(errors.KindStorage, "config.check_init", "failed to check config initialization", err)
@@ -139,10 +144,23 @@ func (r *DatabaseRepository) IsInitialized() (bool, error) {
 
 // loadConfigFromDB 从数据库加载配置
 func (r *DatabaseRepository) loadConfigFromDB() (*config.Config, error) {
+	// 检查数据库是否为nil
+	if r.db == nil {
+		// 数据库未初始化，返回默认配置
+		return config.DefaultConfig(), nil
+	}
+
+	// 检查数据库连接是否有效
+	if _, err := r.db.DB(); err != nil {
+		// 数据库连接无效，返回默认配置
+		return config.DefaultConfig(), nil
+	}
+
 	// 使用原生 SQL 查询来避免 datatypes.JSON 的自动解析问题
 	rows, err := r.db.Raw("SELECT key, value FROM config_records WHERE is_active = ?", true).Rows()
 	if err != nil {
-		return nil, errors.Wrap(errors.KindStorage, "config.load", "failed to query config records", err)
+		// 如果表不存在或其他数据库错误，返回默认配置
+		return config.DefaultConfig(), nil
 	}
 	defer rows.Close()
 

@@ -4,4 +4,16 @@ import { pluginReact } from '@rsbuild/plugin-react';
 // Docs: https://rsbuild.rs/config/
 export default defineConfig({
   plugins: [pluginReact()],
+  tools: {
+    postcss: {
+      config: {
+        path: './postcss.config.js',
+      },
+    },
+  },
+  css: {
+    modules: {
+      localsConvention: 'camelCaseOnly',
+    },
+  },
 });

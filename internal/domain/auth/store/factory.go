@@ -30,7 +30,8 @@ func New(cfg Config, deps Dependencies) (Store, error) {
 		return NewMemory(cfg), nil
 	case DriverSQLite:
 		if deps.SQLiteDB == nil {
-			return nil, fmt.Errorf("sqlite driver requires database handle")
+			// Fall back to memory storage when database is not available
+			return NewMemory(cfg), nil
 		}
 		return NewSQLite(deps.SQLiteDB, cfg)
 	case DriverRedis:

@@ -71,10 +71,12 @@ func Build(opts Options) (*Router, error) {
 
 	staticRoot := opts.StaticRoot
 	if staticRoot == "" {
-		staticRoot = "./web"
+		// 默认使用 dist 目录
+		staticRoot = "./web/dist"
 	}
-	engine.Use(static.Serve("/", static.LocalFile(staticRoot, true)))
-	engine.Use(static.Serve("/ota", static.LocalFile(staticRoot, true)))
+	// 禁用目录浏览 (indexing: false)
+	engine.Use(static.Serve("/", static.LocalFile(staticRoot, false)))
+	engine.Use(static.Serve("/ota", static.LocalFile(staticRoot, false)))
 
 	api := engine.Group("/api")
 	var secured *gin.RouterGroup

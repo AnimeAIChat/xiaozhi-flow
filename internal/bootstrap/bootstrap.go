@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -307,9 +308,35 @@ func initStorageStep(_ context.Context, _ *appState) error {
 }
 
 func initDatabaseStep(_ context.Context, _ *appState) error {
-	if err := platformstorage.InitDatabase(); err != nil {
-		return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database", err)
+	// 尝试从 db.json 读取数据库配置
+	configManager := platformstorage.NewDatabaseConfigManager()
+
+	if configManager.Exists() {
+		// 如果 db.json 存在，使用配置文件初始化数据库
+		dbConfig, err := configManager.LoadConfig()
+		if err != nil {
+			return platformerrors.Wrap(platformerrors.KindConfig, "storage:init-database-config", "failed to load database config", err)
+		}
+
+		// 如果配置文件标记为已初始化，只连接数据库而不重新初始化
+		if dbConfig.Initialized {
+			if err := platformstorage.ConnectDatabaseWithConfig(dbConfig.Database); err != nil {
+				// 如果连接失败，可能数据库文件被删除，需要重新初始化
+				return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "database marked as initialized but connection failed, may need reinitialization", err)
+			}
+		} else {
+			// 如果配置文件标记为未初始化，进行完整初始化
+			if err := platformstorage.InitDatabaseWithConfig(dbConfig.Database); err != nil {
+				return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database with config", err)
+			}
+		}
+	} else {
+		// 如果 db.json 不存在，使用原有的初始化逻辑
+		if err := platformstorage.InitDatabase(); err != nil {
+			return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database", err)
+		}
 	}
+
 	return nil
 }
 
@@ -679,20 +706,8 @@ func startHTTPServer(
 	router := httpRouter.Engine
 	apiGroup := httpRouter.API
 
-	router.NoRoute(func(c *gin.Context) {
-		path := c.Request.URL.Path
-		if strings.HasPrefix(path, "/api") {
-			c.JSON(http.StatusNotFound, httptransport.APIResponse{
-				Success: false,
-				Data:    gin.H{},
-				Message: "api Not found",
-				Code:    http.StatusNotFound,
-			})
-			return
-		}
-
-		c.File("./web/index.html")
-	})
+	// 设置静态文件服务
+	setupStaticFiles(router, config)
 
 	// 初始化设备服务
 	db := platformstorage.GetDB()
@@ -891,4 +906,38 @@ func loadConfigAndLogger() (*platformconfig.Config, *utils.Logger, error) {
 	}
 
 	return state.config, state.logger, nil
+}
+
+// setupStaticFiles 设置静态文件服务
+func setupStaticFiles(router *gin.Engine, config *platformconfig.Config) {
+	// 静态文件服务已经在 router.go 中处理
+	// 这里只需要设置额外的路由处理（如果需要）
+
+	// 为SPA路由设置fallback - 必须最后设置
+	router.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// 如果是API请求，返回404
+		if strings.HasPrefix(path, "/api") {
+			c.JSON(http.StatusNotFound, httptransport.APIResponse{
+				Success: false,
+				Data:    gin.H{},
+				Message: "API Not found",
+				Code:    http.StatusNotFound,
+			})
+			return
+		}
+
+		// 对于所有其他非静态资源路径，返回index.html（SPA支持）
+		if !strings.HasPrefix(path, "/static/") &&
+		   !strings.HasPrefix(path, "/assets/") &&
+		   path != "/favicon.ico" {
+			// 优先返回 dist 目录的 index.html
+			if _, err := os.Stat("./web/dist/index.html"); err == nil {
+				c.File("./web/dist/index.html")
+			} else {
+				// fallback 到 web 目录
+				c.File("./web/index.html")
+			}
+		}
+	})
 }
