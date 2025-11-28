@@ -106,7 +106,7 @@ const Dashboard: React.FC = () => {
   const [schema, setSchema] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'database' | 'workflow'>('database');
+  const [viewMode, setViewMode] = useState<'database' | 'workflow'>('workflow'); // 默认显示工作流节点
 
   // 工作流节点示例数据 - 保留以备将来使用
   const workflowNodes: Node[] = [
@@ -406,24 +406,30 @@ const Dashboard: React.FC = () => {
   return (
     <FullscreenLayout>
       <div className="w-full h-full bg-gray-50 overflow-hidden relative">
-        {/* 视图切换按钮 */}
+        {/* 视图切换按钮 - 移到右上角 */}
         <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
           <Space>
-            <Button
-              type={viewMode === 'database' ? 'primary' : 'default'}
-              size="small"
-              icon={<DatabaseOutlined />}
-              onClick={() => setViewMode('database')}
-            >
-              数据库表
-            </Button>
             <Button
               type={viewMode === 'workflow' ? 'primary' : 'default'}
               size="small"
               icon={<ApiOutlined />}
-              onClick={() => setViewMode('workflow')}
+              onClick={() => {
+                log.info('用户切换到工作流节点视图', { from: viewMode }, 'ui', 'Dashboard');
+                setViewMode('workflow');
+              }}
             >
               工作流节点
+            </Button>
+            <Button
+              type={viewMode === 'database' ? 'primary' : 'default'}
+              size="small"
+              icon={<DatabaseOutlined />}
+              onClick={() => {
+                log.info('用户切换到数据库表视图', { from: viewMode }, 'ui', 'Dashboard');
+                setViewMode('database');
+              }}
+            >
+              数据库表
             </Button>
           </Space>
         </div>

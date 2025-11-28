@@ -20,12 +20,13 @@ import 'reactflow/dist/style.css';
 import { TableNode, ColumnNode, DatabaseSchema, RelationshipEdge } from '../../types';
 import { Card, Badge, Button, Space, Tooltip, Typography, Tag, Switch, Input, Select } from 'antd';
 import { TableOutlined, KeyOutlined, NumberOutlined, FieldStringOutlined } from '@ant-design/icons';
+import { log } from '../../utils/logger';
 
 const { Text, Title } = Typography;
 
 // 表节点组件
 const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) => {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false); // 默认收起
 
   const primaryKeys = data.columns.filter(col => col.primaryKey);
   const regularColumns = data.columns.filter(col => !col.primaryKey);
@@ -60,7 +61,16 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
         <Button
           type="text"
           size="small"
-          onClick={() => setExpanded(!expanded)}
+          onClick={() => {
+            log.debug('用户切换表节点展开状态', {
+              tableName: data.name,
+              from: expanded ? 'expanded' : 'collapsed',
+              to: expanded ? 'collapsed' : 'expanded',
+              columnCount: data.columns.length,
+              primaryKeyCount: primaryKeys.length,
+            }, 'ui', 'TableNode');
+            setExpanded(!expanded);
+          }}
         >
           {expanded ? '▼' : '▶'}
         </Button>
