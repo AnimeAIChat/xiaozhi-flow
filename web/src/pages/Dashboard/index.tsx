@@ -19,7 +19,7 @@ import {
 } from 'reactflow';
 import '@xyflow/react/dist/style.css';
 import { FullscreenLayout } from '../../components/layout';
-import { Card, Typography, Space, Button, Tag, Switch } from 'antd';
+import { Card, Typography, Space, Button, Tag, Switch, message } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import {
   DatabaseOutlined,
@@ -31,12 +31,13 @@ import {
   PauseCircleOutlined,
   ReloadOutlined,
   TableOutlined,
+  EditOutlined,
 } from '@ant-design/icons';
 import { DatabaseTableNodes } from '../../components/DatabaseTableNodes';
 import { apiService } from '../../services/api';
 import { log } from '../../utils/logger';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 // 自定义节点类型 - 白色主题
 const CustomNode = ({ data }: { data: any }) => {
@@ -72,6 +73,13 @@ const CustomNode = ({ data }: { data: any }) => {
 
   return (
     <div className="px-4 py-3 shadow-sm rounded-lg bg-white border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all">
+      {/* 输入Handle */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: '#1890ff', width: 8, height: 8 }}
+      />
+
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
           <div className="text-lg">{getNodeIcon(data.type)}</div>
@@ -96,6 +104,13 @@ const CustomNode = ({ data }: { data: any }) => {
           ))}
         </div>
       )}
+
+      {/* 输出Handle */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: '#1890ff', width: 8, height: 8 }}
+      />
     </div>
   );
 };
@@ -107,6 +122,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'database' | 'workflow'>('workflow'); // 默认显示工作流节点
+  const navigate = useNavigate();
 
   // 工作流节点示例数据 - 保留以备将来使用
   const workflowNodes: Node[] = [
@@ -367,6 +383,19 @@ const Dashboard: React.FC = () => {
     // 可以在这里添加表详情处理逻辑
   };
 
+  // 双击进入配置编辑器
+  const handleDoubleClick = () => {
+    log.info('用户双击进入配置编辑器', { fromView: viewMode }, 'ui', 'Dashboard');
+
+    // 显示提示信息
+    message.info('正在打开配置编辑器...', 1);
+
+    // 延迟导航以显示消息
+    setTimeout(() => {
+      navigate('/config-editor');
+    }, 500);
+  };
+
   // 工作流视图的状态 - 必须在所有条件渲染之前
   const [workflowNodesState, setWorkflowNodesState, onWorkflowNodesChange] = useNodesState(workflowNodes);
   const [workflowEdgesState, setWorkflowEdgesState, onWorkflowEdgesChange] = useEdgesState(workflowEdges);
@@ -431,15 +460,39 @@ const Dashboard: React.FC = () => {
             >
               数据库表
             </Button>
+            <Button
+              type="default"
+              size="small"
+              icon={<EditOutlined />}
+              onClick={handleDoubleClick}
+              title="双击画布区域也可以进入配置编辑器"
+            >
+              配置编辑器
+            </Button>
+          </Space>
+        </div>
+
+        {/* 双击提示 */}
+        <div className="absolute bottom-4 left-4 z-10 bg-white bg-opacity-90 rounded-lg shadow-sm border border-gray-200 px-3 py-2">
+          <Space size="small">
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              💡 双击画布区域打开配置编辑器
+            </Text>
           </Space>
         </div>
 
         {/* 内容区域 */}
         {viewMode === 'database' ? (
-          <DatabaseTableNodes
-            schema={schema}
-            onTableSelect={handleTableSelect}
-          />
+          <div
+            className="w-full h-full cursor-pointer"
+            onDoubleClick={handleDoubleClick}
+            title="双击进入配置编辑器"
+          >
+            <DatabaseTableNodes
+              schema={schema}
+              onTableSelect={handleTableSelect}
+            />
+          </div>
         ) : (
           <ReactFlowProvider>
             <ReactFlow
@@ -451,8 +504,13 @@ const Dashboard: React.FC = () => {
               nodeTypes={{ custom: CustomNode }}
               connectionMode="loose"
               fitView
-              style={{ width: '100%', height: '100%' }}
+              style={{ width: '100%', height: '100%', cursor: 'pointer' }}
               className="bg-gray-50"
+              onDoubleClick={handleDoubleClick}
+              onPaneClick={() => {
+                // 点击空白区域时也可以进入配置编辑器
+                log.debug('用户点击画布空白区域', null, 'ui', 'Dashboard');
+              }}
             >
               <Background color="#e5e7eb" gap={20} />
               <Controls

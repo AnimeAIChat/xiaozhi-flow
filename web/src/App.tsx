@@ -11,6 +11,7 @@ import DevTools from './components/DevTools';
 const Setup = React.lazy(() => import('./pages/Setup'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Config = React.lazy(() => import('./pages/Config'));
+const ConfigEditor = React.lazy(() => import('./pages/ConfigEditor'));
 const Login = React.lazy(() => import('./pages/Login'));
 
 // 加载组件
@@ -79,6 +80,16 @@ const App: React.FC = () => {
                     <SystemInitializer>
                       <ErrorBoundary componentName="Config">
                         <Config />
+                      </ErrorBoundary>
+                    </SystemInitializer>
+                  }
+                />
+                <Route
+                  path="/config-editor"
+                  element={
+                    <SystemInitializer>
+                      <ErrorBoundary componentName="ConfigEditor">
+                        <ConfigEditor />
                       </ErrorBoundary>
                     </SystemInitializer>
                   }

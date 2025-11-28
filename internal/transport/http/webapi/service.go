@@ -105,6 +105,16 @@ func (s *Service) registerAdminRoutes(router *gin.RouterGroup) {
 	{
 		securedGroup.GET("/system", s.handleSystemGet)
 		securedGroup.GET("/system/providers/:type", s.handleSystemProvidersType)
+
+		// 配置管理路由
+		configGroup := securedGroup.Group("/config")
+		{
+			configGroup.GET("/records", s.handleGetConfigRecords)
+			configGroup.POST("/records", s.handleCreateConfigRecord)
+			configGroup.GET("/records/:id", s.handleGetConfigRecord)
+			configGroup.PUT("/records/:id", s.handleUpdateConfigRecord)
+			configGroup.DELETE("/records/:id", s.handleDeleteConfigRecord)
+		}
 	}
 
 	// 需要管理员权限的分组
