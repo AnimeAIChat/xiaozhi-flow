@@ -12,16 +12,24 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
   const navigate = useNavigate();
   const { data: systemStatus, isLoading, error } = useSystemStatus();
   const [initialized, setInitialized] = useState(false);
+  const [lastLoggedState, setLastLoggedState] = useState<string>('');
 
   useEffect(() => {
     if (!isLoading) {
-      log.debug('系统初始化器状态检查', {
-        systemStatus,
-        error,
-        currentPath: window.location.pathname
-      }, 'system', 'SystemInitializer');
-
       const currentPath = window.location.pathname;
+
+      // 创建状态键来避免重复日志
+      const stateKey = `${systemStatus?.initialized}-${systemStatus?.needs_setup}-${error?.message || 'no-error'}-${currentPath}`;
+
+      // 只在状态真正发生变化时记录日志
+      if (stateKey !== lastLoggedState) {
+        setLastLoggedState(stateKey);
+        log.debug('系统初始化器状态检查', {
+          systemStatus: systemStatus ? { initialized: systemStatus.initialized, needs_setup: systemStatus.needs_setup } : null,
+          error: error ? error.message : null,
+          currentPath
+        }, 'system', 'SystemInitializer');
+      }
 
       // 如果正在配置页面，允许访问并跳过路由检查
       if (currentPath === '/config') {
@@ -54,7 +62,7 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
             }, 100);
             return;
           } else if (currentPath === '/dashboard') {
-            log.info('系统已初始化，允许访问仪表板', { currentPath, systemStatus }, 'system', 'SystemInitializer');
+            log.info('系统已初始化，允许访问仪表板', { currentPath }, 'system', 'SystemInitializer');
             setInitialized(true);
           } else {
             // 其他页面也允许访问

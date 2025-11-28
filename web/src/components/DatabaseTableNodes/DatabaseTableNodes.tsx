@@ -189,11 +189,6 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
   );
 };
 
-// 节点类型定义
-const nodeTypes = {
-  table: TableNodeComponent,
-};
-
 // 组件Props类型
 interface DatabaseTableNodesProps {
   schema: DatabaseSchema;
@@ -205,6 +200,10 @@ export const DatabaseTableNodes: React.FC<DatabaseTableNodesProps> = ({
   schema,
   onTableSelect,
 }) => {
+  // 记忆化节点类型定义以避免 React Flow 警告
+  const nodeTypes = useMemo(() => ({
+    table: TableNodeComponent,
+  }), []);
 
   // 将数据库schema转换为ReactFlow的节点和边
   const { initialNodes, initialEdges } = useMemo(() => {

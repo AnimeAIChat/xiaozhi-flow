@@ -114,7 +114,7 @@ export const envConfig: EnvConfig = {
   enableApiDebugging: getEnvBoolean('VITE_ENABLE_API_DEBUGGING', true),
 
   // 日志配置
-  logLevel: (getEnvVar('VITE_LOG_LEVEL', 'debug') as 'debug' | 'info' | 'warn' | 'error'),
+  logLevel: (getEnvVar('VITE_LOG_LEVEL', 'warn') as 'debug' | 'info' | 'warn' | 'error'),
   logMaxEntries: getEnvNumber('VITE_LOG_MAX_ENTRIES', 1000),
   logPersistToStorage: getEnvBoolean('VITE_LOG_PERSIST_TO_STORAGE', true),
   logIncludeTimestamp: getEnvBoolean('VITE_LOG_INCLUDE_TIMESTAMP', true),

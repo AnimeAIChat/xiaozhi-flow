@@ -1,11 +1,14 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { theme } from 'antd';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import { QueryProvider } from './components/QueryProvider';
 import SystemInitializer from './components/SystemInitializer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import DevTools from './components/DevTools';
+import { AuthProvider } from './contexts/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import SmartRootRoute from './components/SmartRootRoute';
+import { log } from './utils/logger';
 
 // 页面组件
 const Setup = React.lazy(() => import('./pages/Setup'));
@@ -13,6 +16,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Config = React.lazy(() => import('./pages/Config'));
 const ConfigEditor = React.lazy(() => import('./pages/ConfigEditor'));
 const Login = React.lazy(() => import('./pages/Login'));
+const Register = React.lazy(() => import('./pages/Register'));
 
 // 加载组件
 const LoadingSpinner: React.FC = () => (
@@ -29,7 +33,7 @@ const LoadingSpinner: React.FC = () => (
 );
 
 // 需要系统初始化检查的组件包装器
-const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+const SystemRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <SystemInitializer>
     {children}
   </SystemInitializer>
@@ -48,67 +52,115 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary onError={handleGlobalError} componentName="App">
       <QueryProvider>
-        <Router>
-          <React.Suspense fallback={<LoadingSpinner />}>
-            <div className="App min-h-screen bg-white text-gray-900">
-              <Routes>
-                <Route path="/" element={<SystemInitializer><Setup /></SystemInitializer>} />
-                <Route path="/setup" element={<SystemInitializer><Setup /></SystemInitializer>} />
-                <Route
-                  path="/dashboard"
-                  element={
-                    <SystemInitializer>
-                      <ErrorBoundary componentName="Dashboard">
-                        <Dashboard />
-                      </ErrorBoundary>
-                    </SystemInitializer>
-                  }
-                />
-                <Route
-                  path="/flow"
-                  element={
-                    <SystemInitializer>
-                      <ErrorBoundary componentName="Dashboard">
-                        <Dashboard />
-                      </ErrorBoundary>
-                    </SystemInitializer>
-                  }
-                />
-                <Route
-                  path="/config"
-                  element={
-                    <SystemInitializer>
-                      <ErrorBoundary componentName="Config">
-                        <Config />
-                      </ErrorBoundary>
-                    </SystemInitializer>
-                  }
-                />
-                <Route
-                  path="/config-editor"
-                  element={
-                    <SystemInitializer>
-                      <ErrorBoundary componentName="ConfigEditor">
-                        <ConfigEditor />
-                      </ErrorBoundary>
-                    </SystemInitializer>
-                  }
-                />
-                <Route
-                  path="/login"
-                  element={
-                    <SystemInitializer>
+        <AuthProvider>
+          <Router>
+            <React.Suspense fallback={<LoadingSpinner />}>
+              <div className="App min-h-screen bg-white text-gray-900">
+                <Routes>
+                  {/* 智能根路由 - 根据认证状态决定重定向 */}
+                  <Route
+                    path="/"
+                    element={
+                      <SystemRoute>
+                        <ErrorBoundary componentName="SmartRootRoute">
+                          <SmartRootRoute>
+                            <ErrorBoundary componentName="Setup">
+                              <Setup />
+                            </ErrorBoundary>
+                          </SmartRootRoute>
+                        </ErrorBoundary>
+                      </SystemRoute>
+                    }
+                  />
+
+                  {/* Setup 页面路由 - 明确访问 setup 路径 */}
+                  <Route
+                    path="/setup"
+                    element={
+                      <SystemRoute>
+                        <ErrorBoundary componentName="Setup">
+                          <Setup />
+                        </ErrorBoundary>
+                      </SystemRoute>
+                    }
+                  />
+
+                  {/* 认证路由 - 不需要系统初始化检查 */}
+                  <Route
+                    path="/login"
+                    element={
                       <ErrorBoundary componentName="Login">
                         <Login />
                       </ErrorBoundary>
-                    </SystemInitializer>
-                  }
-                />
-              </Routes>
-              <DevTools />
-            </div>
-          </React.Suspense>
-        </Router>
+                    }
+                  />
+                  <Route
+                    path="/register"
+                    element={
+                      <ErrorBoundary componentName="Register">
+                        <Register />
+                      </ErrorBoundary>
+                    }
+                  />
+
+                  {/* 需要认证和系统初始化的路由 */}
+                  <Route
+                    path="/dashboard"
+                    element={
+                      <SystemRoute>
+                        <ProtectedRoute>
+                          <ErrorBoundary componentName="Dashboard">
+                            <Dashboard />
+                          </ErrorBoundary>
+                        </ProtectedRoute>
+                      </SystemRoute>
+                    }
+                  />
+                  <Route
+                    path="/flow"
+                    element={
+                      <SystemRoute>
+                        <ProtectedRoute>
+                          <ErrorBoundary componentName="Dashboard">
+                            <Dashboard />
+                          </ErrorBoundary>
+                        </ProtectedRoute>
+                      </SystemRoute>
+                    }
+                  />
+                  <Route
+                    path="/config"
+                    element={
+                      <SystemRoute>
+                        <ProtectedRoute>
+                          <ErrorBoundary componentName="Config">
+                            <Config />
+                          </ErrorBoundary>
+                        </ProtectedRoute>
+                      </SystemRoute>
+                    }
+                  />
+                  <Route
+                    path="/config-editor"
+                    element={
+                      <SystemRoute>
+                        <ProtectedRoute>
+                          <ErrorBoundary componentName="ConfigEditor">
+                            <ConfigEditor />
+                          </ErrorBoundary>
+                        </ProtectedRoute>
+                      </SystemRoute>
+                    }
+                  />
+
+                  {/* 默认重定向 */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+                <DevTools />
+              </div>
+            </React.Suspense>
+          </Router>
+        </AuthProvider>
       </QueryProvider>
     </ErrorBoundary>
   );

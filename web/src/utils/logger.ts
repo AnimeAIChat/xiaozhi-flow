@@ -124,6 +124,24 @@ class Logger {
   private setupGlobalErrorHandling() {
     // 监听未捕获的 JavaScript 错误
     window.addEventListener('error', (event) => {
+      // 过滤掉已知无害的错误
+      const ignoredErrors = [
+        'ResizeObserver loop completed with undelivered notifications',
+        'React DevTools',
+        'Download the React DevTools',
+        'Immersion Translate ERROR: UnknownError: Model not available'
+      ];
+
+      if (ignoredErrors.some(ignored => event.message && event.message.includes(ignored))) {
+        // 这些是已知的无害错误或开发工具信息，忽略它们
+        return;
+      }
+
+      // 过滤 React Router 的未来版本警告
+      if (event.message && event.message.includes('React Router Future Flag Warning')) {
+        return;
+      }
+
       this.error('未捕获的 JavaScript 错误', {
         message: event.message,
         filename: event.filename,
@@ -140,6 +158,109 @@ class Logger {
         stack: event.reason?.stack,
       }, 'Promise');
     });
+
+    // 重写 console 方法来过滤开发日志
+    this.filterConsoleLogs();
+  }
+
+  // 过滤控制台日志
+  private filterConsoleLogs() {
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalInfo = console.info;
+
+    console.log = (...args: any[]) => {
+      const message = args.join(' ');
+
+      // 过滤掉 Storage 操作的详细日志
+      if (message.includes('Storage:') &&
+          (message.includes('called, result:') ||
+           message.includes('completed') ||
+           message.includes('called, token length:') ||
+           message.includes('called, username:') ||
+           message.includes('called, expiresAt:') ||
+           message.includes('removeToken called') ||
+           message.includes('removeUser called') ||
+           message.includes('removeExpiresAt called') ||
+           message.includes('clear called'))) {
+        return;
+      }
+
+      // 过滤掉 AuthContext 的详细调试日志
+      if (message.includes('AuthContext:') &&
+          (message.includes('saveAuthData called') ||
+           message.includes('saveAuthData completed') ||
+           message.includes('Login successful') ||
+           message.includes('Saving auth data') ||
+           message.includes('Verifying stored data') ||
+           message.includes('Login state updated') ||
+           message.includes('Found token in storage') ||
+           message.includes('checkAuth called') ||
+           message.includes('Stored auth data') ||
+           message.includes('Server validation successful') ||
+           message.includes('Using cached auth data') ||
+           message.includes('Initializing auth on mount'))) {
+        return;
+      }
+
+      // 过滤掉 Login 组件的重复 useEffect 日志
+      if (message.includes('Login useEffect:')) {
+        return;
+      }
+
+      // 过滤掉 React 的开发工具提示
+      if (message.includes('Download the React DevTools')) {
+        return;
+      }
+
+      // 过滤掉 WebSocket 连接日志
+      if (message.includes('[rsbuild] WebSocket')) {
+        return;
+      }
+
+      // 调用原始方法
+      return originalLog.apply(console, args);
+    };
+
+    console.info = (...args: any[]) => {
+      const message = args.join(' ');
+
+      // 过滤掉系统初始化器的重复日志
+      if (message.includes('[system]') &&
+          (message.includes('系统已初始化，允许访问仪表板') ||
+           message.includes('系统已初始化，允许访问页面'))) {
+        return;
+      }
+
+      // 过滤掉 API 调用的重复成功日志
+      if (message.includes('[api]') &&
+          (message.includes('✅ GET /auth/me') ||
+           message.includes('✅ GET /admin/system/status') ||
+           message.includes('✅ GET /admin/database/schema'))) {
+        return;
+      }
+
+      // 调用原始方法
+      return originalInfo.apply(console, args);
+    };
+
+    console.warn = (...args: any[]) => {
+      const message = args.join(' ');
+
+      // 过滤掉各种开发警告
+      const ignoredWarnings = [
+        'React Router Future Flag Warning',
+        'React Flow',
+        'It looks like you\'ve created a new nodeTypes or edgeTypes object'
+      ];
+
+      if (ignoredWarnings.some(warning => message.includes(warning))) {
+        return;
+      }
+
+      // 调用原始方法
+      return originalWarn.apply(console, args);
+    };
   }
 
   // 设置性能监控
@@ -399,6 +520,71 @@ class Logger {
 
   // === 公共 API ===
 
+  // 美化的 API 响应日志
+  apiResponse(method: string, url: string, status: number, duration: number, data?: any) {
+    if (!this.shouldLog(LogLevel.INFO)) return;
+
+    const statusIcon = status >= 200 && status < 300 ? '✅' : status >= 400 ? '❌' : '⚠️';
+
+    // 美化响应数据
+    let beautifiedData = '';
+    if (data) {
+      if (typeof data === 'object') {
+        if (data.success !== undefined) {
+          beautifiedData = `Status: ${data.success ? 'SUCCESS' : 'FAILED'}`;
+          if (data.message) beautifiedData += ` | Message: ${data.message}`;
+          if (data.code) beautifiedData += ` | Code: ${data.code}`;
+        } else if (data.total !== undefined) {
+          beautifiedData = `Total: ${data.total} items`;
+        } else {
+          beautifiedData = `${Object.keys(data).length} data fields`;
+        }
+      } else {
+        beautifiedData = String(data);
+      }
+    }
+
+    const message = `${statusIcon} ${method} ${url} - ${status} (${duration}ms)${beautifiedData ? ` | ${beautifiedData}` : ''}`;
+
+    const entry = this.createLogEntry(LogLevel.INFO, message, {
+      method,
+      url,
+      status,
+      duration,
+      data: this.sanitizeApiData(data)
+    }, 'api', 'ApiService');
+
+    this.addLogEntry(entry);
+  }
+
+  // 清理 API 数据以便日志记录
+  private sanitizeApiData(data: any): any {
+    if (!data || typeof data !== 'object') return data;
+
+    try {
+      // 移除敏感字段和过长的内容
+      const sanitized = { ...data };
+
+      // 移除可能的敏感字段
+      const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
+      sensitiveFields.forEach(field => {
+        if (sanitized[field]) {
+          sanitized[field] = '[REDACTED]';
+        }
+      });
+
+      // 如果数据太大，只显示摘要
+      const jsonStr = JSON.stringify(sanitized);
+      if (jsonStr.length > 1000) {
+        return '[Large data object - ' + jsonStr.length + ' characters]';
+      }
+
+      return sanitized;
+    } catch {
+      return '[Unserializable data]';
+    }
+  }
+
   debug(message: string, data?: any, category?: string, source?: string) {
     if (!this.shouldLog(LogLevel.DEBUG)) return;
     const entry = this.createLogEntry(LogLevel.DEBUG, message, data, category, source);
@@ -568,6 +754,7 @@ export const log = {
   performance: (name: string, value: number, unit?: 'ms' | 'bytes' | 'count' | 'percentage', category?: string, tags?: Record<string, string>) => logger.performance(name, value, unit, category, tags),
   time: (label: string, category?: string) => logger.time(label, category),
   timeEnd: (label: string, category?: string) => logger.timeEnd(label, category),
+  apiResponse: (method: string, url: string, status: number, duration: number, data?: any) => logger.apiResponse(method, url, status, duration, data),
 };
 
 export default logger;

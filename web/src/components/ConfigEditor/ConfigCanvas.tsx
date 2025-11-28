@@ -266,11 +266,6 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
   );
 };
 
-// 节点类型定义
-const nodeTypes = {
-  config: ConfigNodeComponent,
-};
-
 // 主组件 Props
 interface ConfigCanvasProps {
   initialMode?: ConfigEditMode;
@@ -295,6 +290,11 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
   // ReactFlow 实例引用
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
+
+  // 记忆化节点类型定义以避免 React Flow 警告
+  const nodeTypes = useMemo(() => ({
+    config: ConfigNodeComponent,
+  }), []);
 
   // 加载配置数据
   useEffect(() => {

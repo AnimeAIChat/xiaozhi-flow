@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
+	"xiaozhi-server-go/internal/domain/auth"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
 	"xiaozhi-server-go/internal/platform/storage"
@@ -53,6 +55,13 @@ func NewService(config *config.Config, logger *utils.Logger) (*Service, error) {
 
 // Register 注册WebAPI相关的HTTP路由
 func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) error {
+	// 认证相关路由 (公开访问)
+	authGroup := router.Group("/auth")
+	{
+		authGroup.POST("/login", s.handleLogin)
+		authGroup.POST("/register", s.handleRegister)
+	}
+
 	// 基础路由
 	router.GET("/cfg", s.handleCfgGet)
 	router.POST("/cfg", s.handleCfgPost)
@@ -76,6 +85,22 @@ func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) error {
 	// 提供商相关路由 (暂时返回未实现)
 	router.GET("/providers", s.handleProvidersNotImplemented)
 	router.POST("/providers", s.handleProvidersNotImplemented)
+
+	// 需要认证的路由
+	protectedGroup := router.Group("")
+	protectedGroup.Use(s.authMiddleware())
+	{
+		// 认证相关路由 (需要认证)
+		authProtectedGroup := protectedGroup.Group("/auth")
+		{
+			authProtectedGroup.GET("/me", s.handleMe)
+			authProtectedGroup.POST("/refresh", s.handleRefresh)
+			authProtectedGroup.DELETE("/logout", s.handleLogout)
+			authProtectedGroup.DELETE("/logout-all", s.handleLogoutAll)
+		}
+
+		// 其他需要认证的路由可以在这里添加
+	}
 
 	// 管理员路由
 	s.registerAdminRoutes(router)
@@ -405,16 +430,91 @@ func (s *Service) authMiddleware() gin.HandlerFunc {
 			token = token[7:]
 		}
 
-		// TODO: JWT验证逻辑暂时简化
-		if token == "" {
-			s.logger.Error("无效的token")
+		// JWT验证
+		tokenManager := auth.NewAuthToken(s.config.Server.Token)
+		valid, clientID, err := tokenManager.VerifyToken(token)
+		if err != nil || !valid {
+			s.logger.Error("无效的token: %v", err)
 			s.respondError(c, http.StatusUnauthorized, "无效的token")
 			c.Abort()
 			return
 		}
 
+		// 提取用户信息并存储到上下文中
+		if err := s.extractUserContext(c, clientID); err != nil {
+			s.logger.Error("Failed to extract user context: %v", err)
+			s.respondError(c, http.StatusUnauthorized, "用户认证信息无效")
+			c.Abort()
+			return
+		}
+
+		// 存储客户端ID到上下文
+		c.Set("client_id", clientID)
+
 		c.Next()
 	}
+}
+
+// extractUserContext 从客户端ID中提取用户信息并存储到上下文中
+func (s *Service) extractUserContext(c *gin.Context, clientID string) error {
+	// 尝试从auth manager获取客户端信息
+	authHandler, err := NewAuthHandler(s.logger, s.config)
+	if err != nil {
+		return fmt.Errorf("failed to create auth handler: %w", err)
+	}
+	defer authHandler.Close()
+
+	clientInfo, err := authHandler.authManager.Get(c.Request.Context(), clientID)
+	if err != nil {
+		// 如果无法从auth manager获取，尝试从clientID解析
+		return s.extractUserFromClientID(c, clientID)
+	}
+
+	// 从metadata中提取用户信息
+	if clientInfo.Metadata != nil {
+		if userID, exists := clientInfo.Metadata["user_id"]; exists {
+			c.Set("user_id", userID)
+		}
+		if userRole, exists := clientInfo.Metadata["user_role"]; exists {
+			c.Set("user_role", userRole)
+		}
+		if userEmail, exists := clientInfo.Metadata["user_email"]; exists {
+			c.Set("user_email", userEmail)
+		}
+	}
+
+	// 存储用户名
+	c.Set("username", clientInfo.Username)
+
+	return nil
+}
+
+// extractUserFromClientID 从客户端ID解析用户信息（备用方案）
+func (s *Service) extractUserFromClientID(c *gin.Context, clientID string) error {
+	// clientID格式: web_{userID}_{timestamp}
+	parts := strings.Split(clientID, "_")
+	if len(parts) >= 3 && parts[0] == "web" {
+		if userIDStr := parts[1]; userIDStr != "" {
+			if userID, err := strconv.ParseUint(userIDStr, 10, 32); err == nil {
+				userIDUint := uint(userID)
+				c.Set("user_id", userIDUint)
+
+				// 从数据库获取用户信息
+				db := storage.GetDB()
+				if db != nil {
+					var user storage.User
+					if err := db.First(&user, userIDUint).Error; err == nil {
+						c.Set("username", user.Username)
+						c.Set("user_role", user.Role)
+						c.Set("user_email", user.Email)
+						return nil
+					}
+				}
+			}
+		}
+	}
+
+	return fmt.Errorf("invalid client ID format: %s", clientID)
 }
 
 // adminMiddleware 管理员权限中间件

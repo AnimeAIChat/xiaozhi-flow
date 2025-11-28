@@ -116,6 +116,11 @@ const CustomNode = ({ data }: { data: any }) => {
 };
 
 
+// 将 nodeTypes 定义移到组件外部以避免重新渲染警告
+const workflowNodeTypes = {
+  custom: CustomNode,
+};
+
 // Dashboard 组件 - 支持切换显示数据库表结构或工作流节点
 const Dashboard: React.FC = () => {
   const [schema, setSchema] = useState(null);
@@ -501,7 +506,7 @@ const Dashboard: React.FC = () => {
               onNodesChange={onWorkflowNodesChange}
               onEdgesChange={onWorkflowEdgesChange}
               onConnect={onWorkflowConnect}
-              nodeTypes={{ custom: CustomNode }}
+              nodeTypes={workflowNodeTypes}
               connectionMode="loose"
               fitView
               style={{ width: '100%', height: '100%', cursor: 'pointer' }}
