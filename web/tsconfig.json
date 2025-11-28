@@ -3,7 +3,6 @@
     "lib": ["DOM", "ES2020"],
     "jsx": "react-jsx",
     "target": "ES2020",
-    "noEmit": true,
     "skipLibCheck": true,
     "useDefineForClassFields": true,
 
@@ -19,7 +18,61 @@
     /* type checking */
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true
+    "noUnusedParameters": true,
+
+    /* source mapping - 调试支持 */
+    "sourceMap": true,
+    "inlineSourceMap": false,
+    "removeComments": false,
+    "preserveConstEnums": true,
+    "declaration": false,
+    "declarationMap": false,
+
+    /* emit options - 调试友好配置 */
+    "noEmit": false,
+    "noEmitOnError": false,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+
+    /* additional debugging options */
+    "pretty": true,
+    "traceResolution": false,
+    "listFiles": false,
+    "listEmittedFiles": false,
+    "disableSizeLimit": true,
+
+    /* paths for better debugging */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/components/*": ["src/components/*"],
+      "@/pages/*": ["src/pages/*"],
+      "@/services/*": ["src/services/*"],
+      "@/utils/*": ["src/utils/*"],
+      "@/types/*": ["src/types/*"],
+      "@/hooks/*": ["src/hooks/*"],
+      "@/assets/*": ["src/assets/*"]
+    }
   },
-  "include": ["src"]
+  "include": [
+    "src/**/*",
+    "src/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS",
+      "target": "ES2020"
+    }
+  }
 }

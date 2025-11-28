@@ -4,6 +4,8 @@ import { theme } from 'antd';
 import './App.css';
 import { QueryProvider } from './components/QueryProvider';
 import SystemInitializer from './components/SystemInitializer';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import DevTools from './components/DevTools';
 
 // 页面组件
 const Setup = React.lazy(() => import('./pages/Setup'));
@@ -33,51 +35,71 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 );
 
 const App: React.FC = () => {
+  // 全局错误处理函数
+  const handleGlobalError = (error: Error, errorInfo: any) => {
+    log.error('全局错误捕获', {
+      error: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    }, 'global', 'App', error.stack);
+  };
+
   return (
-    <QueryProvider>
-      <Router>
-        <React.Suspense fallback={<LoadingSpinner />}>
-          <div className="App min-h-screen bg-white text-gray-900">
-            <Routes>
-              <Route path="/" element={<SystemInitializer><Setup /></SystemInitializer>} />
-              <Route path="/setup" element={<SystemInitializer><Setup /></SystemInitializer>} />
-              <Route
-                path="/dashboard"
-                element={
-                  <SystemInitializer>
-                    <Dashboard />
-                  </SystemInitializer>
-                }
-              />
-              <Route
-                path="/flow"
-                element={
-                  <SystemInitializer>
-                    <Dashboard />
-                  </SystemInitializer>
-                }
-              />
-              <Route
-                path="/config"
-                element={
-                  <SystemInitializer>
-                    <Config />
-                  </SystemInitializer>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <SystemInitializer>
-                    <Login />
-                  </SystemInitializer>
-                }
-              />
-            </Routes>
-          </div>
-        </React.Suspense>
-      </Router>
-    </QueryProvider>
+    <ErrorBoundary onError={handleGlobalError} componentName="App">
+      <QueryProvider>
+        <Router>
+          <React.Suspense fallback={<LoadingSpinner />}>
+            <div className="App min-h-screen bg-white text-gray-900">
+              <Routes>
+                <Route path="/" element={<SystemInitializer><Setup /></SystemInitializer>} />
+                <Route path="/setup" element={<SystemInitializer><Setup /></SystemInitializer>} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <SystemInitializer>
+                      <ErrorBoundary componentName="Dashboard">
+                        <Dashboard />
+                      </ErrorBoundary>
+                    </SystemInitializer>
+                  }
+                />
+                <Route
+                  path="/flow"
+                  element={
+                    <SystemInitializer>
+                      <ErrorBoundary componentName="Dashboard">
+                        <Dashboard />
+                      </ErrorBoundary>
+                    </SystemInitializer>
+                  }
+                />
+                <Route
+                  path="/config"
+                  element={
+                    <SystemInitializer>
+                      <ErrorBoundary componentName="Config">
+                        <Config />
+                      </ErrorBoundary>
+                    </SystemInitializer>
+                  }
+                />
+                <Route
+                  path="/login"
+                  element={
+                    <SystemInitializer>
+                      <ErrorBoundary componentName="Login">
+                        <Login />
+                      </ErrorBoundary>
+                    </SystemInitializer>
+                  }
+                />
+              </Routes>
+              <DevTools />
+            </div>
+          </React.Suspense>
+        </Router>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 };
 

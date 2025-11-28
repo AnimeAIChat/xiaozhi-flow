@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSystemStatus } from '../hooks/useApi';
 import { Spin } from 'antd';
+import { log } from '../utils/logger';
 
 interface SystemInitializerProps {
   children: React.ReactNode;
@@ -14,17 +15,17 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
 
   useEffect(() => {
     if (!isLoading) {
-      console.log('SystemInitializer Debug:', {
+      log.debug('系统初始化器状态检查', {
         systemStatus,
         error,
         currentPath: window.location.pathname
-      });
+      }, 'system', 'SystemInitializer');
 
       const currentPath = window.location.pathname;
 
       // 如果正在配置页面，允许访问并跳过路由检查
       if (currentPath === '/config') {
-        console.log('SystemInitializer: User is on config page, skipping route checks');
+        log.info('用户在配置页面，跳过路由检查', { currentPath }, 'system', 'SystemInitializer');
         setInitialized(true);
         return;
       }
@@ -34,7 +35,7 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
                                 sessionStorage.getItem('comingFromConfig') === 'true';
 
       if (isComingFromConfig && currentPath === '/dashboard') {
-        console.log('SystemInitializer: Coming from config page to dashboard, allowing access');
+        log.info('从配置页面跳转到仪表板，允许访问', { currentPath, referrer: document.referrer }, 'system', 'SystemInitializer');
         sessionStorage.removeItem('comingFromConfig');
         setInitialized(true);
         return;
@@ -47,29 +48,29 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
         if (isSystemInitialized) {
           // 如果当前在 setup 或根路径，重定向到 dashboard
           if (currentPath === '/' || currentPath === '/setup') {
-            console.log('System already initialized, redirecting to dashboard...');
+            log.info('系统已初始化，重定向到仪表板', { currentPath, systemStatus }, 'system', 'SystemInitializer');
             setTimeout(() => {
               navigate('/dashboard', { replace: true });
             }, 100);
             return;
           } else if (currentPath === '/dashboard') {
-            console.log('System initialized, allowing access to dashboard');
+            log.info('系统已初始化，允许访问仪表板', { currentPath, systemStatus }, 'system', 'SystemInitializer');
             setInitialized(true);
           } else {
             // 其他页面也允许访问
-            console.log('System initialized, allowing access to:', currentPath);
+            log.info('系统已初始化，允许访问页面', { currentPath, systemStatus }, 'system', 'SystemInitializer');
             setInitialized(true);
           }
         } else {
           // 系统未初始化
-          console.log('System not initialized, needs setup');
+          log.info('系统未初始化，需要设置', { currentPath, systemStatus }, 'system', 'SystemInitializer');
           // 只允许访问 setup、config 和根路径
           const allowedPaths = ['/', '/setup', '/config'];
           if (allowedPaths.includes(currentPath)) {
-            console.log('Allowing access to setup page:', currentPath);
+            log.info('允许访问设置页面', { currentPath, allowedPaths }, 'system', 'SystemInitializer');
             setInitialized(true);
           } else {
-            console.log('System not initialized, redirecting to setup...');
+            log.warn('系统未初始化，重定向到设置页面', { currentPath, systemStatus }, 'system', 'SystemInitializer');
             setTimeout(() => {
               navigate('/setup', { replace: true });
             }, 100);
@@ -79,13 +80,14 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
       } else {
         // API 调用出错，只在第一次出错时重定向到 setup
         if (!initialized && currentPath !== '/setup') {
-          console.log('API error, redirecting to setup...', { error });
+          log.error('API调用错误，重定向到设置页面', { error, currentPath }, 'system', 'SystemInitializer', error instanceof Error ? error.stack : undefined);
           setTimeout(() => {
             navigate('/setup', { replace: true });
           }, 100);
           return;
         } else if (currentPath === '/setup') {
           // 如果已经在 setup 页面，即使 API 出错也显示页面
+          log.info('已在设置页面，即使API出错也显示页面', { currentPath }, 'system', 'SystemInitializer');
           setInitialized(true);
         }
       }

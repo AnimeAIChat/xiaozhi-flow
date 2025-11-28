@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { DatabaseTableNodes } from '../../components/DatabaseTableNodes';
 import { apiService } from '../../services/api';
+import { log } from '../../utils/logger';
 
 const { Title } = Typography;
 
@@ -351,7 +352,7 @@ const Dashboard: React.FC = () => {
         setSchema(transformedSchema);
         setError(null);
       } catch (err) {
-        console.error('Failed to load database schema:', err);
+        log.error('数据库表结构加载失败', err, 'database', 'Dashboard', err instanceof Error ? err.stack : undefined);
         setError(err instanceof Error ? err.message : '加载数据库表结构失败');
       } finally {
         setLoading(false);
@@ -362,7 +363,7 @@ const Dashboard: React.FC = () => {
   }, []);
 
   const handleTableSelect = (tableName: string) => {
-    console.log(`选择了表: ${tableName}`);
+    log.info(`用户选择数据库表: ${tableName}`, { tableName }, 'database', 'Dashboard');
     // 可以在这里添加表详情处理逻辑
   };
 
