@@ -257,6 +257,101 @@ export interface SystemMetrics {
   };
 }
 
+// 数据库表节点相关类型
+export interface TableNode {
+  id: string;
+  name: string;
+  type: 'table';
+  schema: string;
+  rowCount?: number;
+  size?: number;
+  columns: ColumnNode[];
+  indexes?: IndexNode[];
+  foreignKeys?: ForeignKeyNode[];
+  position: Position;
+  style?: NodeStyle;
+}
+
+export interface ColumnNode {
+  id: string;
+  name: string;
+  type: string;
+  nullable: boolean;
+  primaryKey: boolean;
+  unique: boolean;
+  defaultValue?: any;
+  description?: string;
+  position: Position;
+}
+
+export interface IndexNode {
+  id: string;
+  name: string;
+  columns: string[];
+  unique: boolean;
+  type: 'btree' | 'hash' | 'gist' | 'gin';
+}
+
+export interface ForeignKeyNode {
+  id: string;
+  name: string;
+  sourceTable: string;
+  sourceColumn: string;
+  targetTable: string;
+  targetColumn: string;
+  onDelete: 'cascade' | 'restrict' | 'set null' | 'set default';
+  onUpdate: 'cascade' | 'restrict' | 'set null' | 'set default';
+}
+
+export interface RelationshipEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: 'foreign_key' | 'one_to_one' | 'one_to_many' | 'many_to_many';
+  label?: string;
+  style?: EdgeStyle;
+}
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
+export interface NodeStyle {
+  backgroundColor?: string;
+  borderColor?: string;
+  borderWidth?: number;
+  textColor?: string;
+  fontSize?: number;
+  width?: number;
+  height?: number;
+}
+
+export interface EdgeStyle {
+  color?: string;
+  width?: number;
+  style?: 'solid' | 'dashed' | 'dotted';
+  arrowType?: 'arrow' | 'arrowclosed';
+}
+
+export interface DatabaseSchema {
+  name: string;
+  type: 'sqlite' | 'mysql' | 'postgresql';
+  tables: TableNode[];
+  relationships: RelationshipEdge[];
+}
+
+export interface TableNodeViewConfig {
+  showColumns: boolean;
+  showIndexes: boolean;
+  showForeignKeys: boolean;
+  showRowCount: boolean;
+  layoutType: 'force' | 'hierarchical' | 'circular' | 'grid';
+  zoomLevel: number;
+  filterText: string;
+  selectedTables: string[];
+}
+
 // 导出所有类型
 export * from './api';
 export * from './particle';

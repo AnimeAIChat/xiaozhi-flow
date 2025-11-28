@@ -293,6 +293,30 @@ export class ApiService {
   }
 
   /**
+   * 获取数据库模式信息
+   */
+  async getDatabaseSchema(): Promise<any> {
+    try {
+      const response = await this.client.get('/admin/database/schema');
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get database schema');
+    }
+  }
+
+  /**
+   * 获取数据库表列表
+   */
+  async getDatabaseTables(): Promise<any> {
+    try {
+      const response = await this.client.get('/admin/database/tables');
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get database tables');
+    }
+  }
+
+  /**
    * 获取基础URL
    */
   getBaseURL(): string {

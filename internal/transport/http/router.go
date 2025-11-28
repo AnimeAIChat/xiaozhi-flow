@@ -3,11 +3,12 @@ package httptransport
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/static"
 	"github.com/gin-gonic/gin"
 
 	"xiaozhi-server-go/internal/platform/config"
@@ -69,16 +70,38 @@ func Build(opts Options) (*Router, error) {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	api := engine.Group("/api")
+
 	staticRoot := opts.StaticRoot
 	if staticRoot == "" {
 		// 默认使用 dist 目录
 		staticRoot = "./web/dist"
 	}
-	// 禁用目录浏览 (indexing: false)
-	engine.Use(static.Serve("/", static.LocalFile(staticRoot, false)))
-	engine.Use(static.Serve("/ota", static.LocalFile(staticRoot, false)))
 
-	api := engine.Group("/api")
+	// 为静态文件创建单独的组，避免与API冲突
+	engine.NoRoute(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		// 如果是API请求，继续处理
+		if strings.HasPrefix(path, "/api") {
+			c.Next()
+			return
+		}
+
+		// 静态文件服务
+		if _, err := os.Stat(staticRoot + path); err == nil {
+			c.File(staticRoot + path)
+			return
+		}
+
+		// SPA fallback
+		if !strings.HasPrefix(path, "/static/") &&
+		   !strings.HasPrefix(path, "/assets/") &&
+		   path != "/favicon.ico" {
+			c.File(staticRoot + "/index.html")
+		} else {
+			c.Status(404)
+		}
+	})
 	var secured *gin.RouterGroup
 	if opts.AuthMiddleware != nil {
 		secured = api.Group("")

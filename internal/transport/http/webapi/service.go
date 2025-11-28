@@ -96,6 +96,8 @@ func (s *Service) registerAdminRoutes(router *gin.RouterGroup) {
 	adminGroup.GET("/system/database-config", s.handleGetDatabaseConfig)
 	adminGroup.POST("/system/init", s.handleSystemInit)
 	adminGroup.GET("/system/status", s.handleSystemStatus)
+	adminGroup.GET("/database/schema", s.handleGetDatabaseSchema)
+	adminGroup.GET("/database/tables", s.handleGetDatabaseTables)
 
 	// 需要认证的分组
 	securedGroup := adminGroup.Group("")
@@ -147,6 +149,7 @@ func (s *Service) handleOptions(c *gin.Context) {
 
 // handleAdminGet 处理管理员服务状态检查
 func (s *Service) handleAdminGet(c *gin.Context) {
+	s.logger.InfoTag("HTTP", "Admin GET called: %s", c.Request.URL.Path)
 	s.respondSuccess(c, http.StatusOK, nil, "Admin service is running")
 }
 
@@ -200,6 +203,57 @@ type InitRequest struct {
 	AdminConfig    AdminConfig           `json:"adminConfig"`
 	Providers      map[string]interface{} `json:"providers"`
 	SystemConfig   interface{}           `json:"systemConfig"`
+}
+
+// TableInfo 表信息结构
+type TableInfo struct {
+	Name      string      `json:"name"`
+	Type      string      `json:"type"`
+	RowCount  int64       `json:"rowCount"`
+	Size      int64       `json:"size"`
+	Columns   []ColumnInfo `json:"columns"`
+	Indexes   []IndexInfo `json:"indexes"`
+	CreatedAt time.Time   `json:"createdAt,omitempty"`
+}
+
+// ColumnInfo 列信息结构
+type ColumnInfo struct {
+	Name         string `json:"name"`
+	Type         string `json:"type"`
+	Nullable     bool   `json:"nullable"`
+	PrimaryKey   bool   `json:"primaryKey"`
+	Unique       bool   `json:"unique"`
+	DefaultValue string `json:"defaultValue,omitempty"`
+	Description  string `json:"description,omitempty"`
+}
+
+// IndexInfo 索引信息结构
+type IndexInfo struct {
+	Name    string   `json:"name"`
+	Columns []string `json:"columns"`
+	Unique  bool     `json:"unique"`
+	Type    string   `json:"type"`
+}
+
+// ForeignKeyInfo 外键信息结构
+type ForeignKeyInfo struct {
+	Name           string `json:"name"`
+	SourceTable    string `json:"sourceTable"`
+	SourceColumn   string `json:"sourceColumn"`
+	TargetTable    string `json:"targetTable"`
+	TargetColumn   string `json:"targetColumn"`
+	OnDelete       string `json:"onDelete"`
+	OnUpdate       string `json:"onUpdate"`
+}
+
+// DatabaseSchema 数据库模式结构
+type DatabaseSchema struct {
+	Name         string           `json:"name"`
+	Type         string           `json:"type"`
+	Tables       []TableInfo      `json:"tables"`
+	Relationships []ForeignKeyInfo `json:"relationships"`
+	TotalTables  int              `json:"totalTables"`
+	TotalRows    int64            `json:"totalRows"`
 }
 
 // handleSystemGet 获取系统配置
@@ -1616,4 +1670,355 @@ func (s *Service) updateConfigAfterInitialization(request InitRequest) error {
 
 	s.logger.InfoTag("系统初始化", "配置文件已更新，系统标记为已初始化")
 	return nil
+}
+
+// handleGetDatabaseSchema 获取数据库模式信息
+// @Summary 获取数据库模式信息
+// @Description 获取数据库中所有表的结构信息，包括列、索引和外键关系
+// @Tags Database
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} DatabaseSchema
+// @Failure 401 {object} object
+// @Failure 500 {object} object
+// @Router /admin/system/database/schema [get]
+func (s *Service) handleGetDatabaseSchema(c *gin.Context) {
+	db := storage.GetDB()
+	if db == nil {
+		s.respondError(c, http.StatusInternalServerError, "Database not available")
+		return
+	}
+
+	// 验证数据库连接
+	if !storage.ValidateDBConnection(db) {
+		s.respondError(c, http.StatusInternalServerError, "Database connection validation failed")
+		return
+	}
+
+	schema, err := s.getDatabaseSchema(db)
+	if err != nil {
+		s.logger.ErrorTag("Database", "Failed to get database schema: %v", err)
+		s.respondError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get database schema: %v", err))
+		return
+	}
+
+	s.respondSuccess(c, http.StatusOK, schema, "Database schema retrieved successfully")
+}
+
+// handleGetDatabaseTables 获取数据库表列表
+// @Summary 获取数据库表列表
+// @Description 获取数据库中所有表的简要信息
+// @Tags Database
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} object
+// @Failure 401 {object} object
+// @Failure 500 {object} object
+// @Router /admin/system/database/tables [get]
+func (s *Service) handleGetDatabaseTables(c *gin.Context) {
+	db := storage.GetDB()
+	if db == nil {
+		s.respondError(c, http.StatusInternalServerError, "Database not available")
+		return
+	}
+
+	// 验证数据库连接
+	if !storage.ValidateDBConnection(db) {
+		s.respondError(c, http.StatusInternalServerError, "Database connection validation failed")
+		return
+	}
+
+	tables, err := s.getDatabaseTables(db)
+	if err != nil {
+		s.logger.ErrorTag("Database", "Failed to get database tables: %v", err)
+		s.respondError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to get database tables: %v", err))
+		return
+	}
+
+	s.respondSuccess(c, http.StatusOK, gin.H{
+		"tables": tables,
+		"total":  len(tables),
+	}, "Database tables retrieved successfully")
+}
+
+// getDatabaseSchema 获取完整的数据库模式信息
+func (s *Service) getDatabaseSchema(db *gorm.DB) (*DatabaseSchema, error) {
+	schema := &DatabaseSchema{
+		Name:         "xiaozhi",
+		Type:         "sqlite",
+		Tables:       []TableInfo{},
+		Relationships: []ForeignKeyInfo{},
+		TotalTables:  0,
+		TotalRows:    0,
+	}
+
+	// 获取数据库表名
+	tableNames, err := s.getTableNames(db)
+	if err != nil {
+		return nil, err
+	}
+
+	schema.TotalTables = len(tableNames)
+
+	// 获取每个表的详细信息
+	for _, tableName := range tableNames {
+		tableInfo, err := s.getTableInfo(db, tableName)
+		if err != nil {
+			s.logger.WarnTag("Database", "Failed to get info for table %s: %v", tableName, err)
+			continue
+		}
+
+		schema.Tables = append(schema.Tables, *tableInfo)
+		schema.TotalRows += tableInfo.RowCount
+	}
+
+	// 获取外键关系
+	foreignKeys, err := s.getForeignKeys(db)
+	if err != nil {
+		s.logger.WarnTag("Database", "Failed to get foreign keys: %v", err)
+	} else {
+		schema.Relationships = foreignKeys
+	}
+
+	return schema, nil
+}
+
+// getDatabaseTables 获取数据库表列表（简要信息）
+func (s *Service) getDatabaseTables(db *gorm.DB) ([]TableInfo, error) {
+	tableNames, err := s.getTableNames(db)
+	if err != nil {
+		return nil, err
+	}
+
+	tables := make([]TableInfo, 0, len(tableNames))
+
+	for _, tableName := range tableNames {
+		// 获取基本表信息（行数和大小）
+		var count int64
+		if err := db.Raw(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&count).Error; err != nil {
+			s.logger.WarnTag("Database", "Failed to get row count for table %s: %v", tableName, err)
+			count = 0
+		}
+
+		table := TableInfo{
+			Name:     tableName,
+			Type:     "table",
+			RowCount: count,
+			Size:     0, // SQLite中获取表大小比较复杂，暂时为0
+		}
+
+		tables = append(tables, table)
+	}
+
+	return tables, nil
+}
+
+// getTableNames 获取所有表名
+func (s *Service) getTableNames(db *gorm.DB) ([]string, error) {
+	var tableNames []string
+
+	// SQLite 获取表名的方式
+	rows, err := db.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name").Rows()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query table names: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
+			continue
+		}
+		tableNames = append(tableNames, tableName)
+	}
+
+	return tableNames, nil
+}
+
+// getTableInfo 获取表的详细信息
+func (s *Service) getTableInfo(db *gorm.DB, tableName string) (*TableInfo, error) {
+	tableInfo := &TableInfo{
+		Name:    tableName,
+		Type:    "table",
+		Columns: []ColumnInfo{},
+		Indexes: []IndexInfo{},
+	}
+
+	// 获取行数
+	if err := db.Raw(fmt.Sprintf("SELECT COUNT(*) FROM %s", tableName)).Scan(&tableInfo.RowCount).Error; err != nil {
+		tableInfo.RowCount = 0
+	}
+
+	// 获取列信息
+	columns, err := s.getTableColumns(db, tableName)
+	if err != nil {
+		s.logger.WarnTag("Database", "Failed to get columns for table %s: %v", tableName, err)
+	} else {
+		tableInfo.Columns = columns
+	}
+
+	// 获取索引信息
+	indexes, err := s.getTableIndexes(db, tableName)
+	if err != nil {
+		s.logger.WarnTag("Database", "Failed to get indexes for table %s: %v", tableName, err)
+	} else {
+		tableInfo.Indexes = indexes
+	}
+
+	return tableInfo, nil
+}
+
+// getTableColumns 获取表的列信息
+func (s *Service) getTableColumns(db *gorm.DB, tableName string) ([]ColumnInfo, error) {
+	var columns []ColumnInfo
+
+	rows, err := db.Raw(fmt.Sprintf("PRAGMA table_info(%s)", tableName)).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get table info for %s: %w", tableName, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull, pk int
+		var defaultValue interface{}
+
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			continue
+		}
+
+		column := ColumnInfo{
+			Name:       name,
+			Type:       dataType,
+			Nullable:   notNull == 0,
+			PrimaryKey: pk == 1,
+		}
+
+		if defaultValue != nil {
+			if str, ok := defaultValue.(string); ok {
+				column.DefaultValue = str
+			} else {
+				column.DefaultValue = fmt.Sprintf("%v", defaultValue)
+			}
+		}
+
+		columns = append(columns, column)
+	}
+
+	return columns, nil
+}
+
+// getTableIndexes 获取表的索引信息
+func (s *Service) getTableIndexes(db *gorm.DB, tableName string) ([]IndexInfo, error) {
+	var indexes []IndexInfo
+
+	rows, err := db.Raw(fmt.Sprintf("PRAGMA index_list(%s)", tableName)).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get index list for table %s: %w", tableName, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var seq int
+		var name string
+		var unique int
+		var origin string
+		var partial int
+
+		if err := rows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
+			continue
+		}
+
+		// 获取索引的列信息
+		columns, err := s.getIndexColumns(db, name)
+		if err != nil {
+			s.logger.WarnTag("Database", "Failed to get columns for index %s: %v", name, err)
+			continue
+		}
+
+		index := IndexInfo{
+			Name:    name,
+			Columns: columns,
+			Unique:  unique == 1,
+			Type:    "btree", // SQLite默认使用btree
+		}
+
+		indexes = append(indexes, index)
+	}
+
+	return indexes, nil
+}
+
+// getIndexColumns 获取索引的列信息
+func (s *Service) getIndexColumns(db *gorm.DB, indexName string) ([]string, error) {
+	var columns []string
+
+	rows, err := db.Raw(fmt.Sprintf("PRAGMA index_info(%s)", indexName)).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get index info for %s: %w", indexName, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var seq int
+		var cid int
+		var name string
+
+		if err := rows.Scan(&seq, &cid, &name); err != nil {
+			continue
+		}
+
+		columns = append(columns, name)
+	}
+
+	return columns, nil
+}
+
+// getForeignKeys 获取外键关系信息
+func (s *Service) getForeignKeys(db *gorm.DB) ([]ForeignKeyInfo, error) {
+	var foreignKeys []ForeignKeyInfo
+
+	// 获取所有表名
+	tableNames, err := s.getTableNames(db)
+	if err != nil {
+		return nil, err
+	}
+
+	// 遍历每个表获取外键信息
+	for _, tableName := range tableNames {
+		rows, err := db.Raw(fmt.Sprintf("PRAGMA foreign_key_list(%s)", tableName)).Rows()
+		if err != nil {
+			continue // 有些表可能没有外键，忽略错误
+		}
+
+		for rows.Next() {
+			var id int
+			var seq int
+			var table string
+			var from string
+			var to string
+			var on_update, on_delete string
+			var match string
+
+			if err := rows.Scan(&id, &seq, &table, &from, &to, &on_update, &on_delete, &match); err != nil {
+				continue
+			}
+
+			foreignKey := ForeignKeyInfo{
+				Name:         fmt.Sprintf("fk_%s_%s", tableName, table),
+				SourceTable:  tableName,
+				SourceColumn: from,
+				TargetTable:  table,
+				TargetColumn: to,
+				OnDelete:     on_delete,
+				OnUpdate:     on_update,
+			}
+
+			foreignKeys = append(foreignKeys, foreignKey)
+		}
+		rows.Close()
+	}
+
+	return foreignKeys, nil
 }

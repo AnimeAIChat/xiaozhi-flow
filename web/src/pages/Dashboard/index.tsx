@@ -1,21 +1,26 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   ReactFlow,
-  MiniMap,
-  Controls,
-  Background,
-  useNodesState,
-  useEdgesState,
-  addEdge,
   Node,
   Edge,
-  Connection,
-  ConnectionMode,
+  addEdge,
+  ConnectionLineType,
   Panel,
-} from '@xyflow/react';
+  useNodesState,
+  useEdgesState,
+  Controls,
+  MiniMap,
+  Background,
+  BackgroundVariant,
+  Handle,
+  Position,
+  NodeProps,
+  ReactFlowProvider,
+} from 'reactflow';
 import '@xyflow/react/dist/style.css';
 import { FullscreenLayout } from '../../components/layout';
-import { Card, Typography, Space, Button, Tag } from 'antd';
+import { Card, Typography, Space, Button, Tag, Switch } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import {
   DatabaseOutlined,
   ApiOutlined,
@@ -25,7 +30,10 @@ import {
   PlayCircleOutlined,
   PauseCircleOutlined,
   ReloadOutlined,
+  TableOutlined,
 } from '@ant-design/icons';
+import { DatabaseTableNodes } from '../../components/DatabaseTableNodes';
+import { apiService } from '../../services/api';
 
 const { Title } = Typography;
 
@@ -91,14 +99,16 @@ const CustomNode = ({ data }: { data: any }) => {
   );
 };
 
-// 节点类型定义
-const nodeTypes = {
-  custom: CustomNode,
-};
 
+// Dashboard 组件 - 支持切换显示数据库表结构或工作流节点
 const Dashboard: React.FC = () => {
-  // 初始节点数据 - 工作流节点
-  const initialNodes: Node[] = [
+  const [schema, setSchema] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'database' | 'workflow'>('database');
+
+  // 工作流节点示例数据 - 保留以备将来使用
+  const workflowNodes: Node[] = [
     {
       id: '1',
       type: 'custom',
@@ -213,8 +223,8 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  // 初始边数据 - 工作流连接
-  const initialEdges: Edge[] = [
+  // 工作流边示例数据 - 保留以备将来使用
+  const workflowEdges: Edge[] = [
     {
       id: 'e1-2',
       source: '1',
@@ -285,98 +295,182 @@ const Dashboard: React.FC = () => {
     },
   ];
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  useEffect(() => {
+    const loadDatabaseSchema = async () => {
+      try {
+        setLoading(true);
+        const data = await apiService.getDatabaseSchema();
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
-
-  const handleStartAll = () => {
-    setNodes((nodes) =>
-      nodes.map((node) => ({
-        ...node,
-        data: { ...node.data, status: 'running' },
-      }))
-    );
-  };
-
-  const handleStopAll = () => {
-    setNodes((nodes) =>
-      nodes.map((node) => ({
-        ...node,
-        data: { ...node.data, status: 'stopped' },
-      }))
-    );
-  };
-
-  const handleRefresh = () => {
-    // 模拟刷新节点状态
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        const randomStatus = Math.random() > 0.3 ? 'running' : Math.random() > 0.5 ? 'warning' : 'stopped';
-        return {
-          ...node,
-          data: { ...node.data, status: randomStatus },
+        // 转换后端数据格式到前端格式
+        const transformedSchema = {
+          name: data.name,
+          type: data.type,
+          tables: data.tables.map((table: any) => ({
+            id: table.name,
+            name: table.name,
+            type: 'table' as const,
+            schema: data.name,
+            rowCount: table.rowCount,
+            size: table.size,
+            columns: table.columns.map((col: any) => ({
+              id: `${table.name}.${col.name}`,
+              name: col.name,
+              type: col.type,
+              nullable: col.nullable,
+              primaryKey: col.primaryKey,
+              unique: col.unique,
+              defaultValue: col.defaultValue,
+              description: col.description,
+              position: { x: 0, y: 0 },
+            })),
+            indexes: table.indexes?.map((idx: any) => ({
+              id: `${table.name}.${idx.name}`,
+              name: idx.name,
+              columns: idx.columns,
+              unique: idx.unique,
+              type: idx.type,
+            })) || [],
+            foreignKeys: [],
+            position: { x: 0, y: 0 },
+          })),
+          relationships: data.relationships?.map((rel: any) => ({
+            id: rel.name || `${rel.sourceTable}_${rel.targetTable}`,
+            source: rel.sourceTable,
+            target: rel.targetTable,
+            type: 'foreign_key' as const,
+            label: `${rel.sourceColumn} → ${rel.targetColumn}`,
+            style: {
+              color: '#1890ff',
+              width: 2,
+              style: 'solid' as const,
+              arrowType: 'arrow' as const,
+            },
+          })) || [],
         };
-      })
-    );
+
+        setSchema(transformedSchema);
+        setError(null);
+      } catch (err) {
+        console.error('Failed to load database schema:', err);
+        setError(err instanceof Error ? err.message : '加载数据库表结构失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadDatabaseSchema();
+  }, []);
+
+  const handleTableSelect = (tableName: string) => {
+    console.log(`选择了表: ${tableName}`);
+    // 可以在这里添加表详情处理逻辑
   };
 
-  const runningCount = useMemo(() =>
-    nodes.filter(node => node.data.status === 'running').length, [nodes]
+  // 工作流视图的状态 - 必须在所有条件渲染之前
+  const [workflowNodesState, setWorkflowNodesState, onWorkflowNodesChange] = useNodesState(workflowNodes);
+  const [workflowEdgesState, setWorkflowEdgesState, onWorkflowEdgesChange] = useEdgesState(workflowEdges);
+
+  const onWorkflowConnect = useCallback(
+    (params: any) => setWorkflowEdgesState((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
+    [setWorkflowEdgesState]
   );
 
-  const totalCount = nodes.length;
-  const warningCount = nodes.filter(node => node.data.status === 'warning').length;
-  const stoppedCount = nodes.filter(node => node.data.status === 'stopped').length;
+  if (loading) {
+    return (
+      <FullscreenLayout>
+        <div className="flex items-center justify-center min-h-screen bg-white">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-gray-200 rounded-full animate-spin border-t-blue-500 border-r-blue-500 mx-auto mb-4"></div>
+            <div className="text-lg text-gray-600">加载数据库表结构...</div>
+          </div>
+        </div>
+      </FullscreenLayout>
+    );
+  }
+
+  if (error || !schema) {
+    return (
+      <FullscreenLayout>
+        <div className="flex items-center justify-center min-h-screen bg-white">
+          <div className="text-center p-8 bg-red-50 rounded-lg border border-red-200">
+            <DatabaseOutlined className="text-4xl text-red-500 mb-4" />
+            <div className="text-lg text-red-600 mb-2">数据库表结构加载失败</div>
+            <div className="text-sm text-red-500">{error || '未知错误'}</div>
+          </div>
+        </div>
+      </FullscreenLayout>
+    );
+  }
 
   return (
     <FullscreenLayout>
-      {/* React Flow 画布容器 - 占满整个屏幕 */}
-      <div className="w-full h-full bg-white overflow-hidden">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            connectionMode={ConnectionMode.Loose}
-            fitView
-            style={{ width: '100%', height: '100%' }}
-            className="bg-gray-50"
-          >
-            <Background color="#e5e7eb" gap={20} />
-            <Controls
-              className="bg-white border border-gray-200 shadow-sm"
-              showInteractive={false}
-            />
-            <MiniMap
-              className="bg-white border border-gray-200 shadow-sm"
-              nodeColor={(node) => {
-                switch (node.data?.status) {
-                  case 'running':
-                    return '#52c41a';
-                  case 'warning':
-                    return '#faad14';
-                  case 'stopped':
-                    return '#ff4d4f';
-                  default:
-                    return '#d9d9d9';
-                }
-              }}
-              maskColor="rgba(255, 255, 255, 0.8)"
-            />
-            <Panel position="top-left" className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-              <div className="text-gray-700 text-sm space-y-1">
-                <div>🎯 拖拽节点重新排列</div>
-                <div>🔗 点击边缘创建连接</div>
-                <div>🔍 滚轮缩放画布</div>
-              </div>
-            </Panel>
-          </ReactFlow>
+      <div className="w-full h-full bg-gray-50 overflow-hidden relative">
+        {/* 视图切换按钮 */}
+        <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+          <Space>
+            <Button
+              type={viewMode === 'database' ? 'primary' : 'default'}
+              size="small"
+              icon={<DatabaseOutlined />}
+              onClick={() => setViewMode('database')}
+            >
+              数据库表
+            </Button>
+            <Button
+              type={viewMode === 'workflow' ? 'primary' : 'default'}
+              size="small"
+              icon={<ApiOutlined />}
+              onClick={() => setViewMode('workflow')}
+            >
+              工作流节点
+            </Button>
+          </Space>
+        </div>
+
+        {/* 内容区域 */}
+        {viewMode === 'database' ? (
+          <DatabaseTableNodes
+            schema={schema}
+            onTableSelect={handleTableSelect}
+          />
+        ) : (
+          <ReactFlowProvider>
+            <ReactFlow
+              nodes={workflowNodesState}
+              edges={workflowEdgesState}
+              onNodesChange={onWorkflowNodesChange}
+              onEdgesChange={onWorkflowEdgesChange}
+              onConnect={onWorkflowConnect}
+              nodeTypes={{ custom: CustomNode }}
+              connectionMode="loose"
+              fitView
+              style={{ width: '100%', height: '100%' }}
+              className="bg-gray-50"
+            >
+              <Background color="#e5e7eb" gap={20} />
+              <Controls
+                className="bg-white border border-gray-200 shadow-sm"
+                showInteractive={false}
+              />
+              <MiniMap
+                className="bg-white border border-gray-200 shadow-sm"
+                nodeColor={(node) => {
+                  switch (node.data?.status) {
+                    case 'running':
+                      return '#52c41a';
+                    case 'warning':
+                      return '#faad14';
+                    case 'stopped':
+                      return '#ff4d4f';
+                    default:
+                      return '#d9d9d9';
+                  }
+                }}
+                maskColor="rgba(255, 255, 255, 0.8)"
+              />
+            </ReactFlow>
+          </ReactFlowProvider>
+        )}
       </div>
     </FullscreenLayout>
   );

@@ -707,9 +707,6 @@ func startHTTPServer(
 	router := httpRouter.Engine
 	apiGroup := httpRouter.API
 
-	// 设置静态文件服务
-	setupStaticFiles(router, config)
-
 	// 初始化设备服务
 	db := platformstorage.GetDB()
 	deviceRepo := platformstorage.NewDeviceRepository(db)
