@@ -30,6 +30,7 @@ import (
 	httpvision "xiaozhi-server-go/internal/transport/http/vision"
 	httpwebapi "xiaozhi-server-go/internal/transport/http/webapi"
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
+	"xiaozhi-server-go/internal/core/transport"
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
 	"xiaozhi-server-go/internal/utils"
@@ -637,7 +638,7 @@ func startTransportServer(
 	componentContainer *adapters.ComponentContainer,
 	g *errgroup.Group,
 	groupCtx context.Context,
-) (*adapters.MockTransportManager, error) {
+) (adapters.TransportManager, error) {
 	// 使用适配器来避免循环依赖
 	if componentContainer == nil {
 		return nil, fmt.Errorf("component container is required")
@@ -649,8 +650,8 @@ func startTransportServer(
 	// 创建传输适配器
 	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter)
 
-	// 创建模拟传输管理器（临时实现）
-	transportManager := adapters.NewMockTransportManager(logger)
+	// 创建真正的传输管理器
+	transportManager := transport.NewTransportManager(config, logger)
 
 	// 启动传输服务器
 	if err := transportAdapter.StartTransportServer(groupCtx, authManager, domainMCPManager); err != nil {

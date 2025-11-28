@@ -34,8 +34,8 @@ func (m *TransportManager) RegisterTransport(name string, transport Transport) {
 	m.logger.Debug("注册传输层: %s (%s)", name, transport.GetType())
 }
 
-// StartAll 启动所有传输层
-func (m *TransportManager) StartAll(ctx context.Context) error {
+// Start 启动所有传输层（实现TransportManager接口）
+func (m *TransportManager) Start(ctx context.Context) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -83,8 +83,8 @@ func (m *TransportManager) StartTicker(ctx context.Context) {
 	}()
 }
 
-// StopAll 停止所有传输层
-func (m *TransportManager) StopAll() error {
+// Stop 停止所有传输层（实现TransportManager接口）
+func (m *TransportManager) Stop() error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -96,6 +96,38 @@ func (m *TransportManager) StopAll() error {
 		}
 	}
 	return lastErr
+}
+
+// GetStats 获取传输管理器统计信息（实现TransportManager接口）
+func (m *TransportManager) GetStats() map[string]interface{} {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	stats := make(map[string]interface{})
+
+	clientCount := 0
+	sessionCount := 0
+	transportStats := make(map[string]interface{})
+
+	for name, transport := range m.transports {
+		c, s := transport.GetActiveConnectionCount()
+		clientCount += c
+		sessionCount += s
+
+		transportStats[name] = map[string]interface{}{
+			"type":       transport.GetType(),
+			"clients":    c,
+			"sessions":   s,
+			"status":     "running", // 可以根据实际情况调整
+		}
+	}
+
+	stats["total_clients"] = clientCount
+	stats["total_sessions"] = sessionCount
+	stats["transport_count"] = len(m.transports)
+	stats["transports"] = transportStats
+
+	return stats
 }
 
 // GetTransport 获取指定名称的传输层
