@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"xiaozhi-server-go/internal/bootstrap"
+	_ "xiaozhi-server-go/internal/platform/docs" // 注册 Swagger 文档
 )
 
 func main() {

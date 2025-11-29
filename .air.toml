@@ -1,0 +1,127 @@
+# Air配置文件 - xiaozhi-flow项目热重载配置 (Windows优化)
+root = "."
+testdata_dir = "testdata"
+tmp_dir = "tmp"
+
+[build]
+  # 构建命令 (Windows版本，生成.exe文件)
+  cmd = "go build -o ./tmp/main.exe ./cmd/xiaozhi-server"
+
+  # 入口点配置
+  entrypoint = "./tmp/main.exe"
+
+  # 构建延迟（毫秒），避免频繁构建
+  delay = 1500
+
+  # 排除的目录
+  exclude_dir = [
+    "assets",
+    "tmp",
+    "vendor",
+    "web",
+    "testdata",
+    "build",
+    "dist",
+    "node_modules",
+    ".git"
+  ]
+
+  # 包含的文件扩展名
+  include_ext = ["go", "tpl", "tmpl", "html", "yaml", "yml", "toml", "json"]
+
+  # 排除的文件
+  exclude_file = []
+
+  # 排除的正则表达式（测试文件）
+  exclude_regex = ["_test\\.go"]
+
+  # 忽略未更改的文件
+  exclude_unchanged = false
+
+  # 跟随符号链接
+  follow_symlink = false
+
+  # 完整二进制命令（带环境变量等）
+  full_bin = ""
+
+  # 发送中断信号前的延迟
+  kill_delay = "2s"
+
+  # 构建错误日志文件
+  log = "build-errors.log"
+
+  # 重新运行二进制文件
+  rerun = true
+
+  # 每次执行后的延迟
+  rerun_delay = 1000
+
+  # 发送中断信号
+  send_interrupt = true
+
+  # 在构建错误时停止运行旧二进制文件
+  stop_on_root = true
+
+  # 构建前执行的命令
+  pre_cmd = []
+
+  # 构建后执行的命令
+  post_cmd = []
+
+[color]
+  # 应用日志颜色
+  app = ""
+
+  # 构建日志颜色
+  build = "yellow"
+
+  # 主程序日志颜色
+  main = "magenta"
+
+  # 运行器日志颜色
+  runner = "green"
+
+  # 监视器日志颜色
+  watcher = "cyan"
+
+[log]
+  # 显示日志时间
+  time = true
+
+  # 只显示主日志
+  main_only = false
+
+  # 静默所有日志
+  silent = false
+
+[misc]
+  # 退出时清理临时目录
+  clean_on_exit = true
+
+  # 清屏设置
+  screen = false
+
+  # 重建时保持滚动位置
+  keep_scroll = true
+
+  # 重建时清屏
+  clear_on_rebuild = false
+
+  # 停止时滚动到顶部
+  scroll_on_stop = false
+
+[proxy]
+  # 启用实时重载代理
+  enabled = false
+
+  # 应用端口
+  app_port = 8080
+
+  # 代理服务器端口
+  proxy_port = 0
+
+# 自定义参数
+args_bin = []
+
+# 工作目录
+root = "."
