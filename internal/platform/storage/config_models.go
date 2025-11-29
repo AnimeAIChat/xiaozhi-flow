@@ -1,16 +1,75 @@
 package storage
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
-
-	"gorm.io/datatypes"
 )
+
+// FlexibleJSON 是一个灵活的JSON类型，可以处理格式不规范的数据
+type FlexibleJSON struct {
+	Data interface{}
+}
+
+// Value 实现 driver.Valuer 接口
+func (j FlexibleJSON) Value() (driver.Value, error) {
+	return json.Marshal(j.Data)
+}
+
+// Scan 实现 sql.Scanner 接口
+func (j *FlexibleJSON) Scan(value interface{}) error {
+	if value == nil {
+		j.Data = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		// 首先尝试解析为JSON
+		var result interface{}
+		if err := json.Unmarshal(v, &result); err == nil {
+			j.Data = result
+			return nil
+		}
+
+		// 如果JSON解析失败，将字节数组作为字符串处理
+		j.Data = string(v)
+		return nil
+
+	case string:
+		// 首先尝试解析为JSON
+		var result interface{}
+		if err := json.Unmarshal([]byte(v), &result); err == nil {
+			j.Data = result
+			return nil
+		}
+
+		// 如果JSON解析失败，直接存储字符串
+		j.Data = v
+		return nil
+
+	default:
+		// 对于其他类型，直接存储
+		j.Data = v
+		return nil
+	}
+}
+
+// MarshalJSON 实现json.Marshaler接口
+func (j FlexibleJSON) MarshalJSON() ([]byte, error) {
+	return json.Marshal(j.Data)
+}
+
+// UnmarshalJSON 实现json.Unmarshaler接口
+func (j *FlexibleJSON) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &j.Data)
+}
 
 // ConfigRecord 完整的配置记录模型，用于数据库存储
 type ConfigRecord struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	Key         string         `gorm:"uniqueIndex;not null" json:"key"` // 配置键，如 "server", "web", "llm.openai"
-	Value       datatypes.JSON `gorm:"not null" json:"value"`           // 配置值，JSON格式
+	Value       FlexibleJSON  `gorm:"type:json;not null" json:"value"`    // 配置值，JSON格式（使用灵活类型处理不规范数据）
 	Description string         `gorm:"type:text" json:"description"`     // 配置描述
 	Category    string         `gorm:"index" json:"category"`           // 配置分类，如 "server", "web", "llm", "tts", "asr"
 	Version     int            `gorm:"default:1" json:"version"`         // 配置版本号，用于版本控制
@@ -26,12 +85,12 @@ func (ConfigRecord) TableName() string {
 
 // ConfigSnapshot 配置快照，用于备份和版本控制
 type ConfigSnapshot struct {
-	ID        uint           `gorm:"primaryKey" json:"id"`
-	Name      string         `gorm:"not null" json:"name"`      // 快照名称
-	Version   int            `gorm:"not null" json:"version"`   // 快照版本
-	Data      datatypes.JSON `gorm:"not null" json:"data"`      // 完整配置数据
-	Comment   string         `gorm:"type:text" json:"comment"`  // 快照注释
-	CreatedAt time.Time      `json:"created_at"`
+	ID        uint          `gorm:"primaryKey" json:"id"`
+	Name      string        `gorm:"not null" json:"name"`      // 快照名称
+	Version   int           `gorm:"not null" json:"version"`   // 快照版本
+	Data      FlexibleJSON  `gorm:"type:json;not null" json:"data"`      // 完整配置数据
+	Comment   string        `gorm:"type:text" json:"comment"`  // 快照注释
+	CreatedAt time.Time     `json:"created_at"`
 }
 
 // TableName 指定表名

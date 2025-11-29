@@ -9,7 +9,6 @@ import (
 	"xiaozhi-server-go/internal/platform/errors"
 	"xiaozhi-server-go/internal/platform/storage"
 
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -83,16 +82,9 @@ func (r *DatabaseRepository) SaveConfig(cfg *config.Config) error {
 		category := r.getCategoryFromKey(key)
 		description := r.getDescriptionFromKey(key)
 
-		// Convert value to JSON string
-		valueJSON, err := json.Marshal(value)
-		if err != nil {
-			tx.Rollback()
-			return errors.Wrap(errors.KindStorage, "config.save", fmt.Sprintf("failed to marshal value for key %s", key), err)
-		}
-
 		record := storage.ConfigRecord{
 			Key:         key,
-			Value:       datatypes.JSON(valueJSON),
+			Value:       storage.FlexibleJSON{Data: value},
 			Description: description,
 			Category:    category,
 			Version:     1,

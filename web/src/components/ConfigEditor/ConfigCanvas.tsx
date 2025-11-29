@@ -86,6 +86,7 @@ const { TextArea } = Input;
 const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, id }) => {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState<any>(data.value);
+  const [expanded, setExpanded] = useState(false);
 
   const getNodeIcon = (dataType: string) => {
     switch (dataType) {
@@ -99,6 +100,40 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
         return <ClockCircleOutlined style={{ color: '#52c41a' }} />;
       case 'boolean':
         return <Switch disabled size="small" checked={data.value} />;
+      case 'group':
+      case 'category-group':
+        return <FolderOpenOutlined style={{ color: data.color || '#1890ff' }} />;
+      case 'category-node':
+      case 'bc-node':
+      case 'b-service-node':
+        return <DatabaseOutlined style={{ color: data.color || '#1890ff' }} />;
+      default:
+        return <SettingOutlined style={{ color: '#666' }} />;
+    }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'ASR':
+        return <span style={{ color: '#fa8c16' }}>🎤</span>;
+      case 'TTS':
+        return <span style={{ color: '#52c41a' }}>🔊</span>;
+      case 'LLM':
+        return <span style={{ color: '#1890ff' }}>🤖</span>;
+      case 'VLLM':
+        return <span style={{ color: '#722ed1' }}>👁️</span>;
+      case 'server':
+        return <span style={{ color: '#13c2c2' }}>🖥️</span>;
+      case 'web':
+        return <span style={{ color: '#eb2f96' }}>🌐</span>;
+      case 'transport':
+        return <span style={{ color: '#faad14' }}>📡</span>;
+      case 'system':
+        return <span style={{ color: '#f5222d' }}>⚙️</span>;
+      case 'audio':
+        return <span style={{ color: '#a0d911' }}>🎵</span>;
+      case 'database':
+        return <span style={{ color: '#2f54eb' }}>💾</span>;
       default:
         return <SettingOutlined style={{ color: '#666' }} />;
     }
@@ -178,28 +213,46 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
     }
   };
 
+  // 处理分组节点的渲染
+  const isGroupNode = data.dataType === 'group' || data.dataType === 'category-group';
+  const groupConfigs = isGroupNode ? (data.value as any[]) : [];
+
   return (
     <Card
       size="small"
-      className={`config-node ${selected ? 'selected' : ''}`}
+      className={`config-node ${selected ? 'selected' : ''} ${isGroupNode ? 'group-node' : ''}`}
       style={{
-        width: 280,
-        minWidth: 280,
+        width: isGroupNode ? 320 : 280,
+        minWidth: isGroupNode ? 320 : 280,
         border: selected ? `2px solid ${data.color || '#1890ff'}` : '1px solid #d9d9d9',
-        backgroundColor: '#ffffff',
+        backgroundColor: isGroupNode ? `${data.color}08` : '#ffffff',
         borderRadius: '8px',
         boxShadow: selected ? `0 4px 12px ${data.color}33` : '0 2px 8px rgba(0, 0, 0, 0.1)',
       }}
       title={
         <Space size="small">
+          {getCategoryIcon(data.category)}
           {getNodeIcon(data.dataType)}
-          <Text strong style={{ fontSize: 12 }}>{data.label}</Text>
+          <Text strong style={{ fontSize: 12 }}>
+            {data.label}
+            {isGroupNode && <Badge count={data.configCount} size="small" style={{ marginLeft: 8 }} />}
+          </Text>
           <Badge color={data.color || '#666'} />
         </Space>
       }
       extra={
         <Space size="small">
-          {data.editable && (
+          {isGroupNode && (
+            <Tooltip title={expanded ? "收起详情" : "展开详情"}>
+              <Button
+                type="text"
+                size="small"
+                icon={expanded ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                onClick={() => setExpanded(!expanded)}
+              />
+            </Tooltip>
+          )}
+          {!isGroupNode && data.editable && (
             <Tooltip title="编辑">
               <Button
                 type="text"
@@ -209,21 +262,23 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
               />
             </Tooltip>
           )}
-          <Tooltip title="删除">
-            <Popconfirm
-              title="确定要删除这个配置吗？"
-              onConfirm={handleDelete}
-              okText="确定"
-              cancelText="取消"
-            >
-              <Button
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                danger
-              />
-            </Popconfirm>
-          </Tooltip>
+          {!isGroupNode && (
+            <Tooltip title="删除">
+              <Popconfirm
+                title="确定要删除这个配置吗？"
+                onConfirm={handleDelete}
+                okText="确定"
+                cancelText="取消"
+              >
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DeleteOutlined />}
+                  danger
+                />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       }
     >
@@ -239,23 +294,69 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
         </Text>
       )}
 
-      {editing ? (
+      {isGroupNode ? (
         <div style={{ marginTop: 8 }}>
-          {renderValueEditor()}
+          {expanded && groupConfigs.length > 0 ? (
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {groupConfigs.map((config: any, index: number) => (
+                <div key={index} style={{
+                  marginBottom: 8,
+                  padding: 6,
+                  backgroundColor: '#f5f5f5',
+                  borderRadius: 4,
+                  borderLeft: `3px solid ${data.color}`
+                }}>
+                  <Text strong style={{ fontSize: 10, color: data.color }}>
+                    {config.key}
+                  </Text>
+                  <div style={{ marginTop: 2 }}>
+                    <Text code style={{ fontSize: 9, wordBreak: 'break-all' }}>
+                      {formatValue(config.value)}
+                    </Text>
+                  </div>
+                  {config.description && (
+                    <Text type="secondary" style={{ fontSize: 8, display: 'block', marginTop: 2 }}>
+                      {config.description}
+                    </Text>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <Text type="secondary" style={{ fontSize: 10, fontStyle: 'italic' }}>
+              包含 {groupConfigs.length} 个配置项，点击查看详情
+            </Text>
+          )}
         </div>
       ) : (
         <div style={{ marginTop: 8 }}>
-          <Text code style={{ fontSize: 11, wordBreak: 'break-all' }}>
-            {formatValue(data.value)}
-          </Text>
+          {editing ? (
+            renderValueEditor()
+          ) : (
+            <Text code style={{ fontSize: 11, wordBreak: 'break-all' }}>
+              {formatValue(data.value)}
+            </Text>
+          )}
         </div>
       )}
 
-      {data.category && (
-        <div style={{ marginTop: 8 }}>
-          <Tag size="small" color={data.color}>{data.category}</Tag>
-        </div>
-      )}
+      <div style={{ marginTop: 8 }}>
+        <Space size="small" wrap>
+          {data.category && (
+            <Tag size="small" color={data.color}>{data.category}</Tag>
+          )}
+          {data.subCategory && (
+            <Tag size="small" style={{ backgroundColor: '#f0f0f0', border: '1px solid #d9d9d9' }}>
+              {data.subCategory}
+            </Tag>
+          )}
+          {isGroupNode && (
+            <Tag size="small" style={{ backgroundColor: '#e6f7ff', border: '1px solid #91d5ff', color: '#1890ff' }}>
+              分组
+            </Tag>
+          )}
+        </Space>
+      </div>
 
       <Handle
         type="source"
@@ -308,13 +409,19 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
         category: filterCategory || undefined,
         searchText: searchText || undefined,
       };
+      console.log('ConfigCanvas: Loading configs with filter:', filter);
       const configData = await configService.getConfigs(filter);
+      console.log('ConfigCanvas: Retrieved config data:', configData);
+      console.log('ConfigCanvas: Config data length:', configData?.length || 0);
       setConfigs(configData);
 
       // 转换为画布节点
       const newNodes = configService.configsToNodes(configData);
+      console.log('ConfigCanvas: Generated nodes:', newNodes);
+      console.log('ConfigCanvas: Nodes length:', newNodes?.length || 0);
       setNodes(newNodes);
     } catch (error) {
+      console.error('ConfigCanvas: Error loading configs:', error);
       message.error('加载配置失败');
       log.error('加载配置失败', error, 'config', 'ConfigCanvas');
     } finally {
@@ -365,58 +472,7 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
     }
   };
 
-  // 工具栏按钮菜单
-  const toolbarMenuItems: MenuProps['items'] = [
-    {
-      key: 'save',
-      label: '保存画布',
-      icon: <SaveOutlined />,
-      onClick: saveCanvasState,
-    },
-    {
-      key: 'export',
-      label: '导出配置',
-      icon: <DownloadOutlined />,
-      onClick: handleExport,
-    },
-    {
-      key: 'import',
-      label: '导入配置',
-      icon: <UploadOutlined />,
-      onClick: handleImport,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'snapshot',
-      label: '创建快照',
-      icon: <CameraOutlined />,
-      onClick: handleCreateSnapshot,
-    },
-    {
-      key: 'history',
-      label: '查看历史',
-      icon: <HistoryOutlined />,
-      onClick: handleShowHistory,
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'validate',
-      label: '验证配置',
-      icon: <SafetyOutlined />,
-      onClick: handleValidate,
-    },
-    {
-      key: 'debug',
-      label: '调试模式',
-      icon: <BugOutlined />,
-      onClick: () => setMode(mode === 'debug' ? 'view' : 'debug'),
-    },
-  ];
-
+  // 工具栏按钮菜单使用的函数定义
   const handleExport = async () => {
     try {
       const exportData = await configService.exportConfig({
@@ -489,6 +545,58 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
       message.error('配置验证失败');
     }
   };
+
+  // 工具栏按钮菜单
+  const toolbarMenuItems: MenuProps['items'] = [
+    {
+      key: 'save',
+      label: '保存画布',
+      icon: <SaveOutlined />,
+      onClick: saveCanvasState,
+    },
+    {
+      key: 'export',
+      label: '导出配置',
+      icon: <DownloadOutlined />,
+      onClick: handleExport,
+    },
+    {
+      key: 'import',
+      label: '导入配置',
+      icon: <UploadOutlined />,
+      onClick: handleImport,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'snapshot',
+      label: '创建快照',
+      icon: <CameraOutlined />,
+      onClick: handleCreateSnapshot,
+    },
+    {
+      key: 'history',
+      label: '查看历史',
+      icon: <HistoryOutlined />,
+      onClick: handleShowHistory,
+    },
+    {
+      type: 'divider',
+    },
+    {
+      key: 'validate',
+      label: '验证配置',
+      icon: <SafetyOutlined />,
+      onClick: handleValidate,
+    },
+    {
+      key: 'debug',
+      label: '调试模式',
+      icon: <BugOutlined />,
+      onClick: () => setMode(mode === 'debug' ? 'view' : 'debug'),
+    },
+  ];
 
   return (
     <div className="w-full h-full bg-gray-50 flex flex-col">
@@ -617,6 +725,12 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 模式: {mode}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                配置记录: {configs.length}
+              </Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                加载中: {loading ? '是' : '否'}
               </Text>
             </Space>
           </Panel>

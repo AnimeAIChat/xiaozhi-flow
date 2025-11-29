@@ -1,14 +1,12 @@
 package webapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"xiaozhi-server-go/internal/platform/storage"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -47,7 +45,7 @@ func (s *Service) handleGetConfigRecords(c *gin.Context) {
 		}
 	}
 	if limitStr != "" {
-		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 1000 {
 			limit = l
 		}
 	}
@@ -171,16 +169,9 @@ func (s *Service) handleCreateConfigRecord(c *gin.Context) {
 		return
 	}
 
-	// 转换值为JSON
-	valueJSON, err := json.Marshal(request.Value)
-	if err != nil {
-		s.respondError(c, http.StatusBadRequest, "Invalid value format")
-		return
-	}
-
 	record := storage.ConfigRecord{
 		Key:         request.Key,
-		Value:       datatypes.JSON(valueJSON),
+		Value:       storage.FlexibleJSON{Data: request.Value},
 		Description: request.Description,
 		Category:    request.Category,
 		Version:     1,
@@ -253,12 +244,7 @@ func (s *Service) handleUpdateConfigRecord(c *gin.Context) {
 		record.IsActive = *request.IsActive
 	}
 	if request.Value != nil {
-		valueJSON, err := json.Marshal(*request.Value)
-		if err != nil {
-			s.respondError(c, http.StatusBadRequest, "Invalid value format")
-			return
-		}
-		record.Value = datatypes.JSON(valueJSON)
+		record.Value = storage.FlexibleJSON{Data: *request.Value}
 		record.Version++ // 版本号递增
 	}
 
