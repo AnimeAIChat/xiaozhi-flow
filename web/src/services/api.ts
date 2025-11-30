@@ -26,10 +26,26 @@ export interface ConnectionTestResult {
   version?: string;
 }
 
+// 数据库测试结果
+export interface DatabaseTestResult {
+  step: string;
+  status: 'success' | 'failed' | 'running' | 'pending';
+  message: string;
+  latency?: number;
+  details?: any;
+}
+
 // 项目初始化配置
 export interface InitConfig {
-  serverConfig: ServerConfig;
-  providers: {
+  databaseConfig: any;
+  adminConfig: {
+    username: string;
+    password: string;
+    email?: string;
+  };
+  // 保持向后兼容
+  serverConfig?: ServerConfig;
+  providers?: {
     asr?: any;
     tts?: any;
     llm?: any;
@@ -118,11 +134,12 @@ export class ApiService {
   private apiCallHistory: ApiCallInfo[] = [];
   private maxHistorySize: number = 100;
 
-  constructor(baseURL: string = 'http://localhost:8080/api') {
-    this.baseURL = baseURL;
+  constructor(baseURL?: string) {
+    // 优先使用传入的baseURL，其次使用环境配置，最后使用默认值
+    this.baseURL = baseURL || envConfig.apiBaseUrl || 'http://localhost:8080/api';
     this.client = axios.create({
-      baseURL,
-      timeout: 10000,
+      baseURL: this.baseURL,
+      timeout: envConfig.apiTimeout || 10000,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -474,6 +491,49 @@ export class ApiService {
         success: false,
         message: error instanceof Error ? error.message : 'Connection test failed',
       };
+    }
+  }
+
+  async testDatabaseStep(step: string, config: any): Promise<DatabaseTestResult> {
+    try {
+      const response = await this.client.post(`/admin/system/test-database-step?step=${step}`, config);
+      const apiResponse = response.data;
+
+      // API返回的数据结构: {code: 200, data: {...}, message: '...', success: true}
+      // 需要转换为 DatabaseTestResult 格式
+      if (apiResponse.success && apiResponse.data) {
+        return {
+          step,
+          status: apiResponse.data.status || 'success',
+          message: apiResponse.data.message || apiResponse.message,
+          latency: apiResponse.data.latency,
+          details: apiResponse.data.details
+        };
+      } else {
+        return {
+          step,
+          status: 'failed',
+          message: apiResponse.message || 'Database test step failed'
+        };
+      }
+    } catch (error) {
+      return {
+        step,
+        status: 'failed',
+        message: error instanceof Error ? error.message : 'Database test step failed'
+      };
+    }
+  }
+
+  /**
+   * 保存数据库配置
+   */
+  async saveDatabaseConfig(config: any): Promise<ApiResponse> {
+    try {
+      const response = await this.client.post('/admin/system/save-database-config', config);
+      return response.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to save database config');
     }
   }
 
@@ -889,10 +949,67 @@ export class ApiService {
     this.baseURL = baseURL;
     this.client.defaults.baseURL = baseURL;
   }
+
+  /**
+   * 获取当前API配置信息
+   */
+  getApiConfig() {
+    return {
+      baseURL: this.baseURL,
+      timeout: this.client.defaults.timeout,
+      environment: envConfig.appEnv,
+      isDevelopment: envConfig.isDevelopment,
+      debugMode: envConfig.debug,
+      apiDebugging: envConfig.enableApiDebugging,
+    };
+  }
+
+  /**
+   * 验证API配置
+   */
+  validateConfig(): { valid: boolean; issues: string[] } {
+    const issues: string[] = [];
+
+    if (!this.baseURL) {
+      issues.push('API基础URL未配置');
+    }
+
+    try {
+      new URL(this.baseURL);
+    } catch {
+      issues.push('API基础URL格式无效');
+    }
+
+    if (!this.client.defaults.timeout || this.client.defaults.timeout <= 0) {
+      issues.push('API超时配置无效');
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues
+    };
+  }
 }
 
 // 创建默认的API服务实例
 export const apiService = new ApiService();
+
+// 初始化配置检查
+if (typeof window !== 'undefined' && envConfig.debug) {
+  // 在开发环境下输出配置信息
+  const config = apiService.getApiConfig();
+  console.log('🚀 API服务初始化', {
+    baseURL: config.baseURL,
+    timeout: config.timeout,
+    environment: config.environment
+  });
+
+  // 验证配置
+  const validation = apiService.validateConfig();
+  if (!validation.valid) {
+    console.warn('⚠️ API配置问题:', validation.issues);
+  }
+}
 
 // 延迟初始化认证状态，避免与 AuthContext 冲突
 // 这个初始化将在 AuthContext 中处理
@@ -901,6 +1018,16 @@ if (typeof window !== 'undefined') {
   setTimeout(() => {
     apiService.initializeAuth();
   }, 100);
+}
+
+// 开发环境下的配置检查（简化版）
+if (typeof window !== 'undefined' && envConfig.debug && envConfig.isDevelopment) {
+  setTimeout(() => {
+    const validation = apiService.validateConfig();
+    if (!validation.valid) {
+      console.warn('⚠️ API配置问题:', validation.issues);
+    }
+  }, 200);
 }
 
 export default apiService;

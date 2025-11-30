@@ -122,7 +122,7 @@ const Login: React.FC = () => {
           {/* 错误提示 */}
           {error && (
             <Alert
-              message="登录失败"
+              title="登录失败"
               description={error}
               type="error"
               showIcon
@@ -135,7 +135,7 @@ const Login: React.FC = () => {
           {/* 成功提示 */}
           {loginSuccess && (
             <Alert
-              message="登录成功"
+              title="登录成功"
               description="正在跳转到主页..."
               type="success"
               showIcon
@@ -261,7 +261,7 @@ const Login: React.FC = () => {
         {/* 版权信息 */}
         <div className="text-center mt-8">
           <Text type="secondary" className="text-sm">
-            © 2024 XiaoZhi Flow. 保留所有权利.
+            © 2025 XiaoZhi Flow. 保留所有权利.
           </Text>
         </div>
       </div>

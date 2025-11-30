@@ -108,16 +108,16 @@ export const envConfig: EnvConfig = {
 
   // 调试配置
   enableSourceMap: getEnvBoolean('VITE_ENABLE_SOURCE_MAP', true),
-  enableConsoleLog: getEnvBoolean('VITE_ENABLE_CONSOLE_LOG', true),
-  enablePerformanceMonitoring: getEnvBoolean('VITE_ENABLE_PERFORMANCE_MONITORING', true),
+  enableConsoleLog: getEnvBoolean('VITE_ENABLE_CONSOLE_LOG', false), // 减少控制台日志
+  enablePerformanceMonitoring: getEnvBoolean('VITE_ENABLE_PERFORMANCE_MONITORING', false), // 关闭性能监控
   enableErrorBoundary: getEnvBoolean('VITE_ENABLE_ERROR_BOUNDARY', true),
-  enableApiDebugging: getEnvBoolean('VITE_ENABLE_API_DEBUGGING', true),
+  enableApiDebugging: getEnvBoolean('VITE_ENABLE_API_DEBUGGING', false), // 关闭API调试
 
   // 日志配置
-  logLevel: (getEnvVar('VITE_LOG_LEVEL', 'warn') as 'debug' | 'info' | 'warn' | 'error'),
-  logMaxEntries: getEnvNumber('VITE_LOG_MAX_ENTRIES', 1000),
-  logPersistToStorage: getEnvBoolean('VITE_LOG_PERSIST_TO_STORAGE', true),
-  logIncludeTimestamp: getEnvBoolean('VITE_LOG_INCLUDE_TIMESTAMP', true),
+  logLevel: (getEnvVar('VITE_LOG_LEVEL', 'error') as 'debug' | 'info' | 'warn' | 'error'), // 提高日志级别
+  logMaxEntries: getEnvNumber('VITE_LOG_MAX_ENTRIES', 500), // 减少日志条目
+  logPersistToStorage: getEnvBoolean('VITE_LOG_PERSIST_TO_STORAGE', false), // 关闭持久化
+  logIncludeTimestamp: getEnvBoolean('VITE_LOG_INCLUDE_TIMESTAMP', false), // 关闭时间戳
 
   // 错误报告配置
   enableErrorReporting: getEnvBoolean('VITE_ENABLE_ERROR_REPORTING', false),

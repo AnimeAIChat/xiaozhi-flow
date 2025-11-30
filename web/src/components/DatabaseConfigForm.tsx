@@ -58,24 +58,14 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
     },
     admin: initialConfig?.admin || {
       username: 'admin',
-      password: '',
+      password: '123456',
       email: 'admin@xiaozhi.local'
     }
   });
 
   useEffect(() => {
     if (initialConfig) {
-      form.setFieldsValue({
-        ...initialConfig,
-        database: {
-          ...initialConfig.database,
-          connection_pool: {
-            ...initialConfig.database.connection_pool,
-            conn_max_lifetime: initialConfig.database.connection_pool.conn_max_lifetime / 60 // 转换为分钟
-          }
-        }
-      });
-      setConfig({
+      const updatedConfig = {
         ...initialConfig,
         database: {
           ...initialConfig.database,
@@ -84,10 +74,27 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
             conn_max_lifetime: initialConfig.database.connection_pool.conn_max_lifetime / 60
           }
         }
+      };
+
+      form.setFieldsValue({
+        ...updatedConfig,
+        database: {
+          ...updatedConfig.database,
+          connection_pool: {
+            ...updatedConfig.database.connection_pool,
+            conn_max_lifetime: updatedConfig.database.connection_pool.conn_max_lifetime
+          }
+        }
       });
+      setConfig(updatedConfig);
       setDbType(initialConfig.database.type);
+      onConfigChange(updatedConfig);
+    } else {
+      // 如果没有初始配置，使用默认配置并通知父组件
+      // 只在组件第一次挂载时执行
+      onConfigChange(config);
     }
-  }, [initialConfig, form]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleDbTypeChange = (type: string) => {
     setDbType(type);
@@ -335,7 +342,7 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
 
           {dbType === 'sqlite' && (
             <Alert
-              message="SQLite 说明"
+              title="SQLite 说明"
               description="SQLite 是一个轻量级的文件数据库，适合单机部署和开发环境使用。"
               type="info"
               showIcon
@@ -345,7 +352,7 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
 
           {dbType === 'mysql' && (
             <Alert
-              message="MySQL 说明"
+              title="MySQL 说明"
               description="MySQL 是一个流行的关系型数据库，适合生产环境和多用户场景。"
               type="info"
               showIcon
@@ -355,7 +362,7 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
 
           {dbType === 'postgresql' && (
             <Alert
-              message="PostgreSQL 说明"
+              title="PostgreSQL 说明"
               description="PostgreSQL 是一个功能强大的开源数据库，支持高级特性和扩展。"
               type="info"
               showIcon
@@ -412,7 +419,7 @@ const DatabaseConfigForm: React.FC<DatabaseConfigProps> = ({
               { min: 6, message: '密码至少6个字符' }
             ]}
           >
-            <Input.Password placeholder="请输入密码" />
+            <Input placeholder="123456" />
           </Form.Item>
 
           <Form.Item

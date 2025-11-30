@@ -2,6 +2,7 @@ import React, { useEffect, ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthLevel, AuthStatus, getAuthStatus } from '../types/auth';
+import { useSystemStatus } from '../hooks/useApi';
 import { Spin } from 'antd';
 
 interface ProtectedRouteProps {
@@ -32,6 +33,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   permissions = [],
 }) => {
   const { user, isAuthenticated, isLoading, checkAuth } = useAuth();
+  const { data: systemStatus } = useSystemStatus();
   const location = useLocation();
 
   // Default loading fallback
@@ -50,6 +52,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       });
     }
   }, [isLoading, isAuthenticated, checkAuth]);
+
+  // Check system status first
+  if (systemStatus) {
+    const isSystemInitialized = systemStatus.initialized === true && systemStatus.needs_setup !== true;
+
+    // If system is not initialized, redirect to setup page (unless already there)
+    if (!isSystemInitialized && location.pathname !== '/setup') {
+      return <Navigate to="/setup" replace />;
+    }
+
+    // If already on setup page and system is not initialized, just show nothing
+    if (!isSystemInitialized && location.pathname === '/setup') {
+      return null;
+    }
+  }
 
   // Show loading state
   if (isLoading) {

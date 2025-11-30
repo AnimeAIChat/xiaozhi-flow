@@ -16,6 +16,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined
 } from '@ant-design/icons';
+import { useInitializeProject } from '../hooks/useApi';
 
 const { Text, Title } = Typography;
 
@@ -86,6 +87,7 @@ const SystemInitProgress: React.FC<SystemInitProgressProps> = ({
   const [steps, setSteps] = useState<InitStep[]>([]);
   const [initCompleted, setInitCompleted] = useState(false);
   const [initSuccess, setInitSuccess] = useState(false);
+  const initializeProject = useInitializeProject();
 
   // 初始化步骤
   useEffect(() => {
@@ -121,26 +123,19 @@ const SystemInitProgress: React.FC<SystemInitProgressProps> = ({
     }
 
     try {
-      const response = await fetch('/api/admin/system/init', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          databaseConfig: config.database,
-          adminConfig: config.admin
-        })
-      });
+      const initConfig = {
+        databaseConfig: config.database,
+        adminConfig: config.admin
+      };
 
-      const data = await response.json();
+      const result = await initializeProject.mutateAsync(initConfig);
 
-      console.log('SystemInit Debug - API Response:', data);
-
-      if (data.success === true && data.data && data.data.steps) {
+      // API 返回的数据结构: {success: true, steps: [...], message: '...', configId: '...'}
+      if (result.success && result.steps) {
         // 模拟实时进度更新
-        for (let i = 0; i < data.data.steps.length; i++) {
+        for (let i = 0; i < result.steps.length; i++) {
           setCurrentStep(i);
-          const step = data.data.steps[i];
+          const step = result.steps[i];
 
           // 更新步骤状态
           setSteps(prev => prev.map((s, index) =>
@@ -153,19 +148,19 @@ const SystemInitProgress: React.FC<SystemInitProgressProps> = ({
           await new Promise(resolve => setTimeout(resolve, 800));
         }
 
-        setCurrentStep(data.data.steps.length);
+        setCurrentStep(result.steps.length);
         setInitCompleted(true);
-        setInitSuccess(data.data.steps.every((step: InitStep) => step.success));
+        setInitSuccess(result.steps.every((step: any) => step.success));
 
         if (onInitComplete) {
-          onInitComplete(data.data.steps.every((step: InitStep) => step.success));
+          onInitComplete(result.steps.every((step: any) => step.success));
         }
       } else {
         // 处理错误情况
         setSteps(prev => prev.map(s => ({
           ...s,
           success: false,
-          message: data.message || '初始化失败'
+          message: result.message || '初始化失败'
         })));
         setInitCompleted(true);
         setInitSuccess(false);
@@ -261,10 +256,10 @@ const SystemInitProgress: React.FC<SystemInitProgressProps> = ({
           )}
         </Space>
       }>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           {/* 总体进度 */}
           <div>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Space>
                 <Title level={5} style={{ margin: 0 }}>总体状态:</Title>
                 <Tag color={overallStatus.color}>{overallStatus.text}</Tag>
@@ -327,57 +322,6 @@ const SystemInitProgress: React.FC<SystemInitProgressProps> = ({
               );
             })}
           </div>
-
-          {/* 完成状态 */}
-          {initCompleted && (
-            <>
-              <Divider />
-              {initSuccess ? (
-                <Result
-                  status="success"
-                  title="系统初始化成功！"
-                  subTitle="系统已成功初始化，所有配置已保存完成。"
-                />
-              ) : (
-                <Result
-                  status="error"
-                  title="系统初始化失败"
-                  subTitle="请检查错误信息并重新尝试初始化。"
-                  extra={[
-                    <Button key="retry" onClick={() => startInit(true)}>
-                      重新初始化
-                    </Button>
-                  ]}
-                />
-              )}
-            </>
-          )}
-
-          {/* 错误汇总 */}
-          {initCompleted && !initSuccess && (
-            <>
-              <Divider />
-              <Alert
-                message="初始化失败"
-                description={
-                  <div>
-                    <Text>以下步骤失败：</Text>
-                    <ul style={{ marginTop: 8, marginBottom: 0 }}>
-                      {steps
-                        .filter((s, i) => !s.success)
-                        .map((s, i) => (
-                          <li key={i}>
-                            {s.name}: {s.message}
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                }
-                type="error"
-                showIcon
-              />
-            </>
-          )}
         </Space>
       </Card>
     </div>

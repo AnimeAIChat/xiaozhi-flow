@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider, App as AntApp } from 'antd';
 import './App.css';
 import { QueryProvider } from './components/QueryProvider';
 import SystemInitializer from './components/SystemInitializer';
@@ -54,8 +55,10 @@ const App: React.FC = () => {
       <QueryProvider>
         <AuthProvider>
           <Router>
-            <React.Suspense fallback={<LoadingSpinner />}>
-              <div className="App min-h-screen bg-white text-gray-900">
+            <ConfigProvider>
+              <AntApp>
+                <React.Suspense fallback={<LoadingSpinner />}>
+                  <div className="App min-h-screen bg-white text-gray-900">
                 <Routes>
                   {/* 智能根路由 - 根据认证状态决定重定向 */}
                   <Route
@@ -85,21 +88,25 @@ const App: React.FC = () => {
                     }
                   />
 
-                  {/* 认证路由 - 不需要系统初始化检查 */}
+                  {/* 认证路由 - 也需要系统初始化检查 */}
                   <Route
                     path="/login"
                     element={
-                      <ErrorBoundary componentName="Login">
-                        <Login />
-                      </ErrorBoundary>
+                      <SystemRoute>
+                        <ErrorBoundary componentName="Login">
+                          <Login />
+                        </ErrorBoundary>
+                      </SystemRoute>
                     }
                   />
                   <Route
                     path="/register"
                     element={
-                      <ErrorBoundary componentName="Register">
-                        <Register />
-                      </ErrorBoundary>
+                      <SystemRoute>
+                        <ErrorBoundary componentName="Register">
+                          <Register />
+                        </ErrorBoundary>
+                      </SystemRoute>
                     }
                   />
 
@@ -132,11 +139,9 @@ const App: React.FC = () => {
                     path="/config"
                     element={
                       <SystemRoute>
-                        <ProtectedRoute>
-                          <ErrorBoundary componentName="Config">
-                            <Config />
-                          </ErrorBoundary>
-                        </ProtectedRoute>
+                        <ErrorBoundary componentName="Config">
+                          <Config />
+                        </ErrorBoundary>
                       </SystemRoute>
                     }
                   />
@@ -158,7 +163,9 @@ const App: React.FC = () => {
                 </Routes>
                 <DevTools />
               </div>
-            </React.Suspense>
+                </React.Suspense>
+              </AntApp>
+            </ConfigProvider>
           </Router>
         </AuthProvider>
       </QueryProvider>

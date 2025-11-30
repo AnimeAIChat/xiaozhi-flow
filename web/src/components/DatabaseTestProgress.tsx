@@ -10,6 +10,8 @@ import {
   Typography,
   Tag
 } from 'antd';
+import { useTestDatabaseStep } from '../hooks/useApi';
+import { type DatabaseTestResult } from '../services/api';
 
 const { Text, Title } = Typography;
 
@@ -30,13 +32,6 @@ interface DatabaseConfig {
   };
 }
 
-interface DatabaseTestResult {
-  step: string;
-  status: 'success' | 'failed' | 'running' | 'pending';
-  message: string;
-  latency?: number;
-  details?: any;
-}
 
 interface DatabaseTestProgressProps {
   config: {
@@ -85,6 +80,7 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<DatabaseTestResult[]>([]);
   const [currentStepResult, setCurrentStepResult] = useState<DatabaseTestResult | null>(null);
+  const testDatabaseStep = useTestDatabaseStep();
 
   // 初始化结果
   useEffect(() => {
@@ -118,7 +114,7 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
     }
 
     // 依次执行测试步骤
-    const newResults = [];
+    const newResults: DatabaseTestResult[] = [];
     for (let i = 0; i < testSteps.length; i++) {
       setCurrentStep(i);
       const result = await executeTestStep(testSteps[i].key, config.database);
@@ -128,6 +124,8 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
       await new Promise(resolve => setTimeout(resolve, 800));
     }
 
+    // 更新最终结果
+    setResults(newResults);
     setCurrentStep(testSteps.length);
     setIsRunning(false);
 
@@ -145,40 +143,15 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
         message: '正在执行测试...'
       });
 
-      const response = await fetch(`/api/admin/system/test-database-step?step=${step}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dbConfig)
-      });
+      const result = await testDatabaseStep.mutateAsync({ step, config: dbConfig });
 
-      const data = await response.json();
+      // 更新结果列表
+      setResults(prev => prev.map(r =>
+        r.step === step ? result : r
+      ));
 
-      if (data.success) {
-        const result = data.data;
-
-        // 更新结果列表
-        setResults(prev => prev.map(r =>
-          r.step === step ? result : r
-        ));
-
-        setCurrentStepResult(result);
-        return result;
-      } else {
-        const errorResult: DatabaseTestResult = {
-          step,
-          status: 'failed',
-          message: data.message || '测试失败'
-        };
-
-        setResults(prev => prev.map(r =>
-          r.step === step ? errorResult : r
-        ));
-
-        setCurrentStepResult(errorResult);
-        return errorResult;
-      }
+      setCurrentStepResult(result);
+      return result;
     } catch (error) {
       const errorResult: DatabaseTestResult = {
         step,
@@ -251,7 +224,7 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
     <div>
       {showConfig && (
         <Card title="测试配置" style={{ marginBottom: 16 }}>
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="small" style={{ width: '100%' }}>
             <div>
               <Text strong>数据库类型:</Text> {config.database.type}
             </div>
@@ -292,10 +265,10 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
           )}
         </Space>
       }>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+        <Space orientation="vertical" size="large" style={{ width: '100%' }}>
           {/* 总体进度 */}
           <div>
-            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="small" style={{ width: '100%' }}>
               <Space>
                 <Title level={5} style={{ margin: 0 }}>总体状态:</Title>
                 <Tag color={overallStatus.color}>{overallStatus.text}</Tag>
@@ -372,7 +345,7 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
             <>
               <Divider />
               <Alert
-                message="测试失败"
+                title="测试失败"
                 description={
                   <div>
                     <Text>以下步骤失败：</Text>
@@ -388,19 +361,6 @@ const DatabaseTestProgress: React.FC<DatabaseTestProgressProps> = ({
                   </div>
                 }
                 type="error"
-                showIcon
-              />
-            </>
-          )}
-
-          {/* 成功消息 */}
-          {!isRunning && results.length > 0 && results.every(r => r.status === 'success') && (
-            <>
-              <Divider />
-              <Alert
-                message="连接测试成功"
-                description="数据库连接测试全部通过，可以继续进行系统初始化。"
-                type="success"
                 showIcon
               />
             </>

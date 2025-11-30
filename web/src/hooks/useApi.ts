@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { message } from 'antd';
+import { App } from 'antd';
 import {
   apiService,
   type ServerConfig,
@@ -10,6 +10,7 @@ import {
   type ProviderConfig,
   type ProviderTestResult,
   type SystemConfig,
+  type DatabaseTestResult,
 } from '../services/api';
 
 // 查询键
@@ -25,6 +26,7 @@ export const queryKeys = {
  */
 export const useTestConnection = () => {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (config: ServerConfig): Promise<ConnectionTestResult> =>
@@ -43,10 +45,28 @@ export const useTestConnection = () => {
 };
 
 /**
+ * 测试数据库步骤的Hook
+ */
+export const useTestDatabaseStep = () => {
+  return useMutation({
+    mutationFn: ({ step, config }: { step: string; config: any }): Promise<DatabaseTestResult> =>
+      apiService.testDatabaseStep(step, config),
+    onSuccess: (result, variables) => {
+      // 这里不显示消息，让组件自己处理
+      console.log(`数据库测试步骤 ${variables.step} 完成:`, result);
+    },
+    onError: (error) => {
+      console.error('数据库测试步骤出错:', error);
+    },
+  });
+};
+
+/**
  * 初始化项目的Hook
  */
 export const useInitializeProject = () => {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (config: InitConfig): Promise<InitResult> =>
@@ -111,6 +131,8 @@ export const useProviders = (type?: ProviderType) => {
  * 测试提供商连接的Hook
  */
 export const useTestProvider = () => {
+  const { message } = App.useApp();
+
   return useMutation({
     mutationFn: ({ type, config }: { type: ProviderType; config: ProviderConfig }): Promise<ProviderTestResult> =>
       apiService.testProvider(type, config),
@@ -132,6 +154,7 @@ export const useTestProvider = () => {
  */
 export const useUpdateProvider = () => {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: ({ type, config }: { type: ProviderType; config: ProviderConfig }) =>
@@ -166,6 +189,7 @@ export const useSystemConfig = () => {
  */
 export const useUpdateSystemConfig = () => {
   const queryClient = useQueryClient();
+  const { message } = App.useApp();
 
   return useMutation({
     mutationFn: (config: SystemConfig) => apiService.updateSystemConfig(config),
@@ -184,6 +208,8 @@ export const useUpdateSystemConfig = () => {
  * 验证配置的Hook
  */
 export const useValidateConfig = () => {
+  const { message } = App.useApp();
+
   return useMutation({
     mutationFn: (config: any) => apiService.validateConfig(config),
     onSuccess: (result) => {
@@ -216,6 +242,7 @@ export const useApiHealth = () => {
 
 export default {
   useTestConnection,
+  useTestDatabaseStep,
   useInitializeProject,
   useSystemStatus,
   useSystemLogs,

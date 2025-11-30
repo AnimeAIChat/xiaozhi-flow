@@ -7,7 +7,7 @@ import {
   Steps,
   Space,
   Spin,
-  message,
+  App,
   Divider,
   Tag,
   Result,
@@ -25,6 +25,8 @@ import { FullscreenLayout } from '../../components/layout';
 import DatabaseConfigForm from '../../components/DatabaseConfigForm';
 import DatabaseTestProgress from '../../components/DatabaseTestProgress';
 import SystemInitProgress from '../../components/SystemInitProgress';
+import { envConfig } from '../../utils/envConfig';
+import { apiService } from '../../services/api';
 
 const { Title, Text } = Typography;
 const { Step } = Steps;
@@ -67,6 +69,7 @@ interface DatabaseTestResult {
 
 const Config: React.FC = () => {
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const { data: systemStatus, isLoading: systemLoading } = useSystemStatus();
 
   const [currentStep, setCurrentStep] = useState(0);
@@ -78,27 +81,27 @@ const Config: React.FC = () => {
   const steps = [
     {
       title: '数据库配置',
-      description: '配置数据库连接参数',
+      content: '配置数据库连接参数',
       icon: <DatabaseOutlined />
     },
     {
       title: '连接测试',
-      description: '测试数据库连接和权限',
+      content: '测试数据库连接和权限',
       icon: <PlayCircleOutlined />
     },
     {
       title: '保存配置',
-      description: '保存配置到系统',
+      content: '保存配置到系统',
       icon: <SaveOutlined />
     },
     {
       title: '系统初始化',
-      description: '初始化数据库和创建管理员',
+      content: '初始化数据库和创建管理员',
       icon: <RocketOutlined />
     },
     {
       title: '完成',
-      description: '配置和初始化完成',
+      content: '配置和初始化完成',
       icon: <SaveOutlined />
     }
   ];
@@ -108,10 +111,7 @@ const Config: React.FC = () => {
     if (!systemLoading && systemStatus) {
       // 只有当系统已经完全初始化且用户刚开始配置流程时才跳转到 dashboard
       if (systemStatus.initialized === true && systemStatus.needs_setup !== true && currentStep === 0) {
-        console.log('Config: System already initialized, redirecting to dashboard');
         navigate('/dashboard', { replace: true });
-      } else {
-        console.log('Config: System needs setup or user is in progress, staying on config page');
       }
     }
   }, [systemStatus, systemLoading, navigate, currentStep]);
@@ -152,21 +152,16 @@ const Config: React.FC = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/system/save-database-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          ...config,
-          initialized: false,
-          version: '1.0.0',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-      });
 
-      const data = await response.json();
+      const configData = {
+        ...config,
+        initialized: false,
+        version: '1.0.0',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const data = await apiService.saveDatabaseConfig(configData);
 
       if (data.success) {
         message.success('配置保存成功！');
@@ -177,7 +172,7 @@ const Config: React.FC = () => {
       }
     } catch (error) {
       console.error('保存配置失败:', error);
-      message.error('保存配置失败');
+      message.error(`保存配置失败: ${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setLoading(false);
     }
@@ -206,10 +201,10 @@ const Config: React.FC = () => {
       case 2:
         return (
           <Card title="配置确认" extra={<Tag color="blue">待保存</Tag>}>
-            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="large" style={{ width: '100%' }}>
               <div>
                 <Title level={5}>数据库配置</Title>
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                   <div><Text strong>类型:</Text> {config?.database.type}</div>
                   {config?.database.type === 'sqlite' && (
                     <div><Text strong>路径:</Text> {config?.database.path}</div>
@@ -228,7 +223,7 @@ const Config: React.FC = () => {
 
               <div>
                 <Title level={5}>管理员配置</Title>
-                <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                   <div><Text strong>用户名:</Text> {config?.admin.username}</div>
                   <div><Text strong>密码:</Text> {config?.admin.password || '未设置'}</div>
                   {config?.admin.email && (
@@ -238,7 +233,7 @@ const Config: React.FC = () => {
               </div>
 
               <Alert
-                message="配置保存确认"
+                title="配置保存确认"
                 description="点击保存按钮将配置写入系统，之后可以继续进行系统初始化。"
                 type="info"
                 showIcon
@@ -269,7 +264,7 @@ const Config: React.FC = () => {
       case 4:
         return (
           <Card title="配置完成">
-            <Space direction="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
+            <Space orientation="vertical" size="large" style={{ width: '100%', textAlign: 'center' }}>
               <Result
                 status="success"
                 title="数据库配置和系统初始化完成！"
@@ -316,7 +311,7 @@ const Config: React.FC = () => {
     return (
       <FullscreenLayout>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <Space direction="vertical" align="center">
+          <Space orientation="vertical" align="center">
             <Spin size="large" />
             <Text>加载配置中...</Text>
           </Space>

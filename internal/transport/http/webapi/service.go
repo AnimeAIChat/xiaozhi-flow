@@ -405,6 +405,31 @@ func (s *Service) handleDeviceDeleteAdmin(c *gin.Context) {
 // authMiddleware 认证中间件
 func (s *Service) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// 检查系统是否已初始化
+		if !s.isSystemInitialized() {
+			// 系统未初始化时，只允许访问特定的公开接口
+			path := c.Request.URL.Path
+			method := c.Request.Method
+
+			// 允许访问的管理员初始化接口
+			if method == "GET" && path == "/api/admin/system/status" {
+				c.Next()
+				return
+			}
+			if method == "POST" && (path == "/api/admin/system/test-connection" ||
+				path == "/api/admin/system/test-database-step" ||
+				path == "/api/admin/system/save-database-config" ||
+				path == "/api/admin/system/init") {
+				c.Next()
+				return
+			}
+
+			// 其他接口返回系统未就绪错误
+			s.respondError(c, http.StatusServiceUnavailable, "系统未初始化，请先完成系统设置")
+			c.Abort()
+			return
+		}
+
 		apikey := c.GetHeader("AuthorToken")
 		if apikey != "" {
 			// 如果提供了API Token，直接验证

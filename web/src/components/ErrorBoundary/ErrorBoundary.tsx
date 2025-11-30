@@ -212,7 +212,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               status="error"
               icon={<BugOutlined style={{ color: '#ff4d4f' }} />}
               title={
-                <Space direction="vertical" size="small">
+                <Space orientation="vertical" size="small">
                   <Title level={3} style={{ color: '#ff4d4f', margin: 0 }}>
                     组件渲染错误
                   </Title>
@@ -277,7 +277,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     }
                     key="error-details"
                   >
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                       {/* 错误信息 */}
                       <Card size="small" title={<Text strong>错误信息</Text>}>
                         <Text code style={{
@@ -318,7 +318,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
                       {/* 环境信息 */}
                       <Card size="small" title={<Text strong>环境信息</Text>}>
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                           <Text><strong>用户代理:</strong> {navigator.userAgent}</Text>
                           <Text><strong>当前URL:</strong> {window.location.href}</Text>
                           <Text><strong>错误边界ID:</strong> {this.errorBoundaryId}</Text>

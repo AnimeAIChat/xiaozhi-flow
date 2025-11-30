@@ -70,15 +70,25 @@ const SystemInitializer: React.FC<SystemInitializerProps> = ({ children }) => {
             setInitialized(true);
           }
         } else {
-          // 系统未初始化
+          // 系统未初始化 - 强制重定向到设置页面（除了根路径和设置页面本身）
           log.info('系统未初始化，需要设置', { currentPath, systemStatus }, 'system', 'SystemInitializer');
-          // 只允许访问 setup、config 和根路径
-          const allowedPaths = ['/', '/setup', '/config'];
-          if (allowedPaths.includes(currentPath)) {
-            log.info('允许访问设置页面', { currentPath, allowedPaths }, 'system', 'SystemInitializer');
+
+          // 只有根路径和设置页面允许在系统未初始化时访问
+          const allowedPaths = ['/', '/setup'];
+
+          if (currentPath === '/setup') {
+            log.info('已在设置页面，允许访问', { currentPath }, 'system', 'SystemInitializer');
+            setInitialized(true);
+          } else if (currentPath === '/') {
+            // 根路径也允许访问，但 SmartRootRoute 会处理
+            log.info('根路径，允许访问', { currentPath }, 'system', 'SystemInitializer');
             setInitialized(true);
           } else {
-            log.warn('系统未初始化，重定向到设置页面', { currentPath, systemStatus }, 'system', 'SystemInitializer');
+            // 所有其他路径都重定向到设置页面，包括 login 和 register
+            // 只在第一次重定向时输出日志，避免重复
+            if (!initialized) {
+              log.warn('系统未初始化，重定向到设置页面', { currentPath }, 'system', 'SystemInitializer');
+            }
             setTimeout(() => {
               navigate('/setup', { replace: true });
             }, 100);

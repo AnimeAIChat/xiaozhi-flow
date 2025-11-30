@@ -174,7 +174,7 @@ const Register: React.FC = () => {
           {/* 错误提示 */}
           {error && (
             <Alert
-              message="注册失败"
+              title="注册失败"
               description={error}
               type="error"
               showIcon
@@ -187,7 +187,7 @@ const Register: React.FC = () => {
           {/* 成功提示 */}
           {registerSuccess && (
             <Alert
-              message="注册成功"
+              title="注册成功"
               description="账户创建成功，正在跳转到主页..."
               type="success"
               showIcon
@@ -348,7 +348,7 @@ const Register: React.FC = () => {
         {/* 版权信息 */}
         <div className="text-center mt-8">
           <Text type="secondary" className="text-sm">
-            © 2024 XiaoZhi Flow. 保留所有权利.
+            © 2025 XiaoZhi Flow. 保留所有权利.
           </Text>
         </div>
       </div>
