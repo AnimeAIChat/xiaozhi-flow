@@ -8,10 +8,10 @@ tmp_dir = "tmp"
   cmd = "go build -o ./tmp/main.exe ./cmd/xiaozhi-server"
 
   # 入口点配置
-  entrypoint = "./tmp/main.exe"
+  bin = "./tmp/main.exe"
 
   # 构建延迟（毫秒），避免频繁构建
-  delay = 1500
+  delay = 2000
 
   # 排除的目录
   exclude_dir = [
@@ -44,8 +44,8 @@ tmp_dir = "tmp"
   # 完整二进制命令（带环境变量等）
   full_bin = ""
 
-  # 发送中断信号前的延迟
-  kill_delay = "2s"
+  # 发送中断信号前的延迟 (Windows 需要更长)
+  kill_delay = "5s"
 
   # 构建错误日志文件
   log = "build-errors.log"
