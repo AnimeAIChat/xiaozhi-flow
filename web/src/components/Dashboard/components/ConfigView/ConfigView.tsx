@@ -1,6 +1,7 @@
 /**
  * 配置视图组件
  * 基于ConfigEditor的ConfigCanvas，适配为Dashboard的视图模式
+ * 集成侧边栏和悬浮组件库面板
  */
 
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
@@ -18,6 +19,7 @@ import ReactFlow, {
   Position,
   Handle,
   NodeProps,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -53,6 +55,9 @@ import { configService } from '../../../../services/configService';
 import { log } from '../../../../utils/logger';
 import type { ConfigNode, ConfigEdge, ConfigEditMode, ConfigRecord } from '../../../../types/config';
 import type { ConfigViewProps } from '../../types';
+import { ConfigSidebar } from './Sidebar';
+import { FloatingComponentLibrary } from './FloatingPanel';
+import DragHandler from './DragHandler/DragHandler';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -341,11 +346,12 @@ const ConfigNodeComponent: React.FC<NodeProps<ConfigNode>> = ({ data, selected, 
   );
 };
 
-// 配置视图组件
-const ConfigView: React.FC<ConfigViewProps> = () => {
-  const [configs, setConfigs] = useState<ConfigRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
+// 配置画布组件（内部组件，用于ReactFlowProvider）
+const ConfigCanvas: React.FC<{
+  configs: ConfigRecord[];
+  loading: boolean;
+  onConfigsLoad: (configs: ConfigRecord[]) => void;
+}> = ({ configs, loading, onConfigsLoad }) => {
   // ReactFlow 状态
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -357,37 +363,53 @@ const ConfigView: React.FC<ConfigViewProps> = () => {
 
   // 加载配置数据
   useEffect(() => {
-    loadConfigs();
-  }, []);
-
-  const loadConfigs = async () => {
-    try {
-      setLoading(true);
-      console.log('ConfigView: Loading configs');
-      const configData = await configService.getConfigs({});
-      console.log('ConfigView: Retrieved config data:', configData);
-      console.log('ConfigView: Config data length:', configData?.length || 0);
-      setConfigs(configData);
-
+    if (configs.length > 0) {
       // 转换为画布节点
-      const newNodes = configService.configsToNodes(configData);
+      const newNodes = configService.configsToNodes(configs);
       console.log('ConfigView: Generated nodes:', newNodes);
       console.log('ConfigView: Nodes length:', newNodes?.length || 0);
       setNodes(newNodes);
-    } catch (error) {
-      console.error('ConfigView: Error loading configs:', error);
-      message.error('加载配置失败');
-      log.error('加载配置失败', error, 'config', 'ConfigView');
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [configs, setNodes]);
 
   // 处理连接创建
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep', animated: true }, eds)),
-    []
+    [setEdges]
   );
+
+  // 处理拖拽创建节点
+  const handleNodeCreate = useCallback((newNode: ConfigNode) => {
+    setNodes((nds) => [...nds, newNode]);
+    message.success(`已添加 ${newNode.data.label} 节点`);
+    log.info('拖拽创建节点成功', { nodeId: newNode.id, label: newNode.data.label }, 'config', 'ConfigView');
+  }, [setNodes]);
+
+  // 处理清空画布
+  const handleClearCanvas = useCallback(() => {
+    setNodes([]);
+    setEdges([]);
+    message.success('画布已清空');
+  }, [setNodes, setEdges]);
+
+  // 处理保存配置
+  const handleSaveConfig = useCallback(() => {
+    // 实现保存配置逻辑
+    message.success('配置已保存');
+    log.info('配置保存成功', { nodesCount: nodes.length }, 'config', 'ConfigView');
+  }, [nodes]);
+
+  // 处理加载配置
+  const handleLoadConfig = useCallback(async () => {
+    try {
+      const configData = await configService.getConfigs({});
+      onConfigsLoad(configData);
+      message.success('配置已加载');
+    } catch (error) {
+      message.error('加载配置失败');
+      log.error('加载配置失败', error, 'config', 'ConfigView');
+    }
+  }, [onConfigsLoad]);
 
   if (loading && nodes.length === 0) {
     return (
@@ -401,7 +423,7 @@ const ConfigView: React.FC<ConfigViewProps> = () => {
   }
 
   return (
-    <div className="w-full h-full">
+    <DragHandler onNodeCreate={handleNodeCreate}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -422,6 +444,66 @@ const ConfigView: React.FC<ConfigViewProps> = () => {
           maskColor="rgba(255, 255, 255, 0.8)"
         />
       </ReactFlow>
+
+      {/* 悬浮组件库面板 */}
+      <FloatingComponentLibrary />
+    </DragHandler>
+  );
+};
+
+// 配置视图主组件
+const ConfigView: React.FC<ConfigViewProps> = () => {
+  const [configs, setConfigs] = useState<ConfigRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // 加载配置数据
+  const loadConfigs = async () => {
+    try {
+      setLoading(true);
+      console.log('ConfigView: Loading configs');
+      const configData = await configService.getConfigs({});
+      console.log('ConfigView: Retrieved config data:', configData);
+      console.log('ConfigView: Config data length:', configData?.length || 0);
+      setConfigs(configData);
+    } catch (error) {
+      console.error('ConfigView: Error loading configs:', error);
+      message.error('加载配置失败');
+      log.error('加载配置失败', error, 'config', 'ConfigView');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 初始化加载
+  useEffect(() => {
+    loadConfigs();
+  }, []);
+
+  return (
+    <div className="flex w-full h-full">
+      {/* 左侧配置侧边栏 */}
+      <ConfigSidebar
+        onClearCanvas={() => {
+          // 清空画布逻辑将在ConfigCanvas中处理
+          console.log('Clear canvas requested');
+        }}
+        onSaveConfig={() => {
+          // 保存配置逻辑将在ConfigCanvas中处理
+          console.log('Save config requested');
+        }}
+        onLoadConfig={loadConfigs}
+      />
+
+      {/* 主画布区域 */}
+      <main className="flex-1 relative">
+        <ReactFlowProvider>
+          <ConfigCanvas
+            configs={configs}
+            loading={loading}
+            onConfigsLoad={setConfigs}
+          />
+        </ReactFlowProvider>
+      </main>
     </div>
   );
 };

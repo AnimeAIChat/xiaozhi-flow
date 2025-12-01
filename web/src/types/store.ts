@@ -91,6 +91,22 @@ export interface UIState {
     width: number;
   };
 
+  // 配置页面侧边栏
+  configSidebar: {
+    collapsed: boolean;
+    width: number;
+    defaultWidth: number;
+    minWidth: number;
+    maxWidth: number;
+  };
+
+  // 组件库悬浮面板
+  componentLibraryPanel: {
+    visible: boolean;
+    position: { x: number; y: number };
+    pinned: boolean;
+  };
+
   // 页面状态
   page: {
     loading: boolean;
@@ -237,6 +253,19 @@ export interface AppActions {
     setLanguage: (language: Language) => void;
     toggleSidebar: () => void;
     setSidebarCollapsed: (collapsed: boolean) => void;
+
+    // 配置页面侧边栏
+    toggleConfigSidebar: () => void;
+    setConfigSidebarCollapsed: (collapsed: boolean) => void;
+    setConfigSidebarWidth: (width: number) => void;
+
+    // 组件库悬浮面板
+    toggleComponentLibraryPanel: () => void;
+    showComponentLibraryPanel: (position?: { x: number; y: number }) => void;
+    hideComponentLibraryPanel: () => void;
+    setComponentLibraryPanelPosition: (position: { x: number; y: number }) => void;
+    toggleComponentLibraryPanelPin: () => void;
+    setComponentLibraryPanelPin: (pinned: boolean) => void;
 
     // 页面管理
     setPageLoading: (loading: boolean) => void;

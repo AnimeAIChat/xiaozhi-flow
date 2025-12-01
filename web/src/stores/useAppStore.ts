@@ -76,6 +76,18 @@ const initialState: AppState = {
       collapsed: false,
       width: 256,
     },
+    configSidebar: {
+      collapsed: false,
+      width: 280,
+      defaultWidth: 280,
+      minWidth: 240,
+      maxWidth: 400,
+    },
+    componentLibraryPanel: {
+      visible: false,
+      position: { x: 100, y: 100 },
+      pinned: false,
+    },
     page: {
       loading: false,
       title: 'Xiaozhi-Flow',
@@ -339,6 +351,33 @@ const actions: AppActions = {
     setSidebarCollapsed: (collapsed) => {
       // 设置侧边栏折叠状态
     },
+    toggleConfigSidebar: () => {
+      // 切换配置页面侧边栏
+    },
+    setConfigSidebarCollapsed: (collapsed) => {
+      // 设置配置页面侧边栏折叠状态
+    },
+    setConfigSidebarWidth: (width) => {
+      // 设置配置页面侧边栏宽度
+    },
+    toggleComponentLibraryPanel: () => {
+      // 切换组件库悬浮面板
+    },
+    showComponentLibraryPanel: (position) => {
+      // 显示组件库悬浮面板
+    },
+    hideComponentLibraryPanel: () => {
+      // 隐藏组件库悬浮面板
+    },
+    setComponentLibraryPanelPosition: (position) => {
+      // 设置组件库悬浮面板位置
+    },
+    toggleComponentLibraryPanelPin: () => {
+      // 切换组件库悬浮面板固定状态
+    },
+    setComponentLibraryPanelPin: (pinned) => {
+      // 设置组件库悬浮面板固定状态
+    },
     setPageLoading: (loading) => {
       // 设置页面加载状态
     },
@@ -472,6 +511,102 @@ export const useAppStore = create<AppStore>()(
                 },
               },
             })),
+          // 配置页面侧边栏方法
+          toggleConfigSidebar: () =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                configSidebar: {
+                  ...state.ui.configSidebar,
+                  collapsed: !state.ui.configSidebar.collapsed,
+                },
+              },
+            })),
+          setConfigSidebarCollapsed: (collapsed) =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                configSidebar: {
+                  ...state.ui.configSidebar,
+                  collapsed,
+                },
+              },
+            })),
+          setConfigSidebarWidth: (width) =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                configSidebar: {
+                  ...state.ui.configSidebar,
+                  width: Math.max(
+                    state.ui.configSidebar.minWidth,
+                    Math.min(state.ui.configSidebar.maxWidth, width)
+                  ),
+                },
+              },
+            })),
+          // 组件库悬浮面板方法
+          toggleComponentLibraryPanel: () =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  visible: !state.ui.componentLibraryPanel.visible,
+                },
+              },
+            })),
+          showComponentLibraryPanel: (position) =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  visible: true,
+                  position: position || state.ui.componentLibraryPanel.position,
+                },
+              },
+            })),
+          hideComponentLibraryPanel: () =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  visible: false,
+                },
+              },
+            })),
+          setComponentLibraryPanelPosition: (position) =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  position,
+                },
+              },
+            })),
+          toggleComponentLibraryPanelPin: () =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  pinned: !state.ui.componentLibraryPanel.pinned,
+                },
+              },
+            })),
+          setComponentLibraryPanelPin: (pinned) =>
+            set((state) => ({
+              ui: {
+                ...state.ui,
+                componentLibraryPanel: {
+                  ...state.ui.componentLibraryPanel,
+                  pinned,
+                },
+              },
+            })),
         })),
         {
           name: 'xiaozhi-flow-app-store',
@@ -481,6 +616,7 @@ export const useAppStore = create<AppStore>()(
               theme: state.ui.theme,
               language: state.ui.language,
               sidebar: state.ui.sidebar,
+              configSidebar: state.ui.configSidebar,
             },
             config: {
               server: state.config.server,
@@ -511,5 +647,7 @@ export const useSystemConfig = () => useAppStore((state) => state.config.system)
 export const useTheme = () => useAppStore((state) => state.ui.theme);
 export const useLanguage = () => useAppStore((state) => state.ui.language);
 export const useSidebar = () => useAppStore((state) => state.ui.sidebar);
+export const useConfigSidebar = () => useAppStore((state) => state.ui.configSidebar);
+export const useComponentLibraryPanel = () => useAppStore((state) => state.ui.componentLibraryPanel);
 
 export default useAppStore;
