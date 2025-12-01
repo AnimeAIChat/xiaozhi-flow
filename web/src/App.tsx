@@ -15,9 +15,9 @@ import { log } from './utils/logger';
 const Setup = React.lazy(() => import('./pages/Setup'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Config = React.lazy(() => import('./pages/Config'));
-const ConfigEditor = React.lazy(() => import('./pages/ConfigEditor'));
+const ConfigEditor = React.lazy(() => import('./pages/ConfigEditor/index.tsx'));
 const Login = React.lazy(() => import('./pages/Login'));
-const Register = React.lazy(() => import('./pages/Register'));
+const Register = React.lazy(() => import('./pages/Register/index.tsx'));
 
 // 加载组件
 const LoadingSpinner: React.FC = () => (
