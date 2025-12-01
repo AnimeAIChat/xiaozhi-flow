@@ -1,0 +1,68 @@
+import React, { useState } from 'react';
+import { FullscreenLayout } from '../layout';
+import { useDatabaseSchema, useWorkflowState, useDashboardNavigation } from './hooks';
+import { DashboardViewMode } from './types';
+
+// 导入子组件
+import ViewSwitcher from './components/ViewSwitcher';
+import LoadingState from './components/LoadingState';
+import ErrorState from './components/ErrorState';
+import QuickActions from './components/QuickActions';
+import WorkflowView from './components/WorkflowView';
+import DatabaseView from './components/DatabaseView';
+
+const Dashboard: React.FC = () => {
+  const [viewMode, setViewMode] = useState<DashboardViewMode>('workflow'); // 默认显示工作流节点
+
+  // 自定义Hooks
+  const { schema, loading, error, onTableSelect } = useDatabaseSchema();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useWorkflowState();
+  const { handleDoubleClick } = useDashboardNavigation();
+
+  // 处理视图切换
+  const handleViewChange = (newView: DashboardViewMode) => {
+    setViewMode(newView);
+  };
+
+  // 加载状态
+  if (loading) {
+    return <LoadingState message="加载数据库表结构..." />;
+  }
+
+  // 错误状态
+  if (error || !schema) {
+    return <ErrorState error={error || '未知错误'} />;
+  }
+
+  return (
+    <FullscreenLayout>
+      <div className="w-full h-full bg-gray-50 overflow-hidden relative">
+        {/* 视图切换按钮 */}
+        <ViewSwitcher currentView={viewMode} onViewChange={handleViewChange} />
+
+        {/* 快速操作按钮 */}
+        <QuickActions onConfigEdit={handleDoubleClick} />
+
+        {/* 内容区域 */}
+        {viewMode === 'database' ? (
+          <DatabaseView
+            schema={schema}
+            onTableSelect={onTableSelect}
+            onDoubleClick={handleDoubleClick}
+          />
+        ) : (
+          <WorkflowView
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onDoubleClick={handleDoubleClick}
+          />
+        )}
+      </div>
+    </FullscreenLayout>
+  );
+};
+
+export default Dashboard;
