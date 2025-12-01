@@ -1,0 +1,106 @@
+# XiaoZhi Flow Plugin System Configuration
+
+plugins:
+  # Hello Plugin 示例
+  hello-plugin:
+    id: hello-plugin
+    name: Hello Plugin
+    version: 1.0.0
+    description: A simple hello world plugin for demonstration
+    author: XiaoZhi Flow Team
+    type: utility
+    tags:
+      - example
+      - hello
+      - utility
+    deployment:
+      type: local_binary
+      path: ./plugins/examples/hello/main.go
+      resources:
+        max_memory: "128Mi"
+        max_cpu: "100m"
+      timeout: 30s
+      retry_count: 3
+    config:
+      greeting_language: "en"
+      default_name: "World"
+      timezone: "UTC"
+    environment:
+      PLUGIN_LOG_LEVEL: "info"
+      PLUGIN_DEBUG: "false"
+    enabled: true
+
+# 插件管理器配置
+manager:
+  enabled: true
+
+  # 插件发现配置
+  discovery:
+    enabled: true
+    scan_interval: 30s
+    paths:
+      - "./plugins"
+      - "./plugins/examples"
+      - "./plugins/audio"
+      - "./plugins/llm"
+      - "./plugins/device"
+      - "./plugins/utility"
+
+  # 注册表配置
+  registry:
+    type: memory  # memory, redis, etcd
+    ttl: 300s
+
+  # 健康检查配置
+  health_check:
+    interval: 10s
+    timeout: 5s
+    failure_threshold: 3
+
+# 统一网关配置
+gateway:
+  enabled: true
+
+  # 路由规则
+  routing:
+    rules:
+      - id: plugin-rules
+        pattern: "plugin_*"
+        target: "plugin"
+        weight: 1
+      - id: mcp-rules
+        pattern: "mcp_*"
+        target: "mcp"
+        weight: 1
+      - id: default-rules
+        pattern: "*"
+        target: "provider"
+        weight: 1
+
+  # 负载均衡配置
+  load_balancer:
+    strategy: round_robin  # round_robin, random, least_connections
+
+# 安全配置
+security:
+  # 沙箱配置
+  sandbox:
+    enabled: true
+    type: docker  # docker, gvisor, none
+
+  # 签名验证配置
+  signature:
+    enabled: false  # 暂时禁用签名验证
+    public_keys:
+      - "./keys/public_key.pem"
+
+  # 权限配置
+  permissions:
+    default: "restricted"
+    plugin_policies:
+      - name: "hello-plugin"
+        permissions: ["execute", "network_outbound"]
+      - name: "asr_plugin"
+        permissions: ["audio_input", "network_outbound"]
+      - name: "device_plugin"
+        permissions: ["device_control", "network_outbound"]
