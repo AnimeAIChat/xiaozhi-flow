@@ -656,7 +656,7 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
         <div className="flex items-center space-x-4 mt-4">
           <Space>
             <Text type="secondary">编辑模式:</Text>
-            <Button.Group>
+            <Space.Compact>
               <Button
                 type={mode === 'view' ? 'primary' : 'default'}
                 icon={<EyeOutlined />}
@@ -689,7 +689,7 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
               >
                 调试
               </Button>
-            </Button.Group>
+            </Space.Compact>
           </Space>
         </div>
       </div>
@@ -718,7 +718,7 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
 
           {/* 面板 */}
           <Panel position="top-left" className="bg-white rounded-lg shadow-sm p-2">
-            <Space direction="vertical" size="small">
+            <Space orientation="vertical" size="small">
               <Text strong>配置画布</Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
                 节点: {nodes.length} | 连接: {edges.length}
@@ -780,7 +780,7 @@ export const ConfigCanvas: React.FC<ConfigCanvasProps> = ({ initialMode = 'view'
         placement="right"
         onClose={() => setShowSearchDrawer(false)}
         open={showSearchDrawer}
-        width={400}
+        size={400}
       >
         <List
           dataSource={configs}

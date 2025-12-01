@@ -49,7 +49,7 @@ export class ConfigService {
 
       const response = await apiService.client.get(`${this.baseUrl}/records`, { params });
       console.log('ConfigService: API response:', response.data);
-      console.log('ConfigService: Full response structure:', JSON.stringify(response.data, null, 2));
+      // console.log('ConfigService: Full response structure:', JSON.stringify(response.data, null, 2));
       console.log('ConfigService: Extracted records:', response.data.data?.data?.records);
 
       const result = response.data.data?.data?.records || [];
