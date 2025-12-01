@@ -1,6 +1,6 @@
 import { Node, Edge, OnNodesChange, OnEdgesChange, Connection } from 'reactflow';
 
-export type DashboardViewMode = 'database' | 'workflow';
+export type DashboardViewMode = 'database' | 'workflow' | 'config';
 
 export interface WorkflowNodeData {
   label: string;
@@ -30,10 +30,6 @@ export interface ErrorStateProps {
   error: string;
 }
 
-export interface QuickActionsProps {
-  onConfigEdit: () => void;
-}
-
 export interface WorkflowViewProps {
   nodes: Node<WorkflowNodeData>[];
   edges: Edge[];
@@ -48,6 +44,8 @@ export interface DatabaseViewProps {
   onTableSelect: (tableName: string) => void;
   onDoubleClick: () => void;
 }
+
+export interface ConfigViewProps {}
 
 export interface WorkflowNodeProps {
   data: WorkflowNodeData;

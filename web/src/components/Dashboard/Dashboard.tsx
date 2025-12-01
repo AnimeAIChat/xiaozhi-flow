@@ -7,9 +7,9 @@ import { DashboardViewMode } from './types';
 import ViewSwitcher from './components/ViewSwitcher';
 import LoadingState from './components/LoadingState';
 import ErrorState from './components/ErrorState';
-import QuickActions from './components/QuickActions';
 import WorkflowView from './components/WorkflowView';
 import DatabaseView from './components/DatabaseView';
+import ConfigView from './components/ConfigView';
 
 const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<DashboardViewMode>('workflow'); // 默认显示工作流节点
@@ -40,9 +40,6 @@ const Dashboard: React.FC = () => {
         {/* 视图切换按钮 */}
         <ViewSwitcher currentView={viewMode} onViewChange={handleViewChange} />
 
-        {/* 快速操作按钮 */}
-        <QuickActions onConfigEdit={handleDoubleClick} />
-
         {/* 内容区域 */}
         {viewMode === 'database' ? (
           <DatabaseView
@@ -50,6 +47,8 @@ const Dashboard: React.FC = () => {
             onTableSelect={onTableSelect}
             onDoubleClick={handleDoubleClick}
           />
+        ) : viewMode === 'config' ? (
+          <ConfigView />
         ) : (
           <WorkflowView
             nodes={nodes}

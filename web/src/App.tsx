@@ -15,7 +15,6 @@ import { log } from './utils/logger';
 const Setup = React.lazy(() => import('./pages/Setup'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Config = React.lazy(() => import('./pages/Config'));
-const ConfigEditor = React.lazy(() => import('./pages/ConfigEditor/index.tsx'));
 const Login = React.lazy(() => import('./pages/Login'));
 const Register = React.lazy(() => import('./pages/Register/index.tsx'));
 
@@ -145,19 +144,7 @@ const App: React.FC = () => {
                       </SystemRoute>
                     }
                   />
-                  <Route
-                    path="/config-editor"
-                    element={
-                      <SystemRoute>
-                        <ProtectedRoute>
-                          <ErrorBoundary componentName="ConfigEditor">
-                            <ConfigEditor />
-                          </ErrorBoundary>
-                        </ProtectedRoute>
-                      </SystemRoute>
-                    }
-                  />
-
+  
                   {/* 默认重定向 */}
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Space, Button } from 'antd';
-import { DatabaseOutlined, ApiOutlined, EditOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, ApiOutlined, SettingOutlined, EditOutlined } from '@ant-design/icons';
 import { ViewSwitcherProps } from '../../types';
 import { log } from '../../../../utils/logger';
 
@@ -29,6 +29,17 @@ const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ currentView, onViewChange }
           }}
         >
           数据库表
+        </Button>
+        <Button
+          type={currentView === 'config' ? 'primary' : 'default'}
+          size="small"
+          icon={<SettingOutlined />}
+          onClick={() => {
+            log.info('用户切换到配置节点视图', { from: currentView }, 'ui', 'Dashboard');
+            onViewChange('config');
+          }}
+        >
+          配置节点
         </Button>
       </Space>
     </div>

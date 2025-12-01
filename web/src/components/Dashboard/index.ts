@@ -5,9 +5,9 @@ export { default as Dashboard } from './Dashboard';
 export { default as ViewSwitcher } from './components/ViewSwitcher';
 export { default as LoadingState } from './components/LoadingState';
 export { default as ErrorState } from './components/ErrorState';
-export { default as QuickActions } from './components/QuickActions';
 export { default as WorkflowView } from './components/WorkflowView';
 export { default as DatabaseView } from './components/DatabaseView';
+export { default as ConfigView } from './components/ConfigView';
 
 // Hooks导出
 export { useDatabaseSchema, useWorkflowState, useDashboardNavigation } from './hooks';
@@ -20,9 +20,9 @@ export type {
   ViewSwitcherProps,
   LoadingStateProps,
   ErrorStateProps,
-  QuickActionsProps,
   WorkflowViewProps,
   DatabaseViewProps,
+  ConfigViewProps,
   WorkflowNodeProps,
 } from './types';
 
