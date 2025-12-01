@@ -323,18 +323,31 @@ const Dashboard: React.FC = () => {
         setLoading(true);
         const data = await apiService.getDatabaseSchema();
 
+        // 如果data为null或undefined，设置默认值
+        if (!data) {
+          setSchema({
+            name: 'unknown',
+            type: 'unknown',
+            tables: [],
+            relationships: []
+          });
+          setError(null);
+          setLoading(false);
+          return;
+        }
+
         // 转换后端数据格式到前端格式
         const transformedSchema = {
-          name: data.name,
-          type: data.type,
-          tables: data.tables.map((table: any) => ({
+          name: data.name || 'unknown',
+          type: data.type || 'unknown',
+          tables: (data.tables || []).map((table: any) => ({
             id: table.name,
             name: table.name,
             type: 'table' as const,
             schema: data.name,
             rowCount: table.rowCount,
             size: table.size,
-            columns: table.columns.map((col: any) => ({
+            columns: (table.columns || []).map((col: any) => ({
               id: `${table.name}.${col.name}`,
               name: col.name,
               type: col.type,
@@ -345,17 +358,17 @@ const Dashboard: React.FC = () => {
               description: col.description,
               position: { x: 0, y: 0 },
             })),
-            indexes: table.indexes?.map((idx: any) => ({
+            indexes: (table.indexes || []).map((idx: any) => ({
               id: `${table.name}.${idx.name}`,
               name: idx.name,
-              columns: idx.columns,
+              columns: idx.columns || [],
               unique: idx.unique,
               type: idx.type,
             })) || [],
             foreignKeys: [],
             position: { x: 0, y: 0 },
           })),
-          relationships: data.relationships?.map((rel: any) => ({
+          relationships: (data.relationships || []).map((rel: any) => ({
             id: rel.name || `${rel.sourceTable}_${rel.targetTable}`,
             source: rel.sourceTable,
             target: rel.targetTable,
