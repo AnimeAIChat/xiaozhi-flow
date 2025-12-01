@@ -446,7 +446,7 @@ const ConfigCanvas: React.FC<{
       </ReactFlow>
 
       {/* 悬浮组件库面板 */}
-      <FloatingComponentLibrary />
+      <FloatingComponentLibrary databaseNodes={configs} />
     </DragHandler>
   );
 };

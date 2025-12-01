@@ -49,24 +49,52 @@ const DragHandler: React.FC<DragHandlerProps> = ({ children, onNodeCreate }) => 
         });
 
         // 创建新节点
-        const newNode: ConfigNode = {
-          id: generateId(),
-          type: 'config',
-          position,
-          data: {
-            key: `${componentTemplate.category.toLowerCase()}_${Date.now()}`,
-            label: componentTemplate.label,
-            description: componentTemplate.description,
-            dataType: componentTemplate.dataType,
-            value: componentTemplate.defaultValue,
-            category: componentTemplate.category,
-            subCategory: componentTemplate.subCategory,
-            color: componentTemplate.color,
-            editable: true,
-            configCount: 0, // 非分组节点
-            tags: componentTemplate.tags
-          },
-        };
+        let newNode: ConfigNode;
+
+        if (componentTemplate.isDatabaseNode) {
+          // 处理数据库节点
+          newNode = {
+            id: generateId(),
+            type: 'config',
+            position,
+            data: {
+              key: `${componentTemplate.originalNode.key}_copy_${Date.now()}`,
+              label: componentTemplate.originalNode.label || componentTemplate.label,
+              description: componentTemplate.originalNode.description || componentTemplate.description,
+              dataType: componentTemplate.originalNode.dataType,
+              value: JSON.parse(JSON.stringify(componentTemplate.originalNode.value)), // 深拷贝值
+              category: componentTemplate.originalNode.category || componentTemplate.category,
+              subCategory: componentTemplate.originalNode.subCategory || componentTemplate.subCategory,
+              color: componentTemplate.originalNode.color || componentTemplate.color,
+              editable: true,
+              configCount: componentTemplate.originalNode.configCount || 0,
+              tags: componentTemplate.originalNode.tags || componentTemplate.tags,
+              isDatabaseNode: true, // 标记为数据库节点
+              originalNodeKey: componentTemplate.originalNode.key, // 保存原始节点键
+            },
+          };
+        } else {
+          // 处理预定义组件模板
+          newNode = {
+            id: generateId(),
+            type: 'config',
+            position,
+            data: {
+              key: `${componentTemplate.category.toLowerCase()}_${Date.now()}`,
+              label: componentTemplate.label,
+              description: componentTemplate.description,
+              dataType: componentTemplate.dataType,
+              value: componentTemplate.defaultValue,
+              category: componentTemplate.category,
+              subCategory: componentTemplate.subCategory,
+              color: componentTemplate.color,
+              editable: true,
+              configCount: 0, // 非分组节点
+              tags: componentTemplate.tags,
+              isDatabaseNode: false,
+            },
+          };
+        }
 
         // 触发节点创建事件
         onNodeCreate?.(newNode);

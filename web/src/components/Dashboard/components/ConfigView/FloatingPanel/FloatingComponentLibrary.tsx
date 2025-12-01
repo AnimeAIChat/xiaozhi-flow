@@ -3,7 +3,7 @@
  * 将现有ComponentLibrary功能集成到可拖拽的悬浮面板中
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Card, Button, Input, Space, Typography, Collapse, Badge } from 'antd';
 import {
   SearchOutlined,
@@ -29,6 +29,7 @@ import FloatingPanel from './FloatingPanel';
 import { useSidebarState } from '../hooks/useSidebarState';
 // 导入组件库样式以保持拖拽效果
 import '../ComponentLibrary/ComponentLibrary.css';
+import type { ConfigRecord } from '../../../../../types/config';
 
 // 组件库节点模板定义（复用现有定义）
 const COMPONENT_TEMPLATES = [
@@ -195,12 +196,42 @@ interface FloatingComponentLibraryProps {
   onNodeDragStart?: (template: any) => void;
   onNodeDragEnd?: () => void;
   className?: string;
+  databaseNodes?: ConfigRecord[]; // 数据库中的节点
 }
+
+// 获取类别图标函数（与画布节点保持一致）
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'ASR':
+      return <span style={{ color: '#fa8c16' }}>🎤</span>;
+    case 'TTS':
+      return <span style={{ color: '#52c41a' }}>🔊</span>;
+    case 'LLM':
+      return <span style={{ color: '#1890ff' }}>🤖</span>;
+    case 'VLLM':
+      return <span style={{ color: '#722ed1' }}>👁️</span>;
+    case 'server':
+      return <span style={{ color: '#13c2c2' }}>🖥️</span>;
+    case 'web':
+      return <span style={{ color: '#eb2f96' }}>🌐</span>;
+    case 'transport':
+      return <span style={{ color: '#faad14' }}>📡</span>;
+    case 'system':
+      return <span style={{ color: '#f5222d' }}>⚙️</span>;
+    case 'audio':
+      return <span style={{ color: '#a0d911' }}>🎵</span>;
+    case 'database':
+      return <span style={{ color: '#2f54eb' }}>💾</span>;
+    default:
+      return <SettingOutlined style={{ color: '#666' }} />;
+  }
+};
 
 const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
   onNodeDragStart,
   onNodeDragEnd,
   className = '',
+  databaseNodes = [],
 }) => {
   const {
     panelVisible,
@@ -215,17 +246,43 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const draggedItem = useRef<any>(null);
 
+  // 将数据库节点转换为组件模板格式
+  const databaseNodeTemplates = useMemo(() => {
+    return databaseNodes.map((node, index) => ({
+      id: `db-node-${node.key}`,
+      category: node.category || '自定义',
+      label: node.label || node.key,
+      icon: getCategoryIcon(node.category), // 使用与画布相同的类别图标
+      description: node.description || '从数据库加载的配置节点',
+      dataType: node.dataType,
+      color: node.color || '#1890ff',
+      subCategory: '数据库节点',
+      defaultValue: node.value,
+      tags: node.tags || ['数据库', '自定义'],
+      isDatabaseNode: true, // 标记为数据库节点
+      originalNode: node, // 保存原始节点数据
+    }));
+  }, [databaseNodes]);
+
+  // 合并预定义组件和数据库节点
+  const allComponentTemplates = useMemo(() => {
+    return [...COMPONENT_TEMPLATES, ...databaseNodeTemplates];
+  }, [databaseNodeTemplates]);
+
   // 按类别分组组件
-  const categorizedComponents = COMPONENT_TEMPLATES.reduce((acc, component) => {
-    if (!acc[component.category]) {
-      acc[component.category] = [];
-    }
-    acc[component.category].push(component);
-    return acc;
-  }, {} as Record<string, typeof COMPONENT_TEMPLATES>);
+  const categorizedComponents = useMemo(() => {
+    return allComponentTemplates.reduce((acc, component) => {
+      const category = component.category;
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(component);
+      return acc;
+    }, {} as Record<string, typeof allComponentTemplates>);
+  }, [allComponentTemplates]);
 
   // 过滤组件
-  const filterComponents = (components: typeof COMPONENT_TEMPLATES) => {
+  const filterComponents = (components: typeof allComponentTemplates) => {
     return components.filter(component => {
       const matchesSearch = !searchText ||
         component.label.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -243,7 +300,17 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
     draggedItem.current = template;
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/reactflow', 'node');
-    e.dataTransfer.setData('component-template', JSON.stringify(template));
+
+    // 对于数据库节点，传递完整的原始节点数据
+    const templateData = template.isDatabaseNode
+      ? {
+          ...template,
+          isDatabaseNode: true,
+          originalNode: template.originalNode
+        }
+      : template;
+
+    e.dataTransfer.setData('component-template', JSON.stringify(templateData));
 
     // 创建自定义拖拽图像
     const dragImage = document.createElement('div');
@@ -257,7 +324,7 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
         font-weight: 500;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       ">
-        ${template.icon} ${template.label}
+        ${template.isDatabaseNode ? getCategoryIcon(template.category) : template.icon} ${template.label}
       </div>
     `;
     dragImage.style.position = 'absolute';
@@ -269,7 +336,7 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
       document.body.removeChild(dragImage);
     }, 0);
 
-    onNodeDragStart?.(template);
+    onNodeDragStart?.(templateData);
   };
 
   // 处理拖拽结束
@@ -289,8 +356,8 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
       style={{
         padding: '12px',
         margin: '8px 0',
-        backgroundColor: '#ffffff',
-        border: '1px solid #e8e8e8',
+        backgroundColor: template.isDatabaseNode ? `${template.color}08` : '#ffffff',
+        border: template.isDatabaseNode ? `1px solid ${template.color}30` : '1px solid #e8e8e8',
         borderRadius: '8px',
         cursor: 'grab',
         transition: 'all 0.2s ease',
@@ -305,7 +372,7 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translateY(0)';
         e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-        e.currentTarget.style.borderColor = '#e8e8e8';
+        e.currentTarget.style.borderColor = template.isDatabaseNode ? `${template.color}30` : '#e8e8e8';
       }}
       onMouseDown={(e) => {
         e.currentTarget.style.cursor = 'grabbing';
@@ -324,9 +391,26 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
         backgroundColor: template.color
       }} />
 
+      {/* 数据库节点标识 */}
+      {template.isDatabaseNode && (
+        <div style={{
+          position: 'absolute',
+          top: '4px',
+          right: '4px',
+          background: template.color,
+          color: 'white',
+          fontSize: '10px',
+          padding: '2px 6px',
+          borderRadius: '4px',
+          fontWeight: '500'
+        }}>
+          数据库
+        </div>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
         <div style={{ marginRight: '8px', fontSize: '16px' }}>
-          {template.icon}
+          {template.isDatabaseNode ? getCategoryIcon(template.category) : template.icon}
         </div>
         <div style={{ flex: 1 }}>
           <div style={{
