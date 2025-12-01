@@ -20,6 +20,7 @@ export interface DatabaseSchema {
 export interface ViewSwitcherProps {
   currentView: DashboardViewMode;
   onViewChange: (view: DashboardViewMode) => void;
+  onPluginManagerOpen?: () => void;
 }
 
 export interface LoadingStateProps {

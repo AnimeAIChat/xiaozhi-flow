@@ -17,6 +17,15 @@ import type {
   ConnectionTestResult
 } from './api';
 import type { ParticleConfig, ParticleSystemState } from './particle';
+import type {
+  IPlugin,
+  PluginStatus,
+  ServiceInfo,
+  PluginSource,
+  PluginFilter,
+  PluginMarketplace,
+  PluginConfig
+} from '../plugins/types';
 
 // 应用状态接口
 export interface AppState {
@@ -34,6 +43,9 @@ export interface AppState {
 
   // 粒子状态
   particles: ParticleSystemState;
+
+  // 插件状态
+  plugins: PluginState;
 
   // 通知状态
   notifications: Notification[];
@@ -211,6 +223,67 @@ export interface AIMessage {
   };
 }
 
+// 插件状态
+export interface PluginState {
+  // 插件管理
+  plugins: {
+    list: IPlugin[];
+    loading: boolean;
+    error: string | null;
+  };
+
+  // 插件状态
+  statuses: {
+    [pluginId: string]: PluginStatus;
+  };
+
+  // 已安装插件
+  installed: {
+    [pluginId: string]: IPlugin;
+  };
+
+  // 插件配置
+  configs: {
+    [pluginId: string]: PluginConfig;
+  };
+
+  // 后端服务
+  services: {
+    [serviceId: string]: ServiceInfo;
+  };
+
+  // 插件市场
+  marketplace: {
+    available: IPlugin[];
+    categories: string[];
+    searchResults: IPlugin[];
+    loading: boolean;
+    error: string | null;
+  };
+
+  // 插件管理器状态
+  manager: {
+    loading: boolean;
+    error: string | null;
+    operationInProgress: boolean;
+    currentOperation: {
+      type: 'install' | 'uninstall' | 'update' | 'activate' | 'deactivate' | null;
+      pluginId: string | null;
+      progress: number;
+    };
+  };
+
+  // 安装状态
+  installation: {
+    inProgress: boolean;
+    progress: {
+      stage: string;
+      progress: number;
+      message: string;
+    } | null;
+  };
+}
+
 // Store Actions
 export interface AppActions {
   // 认证相关
@@ -324,6 +397,47 @@ export interface AppActions {
     markAsRead: (id: string) => void;
     markAllAsRead: () => void;
     clear: () => void;
+  };
+
+  // 插件相关
+  plugins: {
+    // 插件管理
+    loadPlugins: (filter?: PluginFilter) => Promise<void>;
+    installPlugin: (source: PluginSource) => Promise<void>;
+    uninstallPlugin: (pluginId: string) => Promise<void>;
+    updatePlugin: (pluginId: string, source?: PluginSource) => Promise<void>;
+    activatePlugin: (pluginId: string) => Promise<void>;
+    deactivatePlugin: (pluginId: string) => Promise<void>;
+    reloadPlugin: (pluginId: string) => Promise<void>;
+
+    // 插件配置
+    getPluginConfig: (pluginId: string) => PluginConfig | undefined;
+    setPluginConfig: (pluginId: string, config: Partial<PluginConfig>) => void;
+    resetPluginConfig: (pluginId: string) => void;
+
+    // 插件状态
+    getPluginStatus: (pluginId: string) => PluginStatus | undefined;
+    updatePluginStatus: (pluginId: string, status: Partial<PluginStatus>) => void;
+
+    // 服务管理
+    startService: (pluginId: string, serviceId: string) => Promise<void>;
+    stopService: (pluginId: string, serviceId: string) => Promise<void>;
+    restartService: (pluginId: string, serviceId: string) => Promise<void>;
+    getService: (serviceId: string) => ServiceInfo | undefined;
+
+    // 市场相关
+    searchMarketplace: (query: string) => Promise<void>;
+    loadMarketplacePlugins: (category?: string) => Promise<void>;
+    getPluginCategories: () => Promise<string[]>;
+
+    // 安装进度
+    setInstallationProgress: (progress: { stage: string; progress: number; message: string }) => void;
+    clearInstallationProgress: () => void;
+
+    // 批量操作
+    installMultiplePlugins: (sources: PluginSource[]) => Promise<void>;
+    updateAllPlugins: () => Promise<void>;
+    deactivateAllPlugins: () => Promise<void>;
   };
 }
 

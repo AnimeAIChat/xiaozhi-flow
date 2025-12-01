@@ -48,6 +48,8 @@ import {
   FolderOpenOutlined,
   CodeOutlined,
   DatabaseOutlined,
+  PlayCircleOutlined,
+  StopOutlined,
   ApiOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
@@ -58,6 +60,10 @@ import type { ConfigViewProps } from '../../types';
 import { ConfigSidebar } from './Sidebar';
 import { FloatingComponentLibrary } from './FloatingPanel';
 import DragHandler from './DragHandler/DragHandler';
+import DynamicNodeRenderer from '../../../../nodes/renderer/DynamicNodeRenderer';
+import { nodeRegistry } from '../../../../nodes/registry/NodeRegistry';
+import { dynamicNodeFactory } from '../../../../nodes/factory/DynamicNodeFactory';
+import { backendServiceManager } from '../../../../plugins/core/BackendServiceManager';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -357,9 +363,25 @@ const ConfigCanvas: React.FC<{
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   // 记忆化节点类型定义
-  const nodeTypes = useMemo(() => ({
-    config: ConfigNodeComponent,
-  }), []);
+  const nodeTypes = useMemo(() => {
+    const dynamicNodeTypes: Record<string, React.ComponentType<NodeProps>> = {};
+
+    // 注册动态节点组件
+    const allNodeDefinitions = nodeRegistry.getAllNodeDefinitions();
+    allNodeDefinitions.forEach(definition => {
+      if (definition.customComponent) {
+        dynamicNodeTypes[definition.id] = definition.customComponent;
+      } else {
+        dynamicNodeTypes[definition.id] = DynamicNodeRenderer;
+      }
+    });
+
+    return {
+      config: ConfigNodeComponent,
+      plugin: DynamicNodeRenderer,
+      ...dynamicNodeTypes
+    };
+  }, []);
 
   // 加载配置数据
   useEffect(() => {
@@ -379,10 +401,72 @@ const ConfigCanvas: React.FC<{
   );
 
   // 处理拖拽创建节点
-  const handleNodeCreate = useCallback((newNode: ConfigNode) => {
+  const handleNodeCreate = useCallback((templateData: any) => {
+    let newNode: ConfigNode;
+
+    if (templateData.isDynamicNode && templateData.nodeDefinition) {
+      // 创建动态节点
+      const definition = templateData.nodeDefinition;
+      newNode = dynamicNodeFactory.createNode(definition.id, definition, {
+        position: {
+          x: Math.random() * 400 + 100,
+          y: Math.random() * 300 + 100
+        },
+        data: templateData.defaultValue
+      });
+    } else if (templateData.isDatabaseNode) {
+      // 创建数据库节点
+      newNode = {
+        id: `config-${Date.now()}`,
+        type: 'config',
+        position: {
+          x: Math.random() * 400 + 100,
+          y: Math.random() * 300 + 100
+        },
+        data: {
+          key: templateData.originalNode.key,
+          label: templateData.label,
+          description: templateData.description,
+          category: templateData.category,
+          value: templateData.defaultValue || templateData.originalNode.value,
+          dataType: templateData.dataType,
+          required: templateData.required,
+          editable: templateData.editable,
+          icon: templateData.icon,
+          color: templateData.color
+        }
+      };
+    } else {
+      // 创建内置节点（原有逻辑）
+      newNode = {
+        id: `${templateData.id}-${Date.now()}`,
+        type: 'config',
+        position: {
+          x: Math.random() * 400 + 100,
+          y: Math.random() * 300 + 100
+        },
+        data: {
+          key: templateData.id,
+          label: templateData.label,
+          description: templateData.description,
+          category: templateData.category,
+          value: templateData.defaultValue || {},
+          dataType: templateData.dataType,
+          required: false,
+          editable: true,
+          icon: templateData.icon,
+          color: templateData.color
+        }
+      };
+    }
+
     setNodes((nds) => [...nds, newNode]);
     message.success(`已添加 ${newNode.data.label} 节点`);
-    log.info('拖拽创建节点成功', { nodeId: newNode.id, label: newNode.data.label }, 'config', 'ConfigView');
+    log.info('拖拽创建节点成功', {
+      nodeId: newNode.id,
+      label: newNode.data.label,
+      type: templateData.isDynamicNode ? 'dynamic' : templateData.isDatabaseNode ? 'database' : 'builtin'
+    }, 'config', 'ConfigView');
   }, [setNodes]);
 
   // 处理清空画布

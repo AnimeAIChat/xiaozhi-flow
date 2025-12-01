@@ -28,7 +28,7 @@ export interface ConfigCategory {
 // 配置节点类型（用于画布显示）
 export interface ConfigNode {
   id: string;
-  type: 'config' | 'category' | 'action';
+  type: 'config' | 'category' | 'action' | 'plugin';
   position: { x: number; y: number };
   data: {
     key: string;
@@ -41,6 +41,19 @@ export interface ConfigNode {
     editable?: boolean;
     icon?: string;
     color?: string;
+
+    // 插件相关字段
+    pluginId?: string;
+    nodeDefinition?: any; // NodeDefinition from plugin types
+    dynamicParameters?: Record<string, any>;
+    endpoint?: string;
+    serviceStatus?: 'idle' | 'loading' | 'running' | 'error';
+    lastExecution?: {
+      timestamp: number;
+      result?: any;
+      error?: string;
+      duration?: number;
+    };
   };
 }
 

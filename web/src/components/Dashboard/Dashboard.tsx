@@ -10,9 +10,11 @@ import ErrorState from './components/ErrorState';
 import WorkflowView from './components/WorkflowView';
 import DatabaseView from './components/DatabaseView';
 import ConfigView from './components/ConfigView';
+import { PluginManager } from '../PluginManager/PluginManager';
 
 const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<DashboardViewMode>('workflow'); // 默认显示工作流节点
+  const [pluginManagerVisible, setPluginManagerVisible] = useState(false);
 
   // 自定义Hooks
   const { schema, loading, error, onTableSelect } = useDatabaseSchema();
@@ -38,7 +40,11 @@ const Dashboard: React.FC = () => {
     <FullscreenLayout>
       <div className="w-full h-full bg-gray-50 overflow-hidden relative">
         {/* 视图切换按钮 */}
-        <ViewSwitcher currentView={viewMode} onViewChange={handleViewChange} />
+        <ViewSwitcher
+          currentView={viewMode}
+          onViewChange={handleViewChange}
+          onPluginManagerOpen={() => setPluginManagerVisible(true)}
+        />
 
         {/* 内容区域 */}
         {viewMode === 'database' ? (
@@ -60,6 +66,12 @@ const Dashboard: React.FC = () => {
           />
         )}
       </div>
+
+      {/* 插件管理器 */}
+      <PluginManager
+        visible={pluginManagerVisible}
+        onClose={() => setPluginManagerVisible(false)}
+      />
     </FullscreenLayout>
   );
 };

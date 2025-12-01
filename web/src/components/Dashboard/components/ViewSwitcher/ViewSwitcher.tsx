@@ -1,10 +1,14 @@
 import React from 'react';
 import { Space, Button } from 'antd';
-import { DatabaseOutlined, ApiOutlined, SettingOutlined, EditOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, ApiOutlined, SettingOutlined, EditOutlined, AppstoreOutlined } from '@ant-design/icons';
 import { ViewSwitcherProps } from '../../types';
 import { log } from '../../../../utils/logger';
 
-const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ currentView, onViewChange }) => {
+const ViewSwitcher: React.FC<ViewSwitcherProps> = ({
+  currentView,
+  onViewChange,
+  onPluginManagerOpen
+}) => {
   return (
     <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-sm border border-gray-200 p-2">
       <Space>
@@ -40,6 +44,17 @@ const ViewSwitcher: React.FC<ViewSwitcherProps> = ({ currentView, onViewChange }
           }}
         >
           配置节点
+        </Button>
+        <Button
+          type="primary"
+          size="small"
+          icon={<AppstoreOutlined />}
+          onClick={() => {
+            log.info('用户打开插件管理器', { from: currentView }, 'ui', 'Dashboard');
+            onPluginManagerOpen?.();
+          }}
+        >
+          插件管理
         </Button>
       </Space>
     </div>

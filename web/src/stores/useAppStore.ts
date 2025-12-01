@@ -6,6 +6,12 @@ import type { AIStatus, Theme, Language } from '../types/index';
 import type { ServerConfig, SystemConfig, ProviderConfig, ProviderType } from '../types/api';
 import type { ParticleConfig } from '../types/particle';
 
+// 稳定的默认对象，防止 getSnapshot 无限循环
+const DEFAULT_INSTALLATION_STATE = { inProgress: false, progress: null };
+const DEFAULT_MANAGER_STATE = { visible: false, selectedPlugin: null };
+const DEFAULT_EMPTY_ARRAY = [];
+const DEFAULT_EMPTY_OBJECT = {};
+
 // 初始状态
 const initialState: AppState = {
   // 认证状态
@@ -269,6 +275,55 @@ const initialState: AppState = {
     },
   },
 
+  // 插件状态
+  plugins: {
+    // 插件管理
+    plugins: {
+      list: [],
+      loading: false,
+      error: null,
+    },
+
+    // 插件状态
+    statuses: {},
+
+    // 已安装插件
+    installed: {},
+
+    // 插件配置
+    configs: {},
+
+    // 后端服务
+    services: {},
+
+    // 插件市场
+    marketplace: {
+      available: [],
+      categories: [],
+      searchResults: [],
+      loading: false,
+      error: null,
+    },
+
+    // 插件管理器状态
+    manager: {
+      loading: false,
+      error: null,
+      operationInProgress: false,
+      currentOperation: {
+        type: null,
+        pluginId: null,
+        progress: 0,
+      },
+    },
+
+    // 安装状态
+    installation: {
+      inProgress: false,
+      progress: null,
+    },
+  },
+
   // 通知
   notifications: [],
 };
@@ -463,6 +518,99 @@ const actions: AppActions = {
     },
   },
 
+  // 插件相关
+  plugins: {
+    // 插件管理
+    loadPlugins: async (filter) => {
+      // 加载插件列表
+    },
+    installPlugin: async (source) => {
+      // 安装插件
+    },
+    uninstallPlugin: async (pluginId) => {
+      // 卸载插件
+    },
+    updatePlugin: async (pluginId, source) => {
+      // 更新插件
+    },
+    activatePlugin: async (pluginId) => {
+      // 激活插件
+    },
+    deactivatePlugin: async (pluginId) => {
+      // 停用插件
+    },
+    reloadPlugin: async (pluginId) => {
+      // 重载插件
+    },
+
+    // 插件配置
+    getPluginConfig: (pluginId) => {
+      // 获取插件配置
+      return undefined;
+    },
+    setPluginConfig: (pluginId, config) => {
+      // 设置插件配置
+    },
+    resetPluginConfig: (pluginId) => {
+      // 重置插件配置
+    },
+
+    // 插件状态
+    getPluginStatus: (pluginId) => {
+      // 获取插件状态
+      return undefined;
+    },
+    updatePluginStatus: (pluginId, status) => {
+      // 更新插件状态
+    },
+
+    // 服务管理
+    startService: async (pluginId, serviceId) => {
+      // 启动服务
+    },
+    stopService: async (pluginId, serviceId) => {
+      // 停止服务
+    },
+    restartService: async (pluginId, serviceId) => {
+      // 重启服务
+    },
+    getService: (serviceId) => {
+      // 获取服务信息
+      return undefined;
+    },
+
+    // 市场相关
+    searchMarketplace: async (query) => {
+      // 搜索市场
+    },
+    loadMarketplacePlugins: async (category) => {
+      // 加载市场插件
+    },
+    getPluginCategories: async () => {
+      // 获取插件分类
+      return [];
+    },
+
+    // 安装进度
+    setInstallationProgress: (progress) => {
+      // 设置安装进度
+    },
+    clearInstallationProgress: () => {
+      // 清除安装进度
+    },
+
+    // 批量操作
+    installMultiplePlugins: async (sources) => {
+      // 批量安装插件
+    },
+    updateAllPlugins: async () => {
+      // 更新所有插件
+    },
+    deactivateAllPlugins: async () => {
+      // 停用所有插件
+    },
+  },
+
   // 通知相关
   notifications: {
     add: (notification) => {
@@ -490,6 +638,23 @@ export const useAppStore = create<AppStore>()(
       persist(
         immer((set, get) => ({
           ...initialState,
+          // 确保插件状态被正确初始化
+          plugins: {
+            plugins: { list: [], loading: false, error: null },
+            statuses: {},
+            installed: {},
+            configs: {},
+            services: {},
+            marketplace: {
+              available: [],
+              categories: [],
+              searchResults: [],
+              loading: false,
+              error: null,
+            },
+            manager: { visible: false, selectedPlugin: null },
+            installation: { inProgress: false, progress: null },
+          },
           ...actions,
           // 简化的状态更新方法
           setAuth: (auth) => set((state) => ({ auth })),
@@ -637,6 +802,7 @@ export const useConfig = () => useAppStore((state) => state.config);
 export const useUI = () => useAppStore((state) => state.ui);
 export const useAI = () => useAppStore((state) => state.ai);
 export const useParticles = () => useAppStore((state) => state.particles);
+export const usePlugins = () => useAppStore((state) => state.plugins);
 export const useNotifications = () => useAppStore((state) => state.notifications);
 
 // 特定状态的选择器
@@ -649,5 +815,16 @@ export const useLanguage = () => useAppStore((state) => state.ui.language);
 export const useSidebar = () => useAppStore((state) => state.ui.sidebar);
 export const useConfigSidebar = () => useAppStore((state) => state.ui.configSidebar);
 export const useComponentLibraryPanel = () => useAppStore((state) => state.ui.componentLibraryPanel);
+
+// 插件相关选择器
+export const usePluginList = () => useAppStore((state) => state.plugins?.plugins?.list || DEFAULT_EMPTY_ARRAY);
+export const usePluginStatuses = () => useAppStore((state) => state.plugins?.statuses || DEFAULT_EMPTY_OBJECT);
+export const useInstalledPlugins = () => useAppStore((state) => state.plugins?.installed || DEFAULT_EMPTY_OBJECT);
+export const usePluginServices = () => useAppStore((state) => state.plugins?.services || DEFAULT_EMPTY_OBJECT);
+export const usePluginConfigs = () => useAppStore((state) => state.plugins?.configs || DEFAULT_EMPTY_OBJECT);
+export const useMarketplacePlugins = () => useAppStore((state) => state.plugins?.marketplace?.available || DEFAULT_EMPTY_ARRAY);
+export const usePluginSearchResults = () => useAppStore((state) => state.plugins?.marketplace?.searchResults || DEFAULT_EMPTY_ARRAY);
+export const usePluginManagerState = () => useAppStore((state) => state.plugins?.manager || DEFAULT_MANAGER_STATE);
+export const useInstallationProgress = () => useAppStore((state) => state.plugins?.installation || DEFAULT_INSTALLATION_STATE);
 
 export default useAppStore;

@@ -3,8 +3,8 @@
  * 将现有ComponentLibrary功能集成到可拖拽的悬浮面板中
  */
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Card, Button, Input, Space, Typography, Collapse, Badge } from 'antd';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { Card, Button, Input, Space, Typography, Collapse, Badge, Empty, Spin, Tabs } from 'antd';
 import {
   SearchOutlined,
   SettingOutlined,
@@ -23,13 +23,22 @@ import {
   GlobalOutlined,
   WifiOutlined,
   ToolOutlined,
-  SaveOutlined
+  SaveOutlined,
+  PlusOutlined,
+  FilterOutlined
 } from '@ant-design/icons';
 import FloatingPanel from './FloatingPanel';
 import { useSidebarState } from '../hooks/useSidebarState';
 // 导入组件库样式以保持拖拽效果
 import '../ComponentLibrary/ComponentLibrary.css';
 import type { ConfigRecord } from '../../../../../types/config';
+import { usePlugins } from '../../../../../stores/useAppStore';
+import { nodeRegistry } from '../../../../../nodes/registry/NodeRegistry';
+import { dynamicNodeFactory } from '../../../../../nodes/factory/DynamicNodeFactory';
+import {
+  NodeDefinition,
+  IPlugin
+} from '../../../../../plugins/types';
 
 // 组件库节点模板定义（复用现有定义）
 const COMPONENT_TEMPLATES = [
@@ -242,9 +251,38 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
     setPanelPosition,
   } = useSidebarState();
 
+  const plugins = usePlugins();
   const [searchText, setSearchText] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('builtin');
   const draggedItem = useRef<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // 获取动态节点定义
+  const dynamicNodes = useMemo(() => {
+    return nodeRegistry.getAllNodeDefinitions();
+  }, []);
+
+  // 将动态节点转换为组件模板格式
+  const dynamicNodeTemplates = useMemo(() => {
+    return dynamicNodes.map(node => ({
+      id: node.id,
+      category: node.category,
+      label: node.displayName,
+      icon: <SettingOutlined style={{ color: node.color }} />,
+      description: node.description,
+      dataType: 'object',
+      color: node.color,
+      subCategory: node.subCategory || '插件节点',
+      defaultValue: node.parameters.reduce((acc, param) => ({
+        ...acc,
+        [param.id]: param.defaultValue
+      }), {}),
+      tags: node.tags,
+      isDynamicNode: true,
+      nodeDefinition: node
+    }));
+  }, [dynamicNodes]);
 
   // 将数据库节点转换为组件模板格式
   const databaseNodeTemplates = useMemo(() => {
@@ -264,25 +302,39 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
     }));
   }, [databaseNodes]);
 
-  // 合并预定义组件和数据库节点
+  // 合并所有组件模板
   const allComponentTemplates = useMemo(() => {
     return [...COMPONENT_TEMPLATES, ...databaseNodeTemplates];
   }, [databaseNodeTemplates]);
 
+  // 根据当前Tab获取对应的组件模板
+  const currentTemplates = useMemo(() => {
+    switch (activeTab) {
+      case 'builtin':
+        return COMPONENT_TEMPLATES;
+      case 'database':
+        return databaseNodeTemplates;
+      case 'plugins':
+        return dynamicNodeTemplates;
+      default:
+        return allComponentTemplates;
+    }
+  }, [activeTab, COMPONENT_TEMPLATES, databaseNodeTemplates, dynamicNodeTemplates, allComponentTemplates]);
+
   // 按类别分组组件
   const categorizedComponents = useMemo(() => {
-    return allComponentTemplates.reduce((acc, component) => {
+    return currentTemplates.reduce((acc, component) => {
       const category = component.category;
       if (!acc[category]) {
         acc[category] = [];
       }
       acc[category].push(component);
       return acc;
-    }, {} as Record<string, typeof allComponentTemplates>);
-  }, [allComponentTemplates]);
+    }, {} as Record<string, typeof currentTemplates>);
+  }, [currentTemplates]);
 
   // 过滤组件
-  const filterComponents = (components: typeof allComponentTemplates) => {
+  const filterComponents = (components: typeof currentTemplates) => {
     return components.filter(component => {
       const matchesSearch = !searchText ||
         component.label.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -301,14 +353,26 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
     e.dataTransfer.effectAllowed = 'copy';
     e.dataTransfer.setData('application/reactflow', 'node');
 
-    // 对于数据库节点，传递完整的原始节点数据
-    const templateData = template.isDatabaseNode
-      ? {
-          ...template,
-          isDatabaseNode: true,
-          originalNode: template.originalNode
-        }
-      : template;
+    // 根据节点类型准备模板数据
+    let templateData;
+    if (template.isDatabaseNode) {
+      // 数据库节点
+      templateData = {
+        ...template,
+        isDatabaseNode: true,
+        originalNode: template.originalNode
+      };
+    } else if (template.isDynamicNode) {
+      // 动态节点
+      templateData = {
+        ...template,
+        isDynamicNode: true,
+        nodeDefinition: template.nodeDefinition
+      };
+    } else {
+      // 内置节点
+      templateData = template;
+    }
 
     e.dataTransfer.setData('component-template', JSON.stringify(templateData));
 
@@ -324,7 +388,8 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
         font-weight: 500;
         box-shadow: 0 2px 8px rgba(0,0,0,0.15);
       ">
-        ${template.isDatabaseNode ? getCategoryIcon(template.category) : template.icon} ${template.label}
+        ${template.isDatabaseNode ? getCategoryIcon(template.category) :
+          template.isDynamicNode ? template.icon : template.icon} ${template.label}
       </div>
     `;
     dragImage.style.position = 'absolute';
@@ -461,6 +526,49 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
   // 组件库内容
   const componentLibraryContent = (
     <>
+      {/* Tab切换 */}
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        size="small"
+        style={{ marginBottom: '12px' }}
+        items={[
+          {
+            key: 'builtin',
+            label: (
+              <Space>
+                <AppstoreOutlined />
+                内置组件
+              </Space>
+            )
+          },
+          {
+            key: 'database',
+            label: (
+              <Space>
+                <DatabaseOutlined />
+                数据库
+                {databaseNodeTemplates.length > 0 && (
+                  <Badge count={databaseNodeTemplates.length} size="small" />
+                )}
+              </Space>
+            )
+          },
+          {
+            key: 'plugins',
+            label: (
+              <Space>
+                <PlusOutlined />
+                插件节点
+                {dynamicNodeTemplates.length > 0 && (
+                  <Badge count={dynamicNodeTemplates.length} size="small" />
+                )}
+              </Space>
+            )
+          }
+        ]}
+      />
+
       {/* 搜索框 */}
       <div style={{ marginBottom: '16px', padding: '0 4px' }}>
         <Input.Search
@@ -558,7 +666,7 @@ const FloatingComponentLibrary: React.FC<FloatingComponentLibraryProps> = ({
         color: '#8c8c8c',
         textAlign: 'center'
       }}>
-        <Space split={<span>•</span>}>
+        <Space separator={<span>•</span>}>
           <span>拖拽创建</span>
           <span>自定义配置</span>
           <span>实时预览</span>
