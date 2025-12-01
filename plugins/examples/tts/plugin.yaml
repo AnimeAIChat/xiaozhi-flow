@@ -1,0 +1,128 @@
+name: TTS Plugin
+version: 1.0.0
+description: 文本转语音插件，支持多种语音和语言
+author: XiaoZhi Flow Team
+type: audio
+tags:
+  - tts
+  - speech
+  - synthesis
+  - voice
+capabilities:
+  - text_to_speech
+  - voice_management
+  - ssml_support
+  - batch_synthesis
+  - emotional_speech
+  - voice_cloning
+dependencies:
+  - ffmpeg
+  - tts-engine
+metadata:
+  language: go
+  created_at: "2024-01-01T00:00:00Z"
+  audio_formats:
+    - mp3
+    - wav
+    - flac
+    - aac
+    - ogg
+  supported_languages:
+    - zh-CN
+    - zh-TW
+    - en-US
+    - en-GB
+    - ja-JP
+    - ko-KR
+    - es-ES
+    - fr-FR
+    - de-DE
+    - it-IT
+    - pt-BR
+    - ru-RU
+
+deployment:
+  type: local_binary
+  path: ./main.go
+  resources:
+    max_memory: "512Mi"
+    max_cpu: "300m"
+  timeout: 60s
+  retry_count: 2
+
+config:
+  # TTS引擎配置
+  engine:
+    provider: "azure"  # azure, google, aws, baidu, local
+    model: "neural"    # neural, standard
+    region: "eastasia"
+    default_language: "zh-CN"
+    default_voice: "zh-CN-XiaoxiaoNeural"
+
+  # 音频处理配置
+  audio:
+    sample_rate: 24000
+    bit_rate: 128
+    channels: 1
+    format: "mp3"
+    quality: "high"  # low, medium, high
+
+  # 语音参数配置
+  voice:
+    default_rate: 1.0
+    default_pitch: 1.0
+    default_volume: 1.0
+    rate_range: [0.1, 2.0]
+    pitch_range: [0.1, 2.0]
+    volume_range: [0.1, 2.0]
+
+  # SSML配置
+  ssml:
+    enabled: true
+    supported_tags:
+      - "emphasis"
+      - "break"
+      - "prosody"
+      - "say-as"
+      - "voice"
+
+  # 批处理配置
+  batch:
+    max_texts: 100
+    max_total_chars: 50000
+    max_concurrent: 5
+
+  # 缓存配置
+  cache:
+    enabled: true
+    ttl: 3600
+    max_size: "1Gi"
+
+  # 质量控制
+  quality:
+    enable_text_validation: true
+    max_text_length: 10000
+    min_text_length: 1
+
+environment:
+  PLUGIN_LOG_LEVEL: "info"
+
+  # Azure Speech Service
+  AZURE_SPEECH_KEY: ""
+  AZURE_SPEECH_REGION: "eastasia"
+
+  # Google Cloud Text-to-Speech
+  GOOGLE_CLOUD_KEY: ""
+  GOOGLE_CLOUD_PROJECT: ""
+
+  # AWS Polly
+  AWS_ACCESS_KEY_ID: ""
+  AWS_SECRET_ACCESS_KEY: ""
+  AWS_REGION: "us-east-1"
+
+  # 百度语音合成
+  BAIDU_APP_ID: ""
+  BAIDU_API_KEY: ""
+  BAIDU_SECRET_KEY: ""
+
+enabled: true

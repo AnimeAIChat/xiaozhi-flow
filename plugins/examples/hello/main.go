@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
-	sdk "github.com/kalicyh/xiaozhi-flow/internal/plugin/sdk"
+	pluginv1 "xiaozhi-server-go/api/v1"
+	sdk "xiaozhi-server-go/internal/plugin/sdk"
 )
 
 // HelloPlugin 示例Hello插件

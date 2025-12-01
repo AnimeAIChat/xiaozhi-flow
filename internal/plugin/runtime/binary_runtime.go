@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/config"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/sdk"
+	"xiaozhi-server-go/internal/plugin/config"
+	"xiaozhi-server-go/internal/plugin/sdk"
 )
 
 // LocalBinaryRuntime 本地二进制运行时

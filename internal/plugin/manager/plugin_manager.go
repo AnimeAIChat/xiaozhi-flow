@@ -12,12 +12,12 @@ import (
 	"github.com/hashicorp/go-plugin"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/config"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/discovery"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/registry"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/runtime"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/sdk"
+	pluginv1 "xiaozhi-server-go/api/v1"
+	"xiaozhi-server-go/internal/plugin/config"
+	"xiaozhi-server-go/internal/plugin/discovery"
+	"xiaozhi-server-go/internal/plugin/registry"
+	"xiaozhi-server-go/internal/plugin/runtime"
+	"xiaozhi-server-go/internal/plugin/sdk"
 )
 
 // PluginManager 插件管理器接口

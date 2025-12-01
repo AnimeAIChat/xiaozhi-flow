@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
+	pluginv1 "xiaozhi-server-go/api/v1"
 )
 
 // 插件握手配置

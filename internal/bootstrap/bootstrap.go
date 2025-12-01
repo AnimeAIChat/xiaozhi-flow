@@ -34,6 +34,7 @@ import (
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
 	"xiaozhi-server-go/internal/utils"
+	pluginmanager "xiaozhi-server-go/internal/plugin/manager"
 
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
@@ -42,6 +43,12 @@ import (
 	// 注意：移除了对src/core的直接依赖，将通过适配器层来访问
 	// 提供者注册将延迟到第二阶段进行
 )
+
+// PluginManager 插件管理器接口
+type PluginManager interface {
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+}
 
 const scalarHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -83,6 +90,7 @@ type appState struct {
 	bootstrapManager      *adapters.BootstrapManager // 新增：引导管理器
 	componentContainer    *adapters.ComponentContainer // 新增：组件容器
 	configIntegrator      *integration.ConfigIntegrator   // 新增：配置集成器
+	pluginManager         PluginManager // 新增：插件管理器
 }
 
 // Run 启动整个服务生命周期，负责加载配置、初始化依赖和优雅关停。
@@ -142,6 +150,11 @@ func Run(ctx context.Context) error {
 				logger.ErrorTag("认证", "认证管理器未正常关闭: %v", closeErr)
 			}
 		}
+		if state.pluginManager != nil {
+			if closeErr := state.pluginManager.Stop(context.Background()); closeErr != nil {
+				logger.WarnTag("插件", "插件管理器未正常关闭: %v", closeErr)
+			}
+		}
 	}()
 
 	rootCtx, cancel := context.WithCancel(ctx)
@@ -151,6 +164,22 @@ func Run(ctx context.Context) error {
 	defer stop()
 
 	group, groupCtx := errgroup.WithContext(rootCtx)
+
+	// 启动插件管理器
+	if state.pluginManager != nil {
+		group.Go(func() error {
+			if err := state.pluginManager.Start(groupCtx); err != nil {
+				if groupCtx.Err() != nil {
+					return nil // context cancelled
+				}
+				logger.ErrorTag("插件", "插件管理器启动失败: %v", err)
+				return err
+			}
+			<-groupCtx.Done()
+			logger.InfoTag("插件", "插件管理器已关闭")
+			return nil
+		})
+	}
 
 	if err := startServices(state.config, logger, authManager, state.configRepo, state.domainMCPManager, state.componentContainer, group, groupCtx); err != nil {
 		cancel()
@@ -180,7 +209,10 @@ func logBootstrapGraph(steps []initStep, logger *utils.Logger) {
 		"logging:init-provider":     "初始化日志提供者",
 		"mcp:init-manager":          "初始化MCP管理器",
 		"observability:setup-hooks": "设置可观测性钩子",
+		"components:init-container": "初始化组件容器",
+		"config:init-integrator":    "初始化配置集成器",
 		"auth:init-manager":         "初始化认证管理器",
+		"plugin:init-manager":       "初始化插件管理器",
 	}
 
 	for _, step := range steps {
@@ -297,6 +329,13 @@ func InitGraph() []initStep {
 			DependsOn: []string{"observability:setup-hooks", "storage:init-database", "components:init-container"},
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initAuthStep,
+		},
+		{
+			ID:        "plugin:init-manager",
+			Title:     "Initialise plugin manager",
+			DependsOn: []string{"logging:init-provider"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initPluginManagerStep,
 		},
 	}
 }
@@ -534,6 +573,48 @@ func initMCPManagerStep(_ context.Context, state *appState) error {
 
 	state.domainMCPManager = domainManager
 	state.logger.InfoTag("引导", "MCP管理器初始化完成（使用统一全局管理器）")
+
+	return nil
+}
+
+func initPluginManagerStep(_ context.Context, state *appState) error {
+	if state == nil || state.config == nil || state.logger == nil {
+		return platformerrors.New(
+			platformerrors.KindBootstrap,
+			"plugin:init-manager",
+			"missing config/logger",
+		)
+	}
+
+	// 创建简化的插件管理器配置
+	config := &pluginmanager.PluginConfig{
+		Enabled: true,
+		Discovery: &pluginmanager.DiscoveryConfig{
+			Enabled:      true,
+			ScanInterval: 30 * time.Second,
+			Paths:        []string{"./plugins", "./plugins/examples"},
+		},
+		Registry: &pluginmanager.RegistryConfig{
+			Type: "memory",
+			TTL:  5 * time.Minute,
+		},
+		HealthCheck: &pluginmanager.HealthCheckConfig{
+			Interval:         10 * time.Second,
+			Timeout:          5 * time.Second,
+			FailureThreshold: 3,
+		},
+	}
+
+	// 创建插件管理器
+	pluginMgr, err := pluginmanager.NewPluginManager(config, state.logger)
+	if err != nil {
+		state.logger.WarnTag("引导", "插件管理器初始化失败: %v", err)
+		// Continue anyway, plugin system is optional
+		return nil
+	}
+
+	state.pluginManager = pluginMgr
+	state.logger.InfoTag("引导", "插件管理器初始化完成")
 
 	return nil
 }

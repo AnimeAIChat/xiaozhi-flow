@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/config"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/manager"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/discovery"
+	pluginv1 "xiaozhi-server-go/api/v1"
+	"xiaozhi-server-go/internal/plugin/config"
+	"xiaozhi-server-go/internal/plugin/manager"
+	"xiaozhi-server-go/internal/plugin/discovery"
 )
 
 // TestPluginManager 测试插件管理器

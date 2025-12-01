@@ -9,8 +9,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/config"
+	pluginv1 "xiaozhi-server-go/api/v1"
+	"xiaozhi-server-go/internal/plugin/config"
 )
 
 // Registry 插件注册表接口

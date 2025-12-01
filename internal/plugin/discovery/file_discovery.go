@@ -14,8 +14,8 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"gopkg.in/yaml.v3"
 
-	pluginv1 "github.com/kalicyh/xiaozhi-flow/api/v1"
-	"github.com/kalicyh/xiaozhi-flow/internal/plugin/config"
+	pluginv1 "xiaozhi-server-go/api/v1"
+	"xiaozhi-server-go/internal/plugin/config"
 )
 
 // Discovery 插件发现接口
