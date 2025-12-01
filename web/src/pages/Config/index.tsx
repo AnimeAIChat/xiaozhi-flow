@@ -153,8 +153,15 @@ const Config: React.FC = () => {
     try {
       setLoading(true);
 
+      // 将嵌套的config结构扁平化以匹配后端期望的格式
       const configData = {
-        ...config,
+        type: config.database?.type || config.type,
+        database: config.database?.path || config.database?.database || config.database,
+        path: config.database?.path || config.path,
+        host: config.database?.host || config.host,
+        port: config.database?.port || config.port,
+        username: config.database?.username || config.username,
+        password: config.database?.password || config.password,
         initialized: false,
         version: '1.0.0',
         created_at: new Date().toISOString(),
