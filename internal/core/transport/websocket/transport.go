@@ -26,10 +26,19 @@ func NewWebSocketTransport(cfg *config.Config, logger *utils.Logger) *WebSocketT
 		logger = utils.DefaultLogger
 	}
 
+	// 自动分配可用端口
+	port, err := utils.GetAvailablePort(cfg.Transport.WebSocket.Port)
+	if err != nil {
+		logger.ErrorTag("WebSocket", "自动分配端口失败: %v", err)
+		port = cfg.Transport.WebSocket.Port // 如果自动分配失败，使用配置的端口
+	} else {
+		logger.InfoTag("WebSocket", "自动分配端口: %d", port)
+	}
+
 	// 直接使用internal utils Logger
 	hub := ws.NewHub(logger)
 	router := ws.NewRouter(hub, logger, ws.RouterOptions{})
-	addr := fmt.Sprintf("%s:%d", cfg.Transport.WebSocket.IP, cfg.Transport.WebSocket.Port)
+	addr := fmt.Sprintf("%s:%d", cfg.Transport.WebSocket.IP, port)
 	server := ws.NewServer(
 		ws.ServerConfig{
 			Addr: addr,

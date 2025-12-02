@@ -849,8 +849,17 @@ func startHTTPServer(
 
 	// Note: System config service removed as we no longer use database-backed configuration
 
+	// 自动分配可用端口
+	port, err := utils.GetAvailablePort(config.Web.Port)
+	if err != nil {
+		logger.ErrorTag("HTTP", "自动分配端口失败: %v", err)
+		port = config.Web.Port // 如果自动分配失败，使用配置的端口
+	} else {
+		logger.InfoTag("HTTP", "自动分配端口: %d", port)
+	}
+
 	httpServer := &http.Server{
-		Addr:    ":" + strconv.Itoa(config.Web.Port),
+		Addr:    ":" + strconv.Itoa(port),
 		Handler: router,
 	}
 
@@ -874,9 +883,9 @@ func startHTTPServer(
 	})
 
 	g.Go(func() error {
-		logger.InfoTag("HTTP", "Gin 服务已启动，访问地址 http://localhost:%d", config.Web.Port)
-		logger.InfoTag("HTTP", "OTA 服务入口: http://localhost:%d/api/ota/", config.Web.Port)
-		logger.InfoTag("HTTP", "在线文档入口: http://localhost:%d/docs", config.Web.Port)
+		logger.InfoTag("HTTP", "Gin 服务已启动，访问地址 http://localhost:%d", port)
+		logger.InfoTag("HTTP", "OTA 服务入口: http://localhost:%d/api/ota/", port)
+		logger.InfoTag("HTTP", "在线文档入口: http://localhost:%d/docs", port)
 
 		go func() {
 			<-groupCtx.Done()
