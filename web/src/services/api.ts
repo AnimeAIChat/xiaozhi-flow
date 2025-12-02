@@ -659,6 +659,105 @@ export class ApiService {
     }
   }
 
+  // === 启动流程相关方法 ===
+
+  /**
+   * 获取可用的启动工作流列表
+   */
+  async getStartupWorkflows(): Promise<any[]> {
+    try {
+      const response = await this.client.get('/startup/workflows');
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get startup workflows');
+    }
+  }
+
+  /**
+   * 获取启动工作流详情
+   */
+  async getStartupWorkflow(workflowId: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/startup/workflows/${workflowId}`);
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get startup workflow');
+    }
+  }
+
+  /**
+   * 执行启动工作流
+   */
+  async executeStartupWorkflow(workflowId: string, inputs?: Record<string, any>): Promise<any> {
+    try {
+      const response = await this.client.post('/startup/workflows/execute', {
+        workflow_id: workflowId,
+        inputs: inputs || {}
+      });
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to execute startup workflow');
+    }
+  }
+
+  /**
+   * 获取启动工作流执行状态
+   */
+  async getStartupExecutionStatus(executionId: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/startup/executions/${executionId}`);
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get execution status');
+    }
+  }
+
+  /**
+   * 取消启动工作流执行
+   */
+  async cancelStartupExecution(executionId: string): Promise<void> {
+    try {
+      await this.client.delete(`/startup/executions/${executionId}`);
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to cancel execution');
+    }
+  }
+
+  /**
+   * 暂停启动工作流执行
+   */
+  async pauseStartupExecution(executionId: string): Promise<void> {
+    try {
+      await this.client.post(`/startup/executions/${executionId}/pause`);
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to pause execution');
+    }
+  }
+
+  /**
+   * 恢复启动工作流执行
+   */
+  async resumeStartupExecution(executionId: string): Promise<void> {
+    try {
+      await this.client.post(`/startup/executions/${executionId}/resume`);
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to resume execution');
+    }
+  }
+
+  /**
+   * 获取启动工作流执行历史
+   */
+  async getStartupExecutionHistory(limit?: number): Promise<any[]> {
+    try {
+      const params = limit ? { limit } : {};
+      const response = await this.client.get('/startup/executions', { params });
+      return response.data.data;
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : 'Failed to get execution history');
+    }
+  }
+
   /**
    * 获取数据库模式信息
    */

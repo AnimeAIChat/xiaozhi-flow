@@ -30,6 +30,7 @@ import (
 	httpvision "xiaozhi-server-go/internal/transport/http/vision"
 	httpwebapi "xiaozhi-server-go/internal/transport/http/webapi"
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
+	httpstartup "xiaozhi-server-go/internal/transport/http/startup"
 	"xiaozhi-server-go/internal/core/transport"
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
@@ -842,10 +843,17 @@ func startHTTPServer(
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "ota:new-service", "failed to create ota service", err)
 	}
 
+	startupService, err := httpstartup.NewService(config, logger)
+	if err != nil {
+		logger.ErrorTag("Startup", "启动流程服务初始化失败: %v", err)
+		return nil, platformerrors.Wrap(platformerrors.KindTransport, "startup:new-service", "failed to create startup service", err)
+	}
+
 	// 注册服务路由
 	visionService.Register(groupCtx, apiGroup)
 	webapiService.Register(groupCtx, apiGroup)
 	otaService.Register(groupCtx, apiGroup)
+	startupService.Register(groupCtx, apiGroup)
 
 	// Note: System config service removed as we no longer use database-backed configuration
 

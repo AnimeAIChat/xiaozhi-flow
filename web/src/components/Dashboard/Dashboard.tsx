@@ -10,6 +10,7 @@ import ErrorState from './components/ErrorState';
 import WorkflowView from './components/WorkflowView';
 import DatabaseView from './components/DatabaseView';
 import ConfigView from './components/ConfigView';
+import StartupControls from './components/StartupControls';
 import { PluginManager } from '../PluginManager/PluginManager';
 
 const Dashboard: React.FC = () => {
@@ -18,7 +19,22 @@ const Dashboard: React.FC = () => {
 
   // 自定义Hooks
   const { schema, loading, error, onTableSelect } = useDatabaseSchema();
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useWorkflowState();
+  const {
+    nodes,
+    edges,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    isLoading: workflowLoading,
+    error: workflowError,
+    execution,
+    executionId,
+    executeWorkflow,
+    getExecutionStatus
+  } = useWorkflowState({
+    autoConnect: true,
+    workflowId: 'xiaozhi-flow-default-startup'
+  });
   const { handleDoubleClick } = useDashboardNavigation();
 
   // 处理视图切换
@@ -36,6 +52,16 @@ const Dashboard: React.FC = () => {
     return <ErrorState error={error || '未知错误'} />;
   }
 
+  // 处理执行开始
+  const handleExecutionStart = (newExecutionId: string) => {
+    console.log('启动流程执行开始:', newExecutionId);
+  };
+
+  // 处理执行完成
+  const handleExecutionComplete = (completedExecution: any) => {
+    console.log('启动流程执行完成:', completedExecution);
+  };
+
   return (
     <FullscreenLayout>
       <div className="w-full h-full bg-gray-50 overflow-hidden relative">
@@ -45,6 +71,16 @@ const Dashboard: React.FC = () => {
           onViewChange={handleViewChange}
           onPluginManagerOpen={() => setPluginManagerVisible(true)}
         />
+
+        {/* 启动流程控制面板 */}
+        {viewMode === 'workflow' && (
+          <div className="absolute top-4 left-4 z-10" style={{ width: 320 }}>
+            <StartupControls
+              onExecutionStart={handleExecutionStart}
+              onExecutionComplete={handleExecutionComplete}
+            />
+          </div>
+        )}
 
         {/* 内容区域 */}
         {viewMode === 'database' ? (
