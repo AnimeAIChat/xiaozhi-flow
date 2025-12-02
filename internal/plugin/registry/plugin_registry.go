@@ -52,36 +52,36 @@ type RegistryEntry struct {
 }
 
 // NewRegistry 创建注册表（工厂函数）
-func NewRegistry(config *config.RegistryConfig, logger hclog.Logger) (Registry, error) {
-	if config == nil {
-		config = &config.RegistryConfig{
+func NewRegistry(cfg *config.RegistryConfig, logger hclog.Logger) (Registry, error) {
+	if cfg == nil {
+		cfg = &config.RegistryConfig{
 			Type: "memory",
 			TTL:  5 * time.Minute,
 		}
 	}
 
-	switch config.Type {
+	switch cfg.Type {
 	case "memory":
-		return NewMemoryRegistry(config, logger)
+		return NewMemoryRegistry(cfg, logger)
 	default:
-		return nil, fmt.Errorf("unsupported registry type: %s", config.Type)
+		return nil, fmt.Errorf("unsupported registry type: %s", cfg.Type)
 	}
 }
 
 // NewMemoryRegistry 创建内存注册表
-func NewMemoryRegistry(config *config.RegistryConfig, logger hclog.Logger) (*MemoryRegistry, error) {
+func NewMemoryRegistry(cfg *config.RegistryConfig, logger hclog.Logger) (*MemoryRegistry, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	registry := &MemoryRegistry{
 		logger:  logger.Named("memory-registry"),
-		config:  config,
+		config:  cfg,
 		plugins: make(map[string]*RegistryEntry),
 		ctx:     ctx,
 		cancel:  cancel,
 	}
 
 	// 启动清理任务
-	if config.TTL > 0 {
+	if cfg.TTL > 0 {
 		registry.startCleanupTask()
 	}
 
@@ -94,7 +94,7 @@ func (r *MemoryRegistry) Register(info *pluginv1.PluginInfo) error {
 		return fmt.Errorf("plugin info is nil")
 	}
 
-	if info.Id == "" {
+	if info.ID == "" {
 		return fmt.Errorf("plugin ID is required")
 	}
 
@@ -112,10 +112,10 @@ func (r *MemoryRegistry) Register(info *pluginv1.PluginInfo) error {
 		ExpiresAt:    expiresAt,
 	}
 
-	r.plugins[info.Id] = entry
+	r.plugins[info.ID] = entry
 
 	r.logger.Info("Plugin registered",
-		"plugin_id", info.Id,
+		"plugin_id", info.ID,
 		"name", info.Name,
 		"version", info.Version,
 		"type", info.Type.String(),
@@ -150,7 +150,7 @@ func (r *MemoryRegistry) Get(pluginID string) (*pluginv1.PluginInfo, error) {
 	}
 
 	// 检查是否过期
-	if !r.config.TTL.IsZero() && time.Now().After(entry.ExpiresAt) {
+	if r.config.TTL > 0 && time.Now().After(entry.ExpiresAt) {
 		return nil, fmt.Errorf("plugin %s has expired", pluginID)
 	}
 
@@ -167,7 +167,7 @@ func (r *MemoryRegistry) List() ([]*pluginv1.PluginInfo, error) {
 
 	for _, entry := range r.plugins {
 		// 过滤过期插件
-		if !r.config.TTL.IsZero() && now.After(entry.ExpiresAt) {
+		if r.config.TTL > 0 && now.After(entry.ExpiresAt) {
 			continue
 		}
 		plugins = append(plugins, entry.Info)
@@ -249,7 +249,7 @@ func (r *MemoryRegistry) Cleanup() error {
 	var cleanedCount int
 
 	for pluginID, entry := range r.plugins {
-		if !r.config.TTL.IsZero() && now.After(entry.ExpiresAt) {
+		if r.config.TTL > 0 && now.After(entry.ExpiresAt) {
 			delete(r.plugins, pluginID)
 			cleanedCount++
 		}

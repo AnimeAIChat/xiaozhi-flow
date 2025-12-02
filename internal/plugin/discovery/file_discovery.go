@@ -37,9 +37,9 @@ type FileDiscovery struct {
 }
 
 // NewFileDiscovery 创建文件系统发现服务
-func NewFileDiscovery(config *config.DiscoveryConfig, logger hclog.Logger) (*FileDiscovery, error) {
-	if config == nil {
-		config = &config.DiscoveryConfig{
+func NewFileDiscovery(cfg *config.DiscoveryConfig, logger hclog.Logger) (*FileDiscovery, error) {
+	if cfg == nil {
+		cfg = &config.DiscoveryConfig{
 			Enabled:      true,
 			ScanInterval: 30 * time.Second,
 			Paths:        []string{"./plugins"},
@@ -48,7 +48,7 @@ func NewFileDiscovery(config *config.DiscoveryConfig, logger hclog.Logger) (*Fil
 
 	return &FileDiscovery{
 		logger:  logger.Named("file-discovery"),
-		config:  config,
+		config:  cfg,
 		plugins: make(map[string]*pluginv1.PluginInfo),
 	}, nil
 }
@@ -135,9 +135,9 @@ func (d *FileDiscovery) scanPath(ctx context.Context, rootPath string) error {
 
 		if pluginInfo != nil {
 			d.mu.Lock()
-			d.plugins[pluginInfo.Id] = pluginInfo
+			d.plugins[pluginInfo.ID] = pluginInfo
 			d.mu.Unlock()
-			d.logger.Debug("Plugin discovered", "id", pluginInfo.Id, "name", pluginInfo.Name)
+			d.logger.Debug("Plugin discovered", "id", pluginInfo.ID, "name", pluginInfo.Name)
 		}
 
 		return nil
@@ -163,12 +163,12 @@ func (d *FileDiscovery) discoverPlugin(filePath string) (*pluginv1.PluginInfo, e
 
 	// 创建默认插件信息
 	return &pluginv1.PluginInfo{
-		Id:          pluginID,
+		ID:          pluginID,
 		Name:        filepath.Base(filePath),
 		Version:     "1.0.0",
 		Description: fmt.Sprintf("Discovered plugin at %s", filePath),
 		Author:      "Unknown",
-		Type:        pluginv1.PluginType_PLUGIN_TYPE_UTILITY,
+		Type:        pluginv1.PluginTypeUtility,
 		Capabilities: []string{"execute"},
 		Metadata: map[string]interface{}{
 			"path":         filePath,
@@ -204,15 +204,15 @@ func (d *FileDiscovery) loadPluginFromConfig(configPath, pluginID string) (*plug
 	var pluginType pluginv1.PluginType
 	switch strings.ToLower(pluginConfig.Type) {
 	case "audio":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_AUDIO
+		pluginType = pluginv1.PluginTypeAudio
 	case "llm":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_LLM
+		pluginType = pluginv1.PluginTypeLLM
 	case "device":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_DEVICE
+		pluginType = pluginv1.PluginTypeDevice
 	case "utility":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_UTILITY
+		pluginType = pluginv1.PluginTypeUtility
 	default:
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_CUSTOM
+		pluginType = pluginv1.PluginTypeCustom
 	}
 
 	if pluginConfig.Metadata == nil {
@@ -223,7 +223,7 @@ func (d *FileDiscovery) loadPluginFromConfig(configPath, pluginID string) (*plug
 	pluginConfig.Metadata["source"] = "file_discovery"
 
 	return &pluginv1.PluginInfo{
-		Id:          pluginID,
+		ID:          pluginID,
 		Name:        pluginConfig.Name,
 		Version:     pluginConfig.Version,
 		Description: pluginConfig.Description,
@@ -261,15 +261,15 @@ func (d *FileDiscovery) loadPluginFromJSONConfig(configPath, pluginID string) (*
 	var pluginType pluginv1.PluginType
 	switch strings.ToLower(pluginConfig.Type) {
 	case "audio":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_AUDIO
+		pluginType = pluginv1.PluginTypeAudio
 	case "llm":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_LLM
+		pluginType = pluginv1.PluginTypeLLM
 	case "device":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_DEVICE
+		pluginType = pluginv1.PluginTypeDevice
 	case "utility":
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_UTILITY
+		pluginType = pluginv1.PluginTypeUtility
 	default:
-		pluginType = pluginv1.PluginType_PLUGIN_TYPE_CUSTOM
+		pluginType = pluginv1.PluginTypeCustom
 	}
 
 	if pluginConfig.Metadata == nil {
@@ -280,7 +280,7 @@ func (d *FileDiscovery) loadPluginFromJSONConfig(configPath, pluginID string) (*
 	pluginConfig.Metadata["source"] = "file_discovery"
 
 	return &pluginv1.PluginInfo{
-		Id:          pluginID,
+		ID:          pluginID,
 		Name:        pluginConfig.Name,
 		Version:     pluginConfig.Version,
 		Description: pluginConfig.Description,
@@ -344,14 +344,14 @@ func generatePluginID(filePath string) string {
 }
 
 // NewDiscovery 创建发现服务（工厂函数）
-func NewDiscovery(config *config.DiscoveryConfig, logger hclog.Logger) (Discovery, error) {
-	if config == nil {
-		config = &config.DiscoveryConfig{
+func NewDiscovery(cfg *config.DiscoveryConfig, logger hclog.Logger) (Discovery, error) {
+	if cfg == nil {
+		cfg = &config.DiscoveryConfig{
 			Enabled:      true,
 			ScanInterval: 30 * time.Second,
 			Paths:        []string{"./plugins"},
 		}
 	}
 
-	return NewFileDiscovery(config, logger)
+	return NewFileDiscovery(cfg, logger)
 }

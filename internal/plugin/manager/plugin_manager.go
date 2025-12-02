@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pluginv1 "xiaozhi-server-go/api/v1"
 	"xiaozhi-server-go/internal/plugin/config"
@@ -79,7 +78,7 @@ type LoadedPlugin struct {
 	ID        string                    `json:"id"`
 	Config    *config.PluginConfig      `json:"config"`
 	Runtime   runtime.Runtime           `json:"-"`
-	Client    plugin.PluginClient       `json:"-"`
+	Client    *plugin.Client            `json:"-"`
 	Plugin    interface{}               `json:"-"`
 	Info      *pluginv1.PluginInfo      `json:"info"`
 	Status    pluginv1.PluginStatus     `json:"status"`
@@ -115,9 +114,9 @@ type pluginManagerImpl struct {
 }
 
 // NewPluginManager 创建插件管理器
-func NewPluginManager(config *PluginConfig, logger hclog.Logger) (PluginManager, error) {
-	if config == nil {
-		config = &PluginConfig{
+func NewPluginManager(cfg *PluginConfig, logger hclog.Logger) (PluginManager, error) {
+	if cfg == nil {
+		cfg = &PluginConfig{
 			Enabled: true,
 			Discovery: &DiscoveryConfig{
 				Enabled:     true,
@@ -139,14 +138,23 @@ func NewPluginManager(config *PluginConfig, logger hclog.Logger) (PluginManager,
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// 创建注册表
-	reg, err := registry.NewRegistry(config.Registry, logger.Named("registry"))
+	registryConfig := &config.RegistryConfig{
+		Type: cfg.Registry.Type,
+		TTL:  cfg.Registry.TTL,
+	}
+	reg, err := registry.NewRegistry(registryConfig, logger.Named("registry"))
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create registry: %w", err)
 	}
 
 	// 创建发现服务
-	disc, err := discovery.NewDiscovery(config.Discovery, logger.Named("discovery"))
+	discoveryConfig := &config.DiscoveryConfig{
+		Enabled:      cfg.Discovery.Enabled,
+		ScanInterval: cfg.Discovery.ScanInterval,
+		Paths:        cfg.Discovery.Paths,
+	}
+	disc, err := discovery.NewDiscovery(discoveryConfig, logger.Named("discovery"))
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to create discovery: %w", err)
@@ -160,7 +168,7 @@ func NewPluginManager(config *PluginConfig, logger hclog.Logger) (PluginManager,
 	}
 
 	return &pluginManagerImpl{
-		config:     config,
+		config:     cfg,
 		logger:     logger,
 		registry:   reg,
 		discovery:  disc,
@@ -255,11 +263,12 @@ func (pm *pluginManagerImpl) LoadPlugin(ctx context.Context, config *config.Plug
 	}
 
 	// 获取插件实例
-	pluginImpl, err := client.Dispense("plugin")
+	rpcClient, err := client.Client()
 	if err != nil {
 		client.Kill()
-		return nil, fmt.Errorf("failed to dispense plugin: %w", err)
+		return nil, fmt.Errorf("failed to get plugin client: %w", err)
 	}
+	pluginImpl := rpcClient
 
 	// 获取插件信息
 	var info *pluginv1.PluginInfo
@@ -268,11 +277,11 @@ func (pm *pluginManagerImpl) LoadPlugin(ctx context.Context, config *config.Plug
 	} else {
 		// 如果无法获取信息，创建基本信息
 		info = &pluginv1.PluginInfo{
-			Id:          config.ID,
+			ID:          config.ID,
 			Name:        config.Name,
 			Version:     config.Version,
 			Description: config.Description,
-			Type:        pluginv1.PluginType_PLUGIN_TYPE_CUSTOM,
+			Type:        pluginv1.PluginTypeCustom,
 		}
 	}
 
@@ -296,7 +305,7 @@ func (pm *pluginManagerImpl) LoadPlugin(ctx context.Context, config *config.Plug
 		Client:    client,
 		Plugin:    pluginImpl,
 		Info:      info,
-		Status:    pluginv1.PluginStatus_PLUGIN_STATUS_RUNNING,
+		Status:    pluginv1.PluginStatusRunning,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -335,9 +344,8 @@ func (pm *pluginManagerImpl) UnloadPlugin(ctx context.Context, pluginID string) 
 	}
 
 	// 终止客户端
-	if err := plugin.Client.Kill(); err != nil {
-		pm.logger.Warn("Failed to kill plugin client", "error", err)
-	}
+	plugin.Client.Kill()
+	pm.logger.Debug("Plugin client killed")
 
 	// 从运行时清理
 	if err := plugin.Runtime.Stop(ctx, pluginID); err != nil {
@@ -360,9 +368,9 @@ func (pm *pluginManagerImpl) UnloadPlugin(ctx context.Context, pluginID string) 
 func (pm *pluginManagerImpl) RestartPlugin(ctx context.Context, pluginID string) error {
 	pm.logger.Info("Restarting plugin", "plugin_id", pluginID)
 
-	plugin, exists := pm.GetPlugin(pluginID)
-	if !exists {
-		return fmt.Errorf("plugin %s not found", pluginID)
+	plugin, err := pm.GetPlugin(pluginID)
+	if err != nil {
+		return fmt.Errorf("plugin %s not found: %w", pluginID, err)
 	}
 
 	config := plugin.Config
@@ -376,7 +384,7 @@ func (pm *pluginManagerImpl) RestartPlugin(ctx context.Context, pluginID string)
 	time.Sleep(1 * time.Second)
 
 	// 重新加载
-	_, err := pm.LoadPlugin(ctx, config)
+	_, err = pm.LoadPlugin(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to reload plugin: %w", err)
 	}
@@ -466,7 +474,7 @@ func (pm *pluginManagerImpl) HealthCheckAll(ctx context.Context) map[string]*plu
 					Details: map[string]string{
 						"error": err.Error(),
 					},
-					Timestamp: timestamppb.Now(),
+					Timestamp: time.Now(),
 				}
 			}
 			results[id] = status
@@ -474,7 +482,7 @@ func (pm *pluginManagerImpl) HealthCheckAll(ctx context.Context) map[string]*plu
 			results[id] = &pluginv1.HealthStatus{
 				Healthy:   false,
 				Status:    "no_health_check",
-				Timestamp: timestamppb.Now(),
+				Timestamp: time.Now(),
 			}
 		}
 
@@ -532,8 +540,8 @@ func (pm *pluginManagerImpl) performHealthCheck() {
 			if status.Healthy {
 				plugin.healthCheckCount = 0
 				plugin.lastHealthCheck = time.Now()
-				if plugin.Status != pluginv1.PluginStatus_PLUGIN_STATUS_RUNNING {
-					plugin.Status = pluginv1.PluginStatus_PLUGIN_STATUS_RUNNING
+				if plugin.Status != pluginv1.PluginStatusRunning {
+					plugin.Status = pluginv1.PluginStatusRunning
 					plugin.UpdatedAt = time.Now()
 				}
 			} else {
@@ -542,8 +550,8 @@ func (pm *pluginManagerImpl) performHealthCheck() {
 
 				// 如果连续失败次数达到阈值，标记为错误状态
 				if plugin.healthCheckCount >= pm.config.HealthCheck.FailureThreshold {
-					if plugin.Status != pluginv1.PluginStatus_PLUGIN_STATUS_ERROR {
-						plugin.Status = pluginv1.PluginStatus_PLUGIN_STATUS_ERROR
+					if plugin.Status != pluginv1.PluginStatusError {
+						plugin.Status = pluginv1.PluginStatusError
 						plugin.UpdatedAt = time.Now()
 						pm.logger.Error("Plugin marked as unhealthy",
 							"plugin_id", pluginID,
@@ -585,13 +593,13 @@ func (pm *pluginManagerImpl) discoverAndLoadPlugins() {
 
 	for _, info := range pluginInfos {
 		// 检查插件是否已加载
-		if _, err := pm.GetPlugin(info.Id); err == nil {
+		if _, err := pm.GetPlugin(info.ID); err == nil {
 			continue // 已加载，跳过
 		}
 
 		// 这里可以根据插件信息创建配置并自动加载
 		pm.logger.Info("Discovered new plugin",
-			"plugin_id", info.Id,
+			"plugin_id", info.ID,
 			"name", info.Name,
 			"type", info.Type.String())
 

@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -33,7 +32,7 @@ func NewLocalBinaryRuntime(logger hclog.Logger) *LocalBinaryRuntime {
 }
 
 // Start 启动插件
-func (r *LocalBinaryRuntime) Start(ctx context.Context, config *config.PluginConfig) (plugin.PluginClient, error) {
+func (r *LocalBinaryRuntime) Start(ctx context.Context, config *config.PluginConfig) (*plugin.Client, error) {
 	r.logger.Info("Starting local binary plugin", "plugin_id", config.ID, "path", config.Deployment.Path)
 
 	// 验证二进制文件存在
@@ -50,7 +49,7 @@ func (r *LocalBinaryRuntime) Start(ctx context.Context, config *config.PluginCon
 	clientConfig := &plugin.ClientConfig{
 		HandshakeConfig: sdk.HandshakeConfig,
 		Plugins:         sdk.PluginMap,
-		AllowedProtocols: []plugin.ClientProtocol{
+		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC,
 		},
 	}
@@ -114,14 +113,8 @@ func (r *LocalBinaryRuntime) Stop(ctx context.Context, pluginID string) error {
 	r.mu.Unlock()
 
 	// 尝试优雅关闭
-	if err := client.Kill(); err != nil {
-		r.logger.Warn("Failed to kill plugin client gracefully", "plugin_id", pluginID, "error", err)
-		// 强制关闭
-		if err := client.Kill(); err != nil {
-			r.logger.Error("Failed to kill plugin client forcefully", "plugin_id", pluginID, "error", err)
-			return err
-		}
-	}
+	client.Kill()
+	r.logger.Info("Plugin client killed", "plugin_id", pluginID)
 
 	r.logger.Info("Local binary plugin stopped successfully", "plugin_id", pluginID)
 	return nil
@@ -156,9 +149,8 @@ func (r *LocalBinaryRuntime) Shutdown(ctx context.Context) error {
 
 	// 关闭所有客户端
 	for id, client := range clients {
-		if err := client.Kill(); err != nil {
-			r.logger.Error("Failed to kill client during shutdown", "plugin_id", id, "error", err)
-		}
+		client.Kill()
+		r.logger.Debug("Client killed during shutdown", "plugin_id", id)
 	}
 
 	r.logger.Info("Local binary runtime shutdown complete")
@@ -197,7 +189,7 @@ func NewContainerRuntime(logger hclog.Logger) *ContainerRuntime {
 }
 
 // Start 启动容器插件
-func (r *ContainerRuntime) Start(ctx context.Context, config *config.PluginConfig) (plugin.PluginClient, error) {
+func (r *ContainerRuntime) Start(ctx context.Context, config *config.PluginConfig) (*plugin.Client, error) {
 	r.logger.Info("Starting container plugin", "plugin_id", config.ID, "image", config.Deployment.Image)
 
 	// 这里应该实现 Docker 容器启动逻辑
@@ -302,14 +294,14 @@ func NewRemoteServiceRuntime(logger hclog.Logger) *RemoteServiceRuntime {
 }
 
 // Start 连接到远程服务插件
-func (r *RemoteServiceRuntime) Start(ctx context.Context, config *config.PluginConfig) (plugin.PluginClient, error) {
+func (r *RemoteServiceRuntime) Start(ctx context.Context, config *config.PluginConfig) (*plugin.Client, error) {
 	r.logger.Info("Connecting to remote service plugin", "plugin_id", config.ID, "endpoint", config.Deployment.Endpoint)
 
 	// 创建客户端配置
 	clientConfig := &plugin.ClientConfig{
 		HandshakeConfig: sdk.HandshakeConfig,
 		Plugins:         sdk.PluginMap,
-		AllowedProtocols: []plugin.ClientProtocol{
+		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolGRPC,
 		},
 	}
@@ -357,10 +349,8 @@ func (r *RemoteServiceRuntime) Stop(ctx context.Context, pluginID string) error 
 	delete(r.clients, pluginID)
 	r.mu.Unlock()
 
-	if err := client.Kill(); err != nil {
-		r.logger.Error("Failed to disconnect remote service", "plugin_id", pluginID, "error", err)
-		return err
-	}
+	client.Kill()
+	r.logger.Debug("Remote service client killed", "plugin_id", pluginID)
 
 	r.logger.Info("Remote service plugin disconnected successfully", "plugin_id", pluginID)
 	return nil
@@ -395,9 +385,8 @@ func (r *RemoteServiceRuntime) Shutdown(ctx context.Context) error {
 
 	// 断开所有连接
 	for id, client := range clients {
-		if err := client.Kill(); err != nil {
-			r.logger.Error("Failed to disconnect during shutdown", "plugin_id", id, "error", err)
-		}
+		client.Kill()
+		r.logger.Debug("Client disconnected during shutdown", "plugin_id", id)
 	}
 
 	r.logger.Info("Remote service runtime shutdown complete")

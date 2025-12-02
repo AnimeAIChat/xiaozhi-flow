@@ -8,9 +8,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/types/known/structpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pluginv1 "xiaozhi-server-go/api/v1"
 )
@@ -139,7 +136,7 @@ func (p *BasePluginImpl) HealthCheck(ctx context.Context) (*pluginv1.HealthStatu
 			"version": p.info.Version,
 			"type":    p.info.Type.String(),
 		},
-		Timestamp: timestamppb.Now(),
+		Timestamp: time.Now(),
 	}, nil
 }
 
@@ -267,153 +264,8 @@ type UtilityPlugin interface {
 	GetToolSchema(ctx context.Context, req *pluginv1.GetToolSchemaRequest) (*pluginv1.GetToolSchemaResponse, error)
 }
 
-// gRPC 插件实现
-
-// PluginGRPCServer gRPC 服务器实现
-type PluginGRPCServer struct {
-	plugin.UnimplementedPluginServiceServer
-	Impl BasePlugin
-}
-
-func (s *PluginGRPCServer) GetInfo(ctx context.Context, req *pluginv1.GetInfoRequest) (*pluginv1.GetInfoResponse, error) {
-	return &pluginv1.GetInfoResponse{
-		Info: s.Impl.GetInfo(),
-	}, nil
-}
-
-func (s *PluginGRPCServer) Initialize(ctx context.Context, req *pluginv1.InitializeRequest) (*pluginv1.InitializeResponse, error) {
-	config := &InitializeConfig{
-		Config:      req.Config.AsMap(),
-		Environment: req.Environment,
-	}
-
-	err := s.Impl.Initialize(ctx, config)
-	if err != nil {
-		return &pluginv1.InitializeResponse{
-			Success: false,
-			Message: err.Error(),
-		}, nil
-	}
-
-	return &pluginv1.InitializeResponse{
-		Success: true,
-		Message: "Plugin initialized successfully",
-	}, nil
-}
-
-func (s *PluginGRPCServer) Execute(ctx context.Context, req *pluginv1.ExecuteRequest) (*pluginv1.ExecuteResponse, error) {
-	// 基础执行逻辑
-	result := &pluginv1.ExecutionResult{
-		Success:   true,
-		Message:   "Executed successfully",
-		Timestamp: timestamppb.Now(),
-	}
-
-	return &pluginv1.ExecuteResponse{Result: result}, nil
-}
-
-func (s *PluginGRPCServer) HealthCheck(ctx context.Context, req *pluginv1.HealthCheckRequest) (*pluginv1.HealthCheckResponse, error) {
-	status, err := s.Impl.HealthCheck(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pluginv1.HealthCheckResponse{Status: status}, nil
-}
-
-func (s *PluginGRPCServer) GetMetrics(ctx context.Context, req *pluginv1.GetMetricsRequest) (*pluginv1.GetMetricsResponse, error) {
-	metrics, err := s.Impl.GetMetrics(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pluginv1.GetMetricsResponse{Metrics: metrics}, nil
-}
-
-func (s *PluginGRPCServer) Shutdown(ctx context.Context, req *pluginv1.ShutdownRequest) (*pluginv1.ShutdownResponse, error) {
-	err := s.Impl.Shutdown(ctx)
-	if err != nil {
-		return &pluginv1.ShutdownResponse{
-			Success: false,
-			Message: err.Error(),
-		}, nil
-	}
-
-	return &pluginv1.ShutdownResponse{
-		Success: true,
-		Message: "Plugin shutdown successfully",
-	}, nil
-}
-
-// PluginGRPCClient gRPC 客户端实现
-type PluginGRPCClient struct {
-	client pluginv1.PluginServiceClient
-}
-
-func (c *PluginGRPCClient) GetInfo() *pluginv1.PluginInfo {
-	resp, err := c.client.GetInfo(context.Background(), &pluginv1.GetInfoRequest{})
-	if err != nil {
-		return &pluginv1.PluginInfo{
-			Name:        "unknown",
-			Version:     "unknown",
-			Description: "Error getting info: " + err.Error(),
-		}
-	}
-	return resp.Info
-}
-
-func (c *PluginGRPCClient) Initialize(ctx context.Context, config *InitializeConfig) error {
-	configProto, err := structpb.NewStruct(config.Config)
-	if err != nil {
-		return err
-	}
-
-	req := &pluginv1.InitializeRequest{
-		Config:      configProto,
-		Environment: config.Environment,
-	}
-
-	resp, err := c.client.Initialize(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("plugin initialization failed: %s", resp.Message)
-	}
-
-	return nil
-}
-
-func (c *PluginGRPCClient) HealthCheck(ctx context.Context) (*pluginv1.HealthStatus, error) {
-	resp, err := c.client.HealthCheck(ctx, &pluginv1.HealthCheckRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return resp.Status, nil
-}
-
-func (c *PluginGRPCClient) GetMetrics(ctx context.Context) (*pluginv1.Metrics, error) {
-	resp, err := c.client.GetMetrics(ctx, &pluginv1.GetMetricsRequest{})
-	if err != nil {
-		return nil, err
-	}
-	return resp.Metrics, nil
-}
-
-func (c *PluginGRPCClient) Shutdown(ctx context.Context) error {
-	req := &pluginv1.ShutdownRequest{Graceful: true}
-	resp, err := c.client.Shutdown(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	if !resp.Success {
-		return fmt.Errorf("plugin shutdown failed: %s", resp.Message)
-	}
-
-	return nil
-}
+// Note: gRPC implementation removed to avoid protobuf dependencies
+// Can be added later when protobuf definitions are available
 
 // 插件实现
 
@@ -422,14 +274,8 @@ type PluginPlugin struct {
 	Impl BasePlugin
 }
 
-func (p *PluginPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	pluginv1.RegisterPluginServiceServer(s, &PluginGRPCServer{Impl: p.Impl})
-	return nil
-}
-
-func (p *PluginPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &PluginGRPCClient{client: pluginv1.NewPluginServiceClient(c)}, nil
-}
+// Note: GRPC methods removed to avoid protobuf dependencies
+// Can be added later when protobuf definitions are available
 
 // 其他插件类型的类似实现（AudioPlugin, LLMPlugin, DevicePlugin, UtilityPlugin）
 // 由于篇幅限制，这里只展示基础结构

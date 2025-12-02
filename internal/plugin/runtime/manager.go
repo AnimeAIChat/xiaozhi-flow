@@ -15,7 +15,7 @@ import (
 // Runtime 运行时接口
 type Runtime interface {
 	// 启动插件
-	Start(ctx context.Context, config *config.PluginConfig) (plugin.PluginClient, error)
+	Start(ctx context.Context, config *config.PluginConfig) (*plugin.Client, error)
 	// 停止插件
 	Stop(ctx context.Context, pluginID string) error
 	// 获取运行时类型
@@ -148,7 +148,7 @@ func createClientConfig(config *config.PluginConfig) *plugin.ClientConfig {
 		HandshakeConfig: sdk.HandshakeConfig,
 		Plugins:         sdk.PluginMap,
 		Cmd:             nil, // 将由具体的运行时设置
-		AllowedProtocols: []plugin.ClientProtocol{
+		AllowedProtocols: []plugin.Protocol{
 			plugin.ProtocolNetRPC, plugin.ProtocolGRPC,
 		},
 	}

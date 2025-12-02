@@ -37,6 +37,7 @@ import (
 	pluginmanager "xiaozhi-server-go/internal/plugin/manager"
 
 	"github.com/gin-gonic/gin"
+	"github.com/hashicorp/go-hclog"
 	"github.com/swaggo/swag"
 	"golang.org/x/sync/errgroup"
 
@@ -605,8 +606,13 @@ func initPluginManagerStep(_ context.Context, state *appState) error {
 		},
 	}
 
-	// 创建插件管理器
-	pluginMgr, err := pluginmanager.NewPluginManager(config, state.logger)
+	// 创建插件管理器 (适配utils.Logger到hclog.Logger)
+	hclogger := hclog.New(&hclog.LoggerOptions{
+		Name:   "plugin-manager",
+		Level:  hclog.Info,
+		Output: hclog.DefaultOutput,
+	})
+	pluginMgr, err := pluginmanager.NewPluginManager(config, hclogger)
 	if err != nil {
 		state.logger.WarnTag("引导", "插件管理器初始化失败: %v", err)
 		// Continue anyway, plugin system is optional
