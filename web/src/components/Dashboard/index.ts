@@ -1,5 +1,5 @@
 // 主要组件导出
-export { default as Dashboard } from './Dashboard';
+export * from './Dashboard';
 
 // 子组件导出（供需要时单独使用）
 export { default as ViewSwitcher } from './components/ViewSwitcher';

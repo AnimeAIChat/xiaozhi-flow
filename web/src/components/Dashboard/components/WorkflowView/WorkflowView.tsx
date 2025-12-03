@@ -32,14 +32,9 @@ const WorkflowCanvas: React.FC<WorkflowViewProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={workflowNodeTypes}
-        connectionMode="loose"
         fitView
         style={{ width: '100%', height: '100%', cursor: 'pointer' }}
         className="bg-gray-50"
-        onPaneClick={() => {
-          // 点击空白区域时也可以进入配置编辑器
-          log.debug('用户点击画布空白区域', null, 'ui', 'Dashboard');
-        }}
       >
         <Background color="#e5e7eb" gap={20} />
         <Controls
