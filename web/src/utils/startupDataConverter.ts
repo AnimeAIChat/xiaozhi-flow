@@ -3,7 +3,7 @@
  * 负责将后端启动流程数据转换为前端ReactFlow可用的格式
  */
 
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from '@xyflow/react';
 import { StartupWorkflow, StartupExecution, StartupWorkflowNode } from '../services/startupWebSocket';
 import { WorkflowNodeData } from '../components/Dashboard/types';
 

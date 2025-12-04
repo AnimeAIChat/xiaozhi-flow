@@ -1,7 +1,7 @@
 // ReactFlow 到 Rete.js 的数据转换器
 
 import { Connection } from 'rete';
-import { Node as ReactFlowNode, Edge as ReactFlowEdge } from 'reactflow';
+import { Node as ReactFlowNode, Edge as ReactFlowEdge } from '@xyflow/react';
 import { NodeType, NodeStatus } from './nodeUtils';
 
 // Rete.js 节点数据接口

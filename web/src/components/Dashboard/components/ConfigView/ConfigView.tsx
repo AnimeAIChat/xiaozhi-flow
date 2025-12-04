@@ -5,7 +5,8 @@
  */
 
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   addEdge,
@@ -20,8 +21,8 @@ import ReactFlow, {
   Handle,
   NodeProps,
   ReactFlowProvider,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import {
   Card,
   Button,

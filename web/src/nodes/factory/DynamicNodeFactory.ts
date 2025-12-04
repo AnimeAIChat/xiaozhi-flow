@@ -4,7 +4,7 @@ import {
   ParameterDefinition,
   ConfigNode
 } from '../../plugins/types';
-import { Point } from 'reactflow';
+import { Point } from '@xyflow/react';
 import { v4 as uuidv4 } from 'uuid';
 
 interface NodeTemplate {

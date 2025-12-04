@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState, useEffect } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   Node,
   Edge,
   addEdge,
@@ -15,8 +16,8 @@ import ReactFlow, {
   Position,
   NodeProps,
   ReactFlowProvider,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
 import { TableNode, ColumnNode, DatabaseSchema, RelationshipEdge } from '../../types';
 import { Card, Badge, Button, Space, Tooltip, Typography, Tag, Switch, Input, Select } from 'antd';
 import { TableOutlined, KeyOutlined, NumberOutlined, FieldStringOutlined } from '@ant-design/icons';

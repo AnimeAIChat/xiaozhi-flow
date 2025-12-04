@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useRef } from 'react';
-import { useReactFlow } from 'reactflow';
+import { useReactFlow } from '@xyflow/react';
 // 简单的ID生成器，替代uuid
 const generateId = () => {
   return 'node_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);

@@ -6,7 +6,7 @@ import {
   RuntimeAdapter
 } from '../../plugins/types';
 import { ComponentType } from 'react';
-import { NodeProps } from 'reactflow';
+import { NodeProps } from '@xyflow/react';
 
 interface NodeRegistration {
   definition: NodeDefinition;

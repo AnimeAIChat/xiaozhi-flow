@@ -1,4 +1,4 @@
 import React from 'react';
-import Dashboard from '../../components/Dashboard/Dashboard';
+import Dashboardv2 from '../../components/Dashboardv2/Dashboardv2';
 
-export default Dashboard;
+export default Dashboardv2;

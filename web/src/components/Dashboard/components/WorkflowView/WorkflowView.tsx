@@ -6,7 +6,7 @@ import {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
-} from 'reactflow';
+} from '@xyflow/react';
 import { WorkflowViewProps } from '../../types';
 import { workflowNodeTypes } from './workflowNodeTypes';
 import { log } from '../../../../utils/logger';

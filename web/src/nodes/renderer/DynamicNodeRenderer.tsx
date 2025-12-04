@@ -1,5 +1,5 @@
 import React, { ComponentType } from 'react';
-import { NodeProps, Handle, Position } from 'reactflow';
+import { NodeProps, Handle, Position } from '@xyflow/react';
 import { Card, Button, Space } from 'antd';
 import { ConfigNode } from '../../plugins/types';
 

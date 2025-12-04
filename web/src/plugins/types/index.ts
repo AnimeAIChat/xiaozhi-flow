@@ -1,5 +1,5 @@
 import { ReactNode, ComponentType } from 'react';
-import { NodeProps } from 'reactflow';
+import { NodeProps } from '@xyflow/react';
 
 // 基础插件接口
 export interface IPlugin {

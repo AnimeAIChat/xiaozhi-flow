@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { useNodesState, useEdgesState, addEdge, Node, Edge, Connection } from 'reactflow';
+import { useNodesState, useEdgesState, addEdge, Node, Edge, Connection } from '@xyflow/react';
 import { WorkflowNodeData } from '../types';
 import { apiService } from '../../../services/api';
 import { startupWebSocketManager, StartupExecution, StartupWorkflow } from '../../../services/startupWebSocket';

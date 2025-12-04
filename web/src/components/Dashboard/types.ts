@@ -1,4 +1,4 @@
-import { Node, Edge, OnNodesChange, OnEdgesChange, Connection } from 'reactflow';
+import { Node, Edge, OnNodesChange, OnEdgesChange, Connection } from '@xyflow/react';
 
 export type DashboardViewMode = 'database' | 'workflow' | 'config';
 
