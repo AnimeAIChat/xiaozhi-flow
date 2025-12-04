@@ -112,6 +112,19 @@ definitions:
     properties:
       data: {}
     type: object
+  v1.Activation:
+    properties:
+      activated_at:
+        type: string
+      code:
+        type: string
+      device_id:
+        type: string
+      expires_at:
+        type: string
+      is_active:
+        type: boolean
+    type: object
   v1.AdminConfig:
     properties:
       email:
@@ -124,97 +137,6 @@ definitions:
     - email
     - password
     - username
-    type: object
-  v1.BatchCommandRequest:
-    properties:
-      command:
-        type: string
-      device_ids:
-        items:
-          type: string
-        type: array
-      params:
-        additionalProperties: true
-        type: object
-      timeout:
-        type: integer
-    required:
-    - command
-    - device_ids
-    type: object
-  v1.BatchCommandResponse:
-    properties:
-      batch_id:
-        type: string
-      commands:
-        items:
-          $ref: '#/definitions/v1.CommandTask'
-        type: array
-      created_at:
-        type: string
-      total_cmds:
-        type: integer
-    type: object
-  v1.BatchConfigRequest:
-    properties:
-      configuration:
-        additionalProperties: true
-        type: object
-      device_ids:
-        items:
-          type: string
-        type: array
-      merge:
-        type: boolean
-      restart:
-        type: boolean
-    required:
-    - configuration
-    - device_ids
-    type: object
-  v1.BatchConfigResponse:
-    properties:
-      batch_id:
-        type: string
-      configs:
-        items:
-          $ref: '#/definitions/v1.ConfigTask'
-        type: array
-      created_at:
-        type: string
-      total_configs:
-        type: integer
-    type: object
-  v1.BatchOTAUpdateRequest:
-    properties:
-      description:
-        type: string
-      device_ids:
-        items:
-          type: string
-        type: array
-      firmware_version:
-        type: string
-      force_update:
-        type: boolean
-      schedule_time:
-        type: string
-    required:
-    - device_ids
-    - firmware_version
-    type: object
-  v1.BatchOTAUpdateResponse:
-    properties:
-      batch_id:
-        type: string
-      created_at:
-        type: string
-      tasks:
-        items:
-          $ref: '#/definitions/v1.OTATask'
-        type: array
-      total_tasks:
-        type: integer
     type: object
   v1.ChangePasswordRequest:
     properties:
@@ -244,40 +166,6 @@ definitions:
       primary_key:
         type: boolean
       type:
-        type: string
-    type: object
-  v1.CommandTask:
-    properties:
-      command:
-        type: string
-      command_id:
-        type: string
-      device_id:
-        type: string
-      params:
-        additionalProperties: true
-        type: object
-      sent_at:
-        type: string
-      status:
-        type: string
-    type: object
-  v1.ConfigTask:
-    properties:
-      config_id:
-        type: string
-      configuration:
-        additionalProperties: true
-        type: object
-      created_at:
-        type: string
-      device_id:
-        type: string
-      merge:
-        type: boolean
-      restart:
-        type: boolean
-      status:
         type: string
     type: object
   v1.DatabaseConfig:
@@ -511,13 +399,6 @@ definitions:
       version:
         type: string
     type: object
-  v1.FirmwareList:
-    properties:
-      firmware:
-        items:
-          $ref: '#/definitions/v1.FirmwareInfo'
-        type: array
-    type: object
   v1.ForeignKeyInfo:
     properties:
       column_name:
@@ -659,77 +540,61 @@ definitions:
       uptime:
         type: integer
     type: object
-  v1.OTAStatusResponse:
+  v1.OTARequest:
     properties:
-      completed_at:
+      action:
+        description: 固件更新相关
         type: string
+      activation_code:
+        type: string
+      configuration:
+        additionalProperties: true
+        type: object
       device_id:
+        description: 设备注册相关
         type: string
-      error:
+      device_name:
         type: string
-      firmware_info:
-        $ref: '#/definitions/v1.FirmwareInfo'
-      message:
-        type: string
-      progress:
-        type: integer
-      started_at:
-        type: string
-      status:
-        type: string
-      update_id:
-        type: string
-    type: object
-  v1.OTATask:
-    properties:
-      created_at:
-        type: string
-      device_id:
-        type: string
-      firmware_version:
-        type: string
-      status:
-        type: string
-      update_id:
-        type: string
-    type: object
-  v1.OTAUpdateRequest:
-    properties:
-      checksum:
-        type: string
-      description:
+      device_type:
         type: string
       firmware_version:
         type: string
       force_update:
         type: boolean
+      location:
+        $ref: '#/definitions/v1.DeviceLocation'
+      metadata:
+        additionalProperties: true
+        type: object
+      model:
+        type: string
+      version:
+        type: string
     required:
-    - firmware_version
+    - action
+    - device_id
+    - device_name
+    - device_type
     type: object
-  v1.OTAUpdateResponse:
+  v1.OTAResponse:
     properties:
-      completed_at:
+      activation:
+        $ref: '#/definitions/v1.Activation'
+      data: {}
+      device_token:
         type: string
-      download_url:
+      error_code:
         type: string
-      downloaded:
-        type: integer
-      estimated_time:
-        type: integer
-      file_size:
-        type: integer
       message:
         type: string
-      progress:
-        description: 0-100
-        type: integer
-      started_at:
-        type: string
-      status:
-        description: pending, downloading, installing, completed, failed
-        type: string
-      update_id:
-        type: string
+      mqtt_info:
+        $ref: '#/definitions/v1.MQTTInfo'
+      server_time:
+        $ref: '#/definitions/v1.ServerTimeInfo'
+      success:
+        type: boolean
+      websocket_info:
+        $ref: '#/definitions/v1.WebSocketInfo'
     type: object
   v1.Pagination:
     properties:
@@ -1838,42 +1703,6 @@ paths:
       summary: 检查配置服务状态
       tags:
       - Config
-  /connections/mqtt:
-    get:
-      description: 获取MQTT服务连接信息
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.MQTTInfo'
-              type: object
-      summary: 获取MQTT连接信息
-      tags:
-      - Connections
-  /connections/websocket:
-    get:
-      description: 获取WebSocket服务连接信息
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.WebSocketInfo'
-              type: object
-      summary: 获取WebSocket连接信息
-      tags:
-      - Connections
   /devices:
     get:
       description: 获取设备列表，支持分页和过滤
@@ -2088,99 +1917,37 @@ paths:
       summary: 激活设备
       tags:
       - Devices
-  /devices/batch/command:
+  /ota:
     post:
       consumes:
       - application/json
-      description: 向多个设备批量执行命令
+      description: 处理设备OTA请求，包括设备注册、激活码生成和固件信息返回
       parameters:
-      - description: 批量命令参数
+      - description: OTA请求信息
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/v1.BatchCommandRequest'
+          $ref: '#/definitions/v1.OTARequest'
       produces:
       - application/json
       responses:
-        "202":
-          description: Accepted
+        "200":
+          description: OK
           schema:
             allOf:
             - $ref: '#/definitions/httptransport.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/v1.BatchCommandResponse'
+                  $ref: '#/definitions/v1.OTAResponse'
               type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/httptransport.APIResponse'
-      summary: 批量命令执行
+      summary: 处理设备OTA请求
       tags:
-      - Devices
-  /devices/batch/config:
-    post:
-      consumes:
-      - application/json
-      description: 批量更新多个设备的配置
-      parameters:
-      - description: 批量配置参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/v1.BatchConfigRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.BatchConfigResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 批量配置更新
-      tags:
-      - Devices
-  /devices/batch/ota:
-    post:
-      consumes:
-      - application/json
-      description: 为多个设备批量创建OTA更新任务
-      parameters:
-      - description: 批量OTA更新参数
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/v1.BatchOTAUpdateRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.BatchOTAUpdateResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 批量OTA更新
-      tags:
-      - Devices
+      - OTA
   /ota/:
     post:
       consumes:
@@ -2220,139 +1987,6 @@ paths:
           schema:
             type: object
       summary: OTA设备注册和固件更新
-      tags:
-      - OTA
-  /ota/firmware:
-    get:
-      description: 获取可用的固件版本列表
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.FirmwareList'
-              type: object
-      summary: 获取固件列表
-      tags:
-      - OTA
-  /ota/status:
-    get:
-      description: 批量查询OTA更新状态
-      parameters:
-      - description: 更新任务ID
-        in: query
-        name: update_id
-        type: string
-      - description: 设备ID
-        in: query
-        name: device_id
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/v1.OTAStatusResponse'
-                  type: array
-              type: object
-      summary: 查询OTA状态
-      tags:
-      - OTA
-  /ota/updates:
-    post:
-      consumes:
-      - application/json
-      description: 为指定设备创建OTA固件更新任务
-      parameters:
-      - description: OTA更新请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/v1.OTAUpdateRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.OTAUpdateResponse'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 创建OTA更新
-      tags:
-      - OTA
-  /ota/updates/{id}:
-    get:
-      description: 查询指定OTA更新任务的状态
-      parameters:
-      - description: 更新任务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.OTAStatusResponse'
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 获取OTA更新状态
-      tags:
-      - OTA
-  /ota/updates/{id}/cancel:
-    post:
-      description: 取消正在进行的OTA更新任务
-      parameters:
-      - description: 更新任务ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 取消OTA更新
       tags:
       - OTA
   /providers:

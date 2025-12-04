@@ -803,70 +803,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/connections/mqtt": {
-            "get": {
-                "description": "获取MQTT服务连接信息",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Connections"
-                ],
-                "summary": "获取MQTT连接信息",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.MQTTInfo"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/connections/websocket": {
-            "get": {
-                "description": "获取WebSocket服务连接信息",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Connections"
-                ],
-                "summary": "获取WebSocket连接信息",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.WebSocketInfo"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/devices": {
             "get": {
                 "description": "获取设备列表，支持分页和过滤",
@@ -988,162 +924,6 @@ const docTemplate = `{
                                     "properties": {
                                         "data": {
                                             "$ref": "#/definitions/v1.DeviceInfo"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/devices/batch/command": {
-            "post": {
-                "description": "向多个设备批量执行命令",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Devices"
-                ],
-                "summary": "批量命令执行",
-                "parameters": [
-                    {
-                        "description": "批量命令参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.BatchCommandRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.BatchCommandResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/devices/batch/config": {
-            "post": {
-                "description": "批量更新多个设备的配置",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Devices"
-                ],
-                "summary": "批量配置更新",
-                "parameters": [
-                    {
-                        "description": "批量配置参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.BatchConfigRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.BatchConfigResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/devices/batch/ota": {
-            "post": {
-                "description": "为多个设备批量创建OTA更新任务",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Devices"
-                ],
-                "summary": "批量OTA更新",
-                "parameters": [
-                    {
-                        "description": "批量OTA更新参数",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.BatchOTAUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.BatchOTAUpdateResponse"
                                         }
                                     }
                                 }
@@ -1367,6 +1147,58 @@ const docTemplate = `{
                 }
             }
         },
+        "/ota": {
+            "post": {
+                "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "处理设备OTA请求",
+                "parameters": [
+                    {
+                        "description": "OTA请求信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.OTARequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.OTAResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/ota/": {
             "post": {
                 "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
@@ -1423,227 +1255,6 @@ const docTemplate = `{
                         "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/ota/firmware": {
-            "get": {
-                "description": "获取可用的固件版本列表",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "获取固件列表",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.FirmwareList"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/ota/status": {
-            "get": {
-                "description": "批量查询OTA更新状态",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "查询OTA状态",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "更新任务ID",
-                        "name": "update_id",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "设备ID",
-                        "name": "device_id",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/v1.OTAStatusResponse"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/ota/updates": {
-            "post": {
-                "description": "为指定设备创建OTA固件更新任务",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "创建OTA更新",
-                "parameters": [
-                    {
-                        "description": "OTA更新请求",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.OTAUpdateRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "202": {
-                        "description": "Accepted",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.OTAUpdateResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/ota/updates/{id}": {
-            "get": {
-                "description": "查询指定OTA更新任务的状态",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "获取OTA更新状态",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "更新任务ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.OTAStatusResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/ota/updates/{id}/cancel": {
-            "post": {
-                "description": "取消正在进行的OTA更新任务",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "取消OTA更新",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "更新任务ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    },
-                    "409": {
-                        "description": "Conflict",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
                         }
                     }
                 }
@@ -2889,6 +2500,26 @@ const docTemplate = `{
                 "data": {}
             }
         },
+        "v1.Activation": {
+            "type": "object",
+            "properties": {
+                "activated_at": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                }
+            }
+        },
         "v1.AdminConfig": {
             "type": "object",
             "required": [
@@ -2905,143 +2536,6 @@ const docTemplate = `{
                 },
                 "username": {
                     "type": "string"
-                }
-            }
-        },
-        "v1.BatchCommandRequest": {
-            "type": "object",
-            "required": [
-                "command",
-                "device_ids"
-            ],
-            "properties": {
-                "command": {
-                    "type": "string"
-                },
-                "device_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "params": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "timeout": {
-                    "type": "integer"
-                }
-            }
-        },
-        "v1.BatchCommandResponse": {
-            "type": "object",
-            "properties": {
-                "batch_id": {
-                    "type": "string"
-                },
-                "commands": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.CommandTask"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "total_cmds": {
-                    "type": "integer"
-                }
-            }
-        },
-        "v1.BatchConfigRequest": {
-            "type": "object",
-            "required": [
-                "configuration",
-                "device_ids"
-            ],
-            "properties": {
-                "configuration": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "device_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "merge": {
-                    "type": "boolean"
-                },
-                "restart": {
-                    "type": "boolean"
-                }
-            }
-        },
-        "v1.BatchConfigResponse": {
-            "type": "object",
-            "properties": {
-                "batch_id": {
-                    "type": "string"
-                },
-                "configs": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.ConfigTask"
-                    }
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "total_configs": {
-                    "type": "integer"
-                }
-            }
-        },
-        "v1.BatchOTAUpdateRequest": {
-            "type": "object",
-            "required": [
-                "device_ids",
-                "firmware_version"
-            ],
-            "properties": {
-                "description": {
-                    "type": "string"
-                },
-                "device_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "firmware_version": {
-                    "type": "string"
-                },
-                "force_update": {
-                    "type": "boolean"
-                },
-                "schedule_time": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.BatchOTAUpdateResponse": {
-            "type": "object",
-            "properties": {
-                "batch_id": {
-                    "type": "string"
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "tasks": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.OTATask"
-                    }
-                },
-                "total_tasks": {
-                    "type": "integer"
                 }
             }
         },
@@ -3085,57 +2579,6 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.CommandTask": {
-            "type": "object",
-            "properties": {
-                "command": {
-                    "type": "string"
-                },
-                "command_id": {
-                    "type": "string"
-                },
-                "device_id": {
-                    "type": "string"
-                },
-                "params": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "sent_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.ConfigTask": {
-            "type": "object",
-            "properties": {
-                "config_id": {
-                    "type": "string"
-                },
-                "configuration": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "created_at": {
-                    "type": "string"
-                },
-                "device_id": {
-                    "type": "string"
-                },
-                "merge": {
-                    "type": "boolean"
-                },
-                "restart": {
-                    "type": "boolean"
-                },
-                "status": {
                     "type": "string"
                 }
             }
@@ -3485,17 +2928,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.FirmwareList": {
-            "type": "object",
-            "properties": {
-                "firmware": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.FirmwareInfo"
-                    }
-                }
-            }
-        },
         "v1.ForeignKeyInfo": {
             "type": "object",
             "properties": {
@@ -3707,68 +3139,34 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.OTAStatusResponse": {
-            "type": "object",
-            "properties": {
-                "completed_at": {
-                    "type": "string"
-                },
-                "device_id": {
-                    "type": "string"
-                },
-                "error": {
-                    "type": "string"
-                },
-                "firmware_info": {
-                    "$ref": "#/definitions/v1.FirmwareInfo"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "progress": {
-                    "type": "integer"
-                },
-                "started_at": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "update_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.OTATask": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "device_id": {
-                    "type": "string"
-                },
-                "firmware_version": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "update_id": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.OTAUpdateRequest": {
+        "v1.OTARequest": {
             "type": "object",
             "required": [
-                "firmware_version"
+                "action",
+                "device_id",
+                "device_name",
+                "device_type"
             ],
             "properties": {
-                "checksum": {
+                "action": {
+                    "description": "固件更新相关",
                     "type": "string"
                 },
-                "description": {
+                "activation_code": {
+                    "type": "string"
+                },
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "device_id": {
+                    "description": "设备注册相关",
+                    "type": "string"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_type": {
                     "type": "string"
                 },
                 "firmware_version": {
@@ -3776,43 +3174,49 @@ const docTemplate = `{
                 },
                 "force_update": {
                     "type": "boolean"
+                },
+                "location": {
+                    "$ref": "#/definitions/v1.DeviceLocation"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "model": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
                 }
             }
         },
-        "v1.OTAUpdateResponse": {
+        "v1.OTAResponse": {
             "type": "object",
             "properties": {
-                "completed_at": {
+                "activation": {
+                    "$ref": "#/definitions/v1.Activation"
+                },
+                "data": {},
+                "device_token": {
                     "type": "string"
                 },
-                "download_url": {
+                "error_code": {
                     "type": "string"
-                },
-                "downloaded": {
-                    "type": "integer"
-                },
-                "estimated_time": {
-                    "type": "integer"
-                },
-                "file_size": {
-                    "type": "integer"
                 },
                 "message": {
                     "type": "string"
                 },
-                "progress": {
-                    "description": "0-100",
-                    "type": "integer"
+                "mqtt_info": {
+                    "$ref": "#/definitions/v1.MQTTInfo"
                 },
-                "started_at": {
-                    "type": "string"
+                "server_time": {
+                    "$ref": "#/definitions/v1.ServerTimeInfo"
                 },
-                "status": {
-                    "description": "pending, downloading, installing, completed, failed",
-                    "type": "string"
+                "success": {
+                    "type": "boolean"
                 },
-                "update_id": {
-                    "type": "string"
+                "websocket_info": {
+                    "$ref": "#/definitions/v1.WebSocketInfo"
                 }
             }
         },

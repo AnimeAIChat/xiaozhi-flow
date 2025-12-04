@@ -99,51 +99,6 @@ type DeviceListResponse struct {
 	Pagination Pagination  `json:"pagination"`
 }
 
-// OTAUpdateRequest OTA更新请求
-type OTAUpdateRequest struct {
-	FirmwareVersion string            `json:"firmware_version" binding:"required"`
-	ForceUpdate     bool              `json:"force_update,omitempty"`
-	Checksum        string            `json:"checksum,omitempty"`
-	Description    string            `json:"description,omitempty"`
-}
-
-// OTAUpdateResponse OTA更新响应
-type OTAUpdateResponse struct {
-	UpdateID     string       `json:"update_id"`
-	Status       string       `json:"status"`       // pending, downloading, installing, completed, failed
-	Progress     int          `json:"progress"`     // 0-100
-	Message      string       `json:"message"`
-	DownloadURL  string       `json:"download_url,omitempty"`
-	FileSize     int64        `json:"file_size,omitempty"`
-	Downloaded   int64        `json:"downloaded,omitempty"`
-	EstimatedTime int64        `json:"estimated_time,omitempty"`
-	StartedAt    *time.Time   `json:"started_at,omitempty"`
-	CompletedAt  *time.Time   `json:"completed_at,omitempty"`
-}
-
-// OTAStatusRequest OTA状态查询请求
-type OTAStatusRequest struct {
-	UpdateID string `form:"update_id"`
-	DeviceID string `form:"device_id"`
-}
-
-// OTAStatusResponse OTA状态响应
-type OTAStatusResponse struct {
-	UpdateID     string            `json:"update_id"`
-	DeviceID     string            `json:"device_id"`
-	Status       string            `json:"status"`
-	Progress     int               `json:"progress"`
-	Message      string            `json:"message"`
-	FirmwareInfo *FirmwareInfo     `json:"firmware_info,omitempty"`
-	StartedAt    *time.Time        `json:"started_at,omitempty"`
-	CompletedAt  *time.Time        `json:"completed_at,omitempty"`
-	Error        string            `json:"error,omitempty"`
-}
-
-// FirmwareList 固件列表
-type FirmwareList struct {
-	Firmware []FirmwareInfo `json:"firmware"`
-}
 
 // WebSocketInfo WebSocket信息
 type WebSocketInfo struct {
@@ -184,30 +139,23 @@ type Activation struct {
 	IsActive    bool      `json:"is_active"`
 }
 
-// BatchOTAUpdateRequest 批量OTA更新请求
-type BatchOTAUpdateRequest struct {
-	DeviceIDs       []string `json:"device_ids" binding:"required"`
-	FirmwareVersion string   `json:"firmware_version" binding:"required"`
-	ForceUpdate     bool     `json:"force_update,omitempty"`
-	Description     string   `json:"description,omitempty"`
-	ScheduleTime    *time.Time `json:"schedule_time,omitempty"`
-}
+// OTARequest 统一OTA请求（包含设备注册和固件更新）
+type OTARequest struct {
+	// 设备注册相关
+	DeviceID      string                 `json:"device_id" binding:"required"`
+	DeviceName    string                 `json:"device_name" binding:"required"`
+	DeviceType    string                 `json:"device_type" binding:"required"`
+	Model         string                 `json:"model,omitempty"`
+	Version       string                 `json:"version,omitempty"`
+	Location      *DeviceLocation        `json:"location,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	Configuration map[string]interface{} `json:"configuration,omitempty"`
 
-// BatchOTAUpdateResponse 批量OTA更新响应
-type BatchOTAUpdateResponse struct {
-	BatchID    string      `json:"batch_id"`
-	TotalTasks int         `json:"total_tasks"`
-	Tasks      []OTATask   `json:"tasks"`
-	CreatedAt  time.Time   `json:"created_at"`
-}
-
-// OTATask OTA任务
-type OTATask struct {
-	DeviceID        string `json:"device_id"`
-	UpdateID        string `json:"update_id"`
-	FirmwareVersion  string `json:"firmware_version"`
-	Status          string `json:"status"`
-	CreatedAt       time.Time `json:"created_at"`
+	// 固件更新相关
+	Action          string `json:"action" binding:"required"` // register, update, activate
+	FirmwareVersion string `json:"firmware_version,omitempty"`
+	ForceUpdate     bool   `json:"force_update,omitempty"`
+	ActivationCode  string `json:"activation_code,omitempty"`
 }
 
 // BatchCommandRequest 批量命令执行请求
