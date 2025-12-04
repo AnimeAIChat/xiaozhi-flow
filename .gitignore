@@ -26,3 +26,4 @@ xiaozhi-server
 !cmd/
 !cmd/xiaozhi-server/
 !cmd/xiaozhi-server/main.go
+xiaozhi-server.exe~

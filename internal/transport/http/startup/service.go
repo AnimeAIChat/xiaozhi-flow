@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/transport/http"
-	"xiaozhi-server-go/internal/transport/ws"
+	httptransport "xiaozhi-server-go/internal/transport/http"
 	"xiaozhi-server-go/internal/utils"
 )
 
@@ -18,7 +16,6 @@ import (
 type Service struct {
 	config *config.Config
 	logger *utils.Logger
-	wsHandler *ws.StartupWebSocketHandler
 }
 
 // NewService 创建启动流程服务
@@ -30,13 +27,9 @@ func NewService(config *config.Config, logger *utils.Logger) (*Service, error) {
 		logger = utils.DefaultLogger
 	}
 
-	// 创建启动流程WebSocket处理器
-	wsHandler := ws.NewStartupWebSocketHandler(nil, logger)
-
 	return &Service{
 		config: config,
 		logger: logger,
-		wsHandler: wsHandler,
 	}, nil
 }
 
@@ -52,37 +45,18 @@ func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) {
 
 		// 获取特定工作流详情
 		startupGroup.GET("/workflows/:id", s.getWorkflow)
-
-		// 执行工作流
-		startupGroup.POST("/workflows/execute", s.executeWorkflow)
 	}
-
-	// 执行相关
-	executionGroup := router.Group("/startup/executions")
-	{
-		// 获取执行状态
-		executionGroup.GET("/:id", s.getExecutionStatus)
-
-		// 取消执行
-		executionGroup.DELETE("/:id", s.cancelExecution)
-
-		// 暂停执行
-		executionGroup.POST("/:id/pause", s.pauseExecution)
-
-		// 恢复执行
-		executionGroup.POST("/:id/resume", s.resumeExecution)
-
-		// 获取执行历史
-		executionGroup.GET("", s.getExecutionHistory)
-	}
-
-	// WebSocket端点
-	router.GET("/startup/ws", s.handleWebSocket)
 
 	s.logger.Info("启动流程API路由注册完成")
 }
 
 // getWorkflows 获取可用的工作流列表
+// @Summary 获取工作流列表
+// @Description 获取所有可用的启动工作流列表
+// @Tags Workflow
+// @Produce json
+// @Success 200 {object} httptransport.APIResponse
+// @Router /startup/workflows [get]
 func (s *Service) getWorkflows(c *gin.Context) {
 	s.logger.Info("获取启动工作流列表")
 
@@ -125,6 +99,14 @@ func (s *Service) getWorkflows(c *gin.Context) {
 }
 
 // getWorkflow 获取特定工作流详情
+// @Summary 获取工作流详情
+// @Description 根据ID获取特定工作流的详细信息
+// @Tags Workflow
+// @Produce json
+// @Param id path string true "工作流ID"
+// @Success 200 {object} httptransport.APIResponse
+// @Failure 404 {object} httptransport.APIResponse
+// @Router /startup/workflows/{id} [get]
 func (s *Service) getWorkflow(c *gin.Context) {
 	workflowID := c.Param("id")
 	s.logger.Info("获取启动工作流详情", "workflow_id", workflowID)
@@ -157,176 +139,7 @@ func (s *Service) getWorkflow(c *gin.Context) {
 	})
 }
 
-// executeWorkflow 执行工作流
-func (s *Service) executeWorkflow(c *gin.Context) {
-	var request struct {
-		WorkflowID string                 `json:"workflow_id" binding:"required"`
-		Inputs     map[string]interface{} `json:"inputs"`
-	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, httptransport.APIResponse{
-			Success: false,
-			Data:    nil,
-			Message: "参数错误: " + err.Error(),
-			Code:    http.StatusBadRequest,
-		})
-		return
-	}
-
-	s.logger.Info("执行启动工作流",
-		"workflow_id", request.WorkflowID,
-		"inputs", request.Inputs)
-
-	// 创建模拟的执行对象
-	execution := map[string]interface{}{
-		"id":              fmt.Sprintf("exec_%d", time.Now().UnixNano()),
-		"workflow_id":     request.WorkflowID,
-		"workflow_name":   s.getWorkflowName(request.WorkflowID),
-		"status":          "running",
-		"start_time":      time.Now().Format(time.RFC3339),
-		"progress":        0.0,
-		"total_nodes":     11,
-		"completed_nodes": 0,
-		"failed_nodes":    0,
-		"current_nodes":   []string{},
-		"context":         request.Inputs,
-		"nodes":           s.getWorkflowNodes(request.WorkflowID),
-	}
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    execution,
-		Message: "执行已开始",
-		Code:    http.StatusOK,
-	})
-}
-
-// getExecutionStatus 获取执行状态
-func (s *Service) getExecutionStatus(c *gin.Context) {
-	executionID := c.Param("id")
-	s.logger.Info("获取执行状态", "execution_id", executionID)
-
-	// 模拟执行状态数据
-	execution := map[string]interface{}{
-		"id":              executionID,
-		"workflow_id":     "xiaozhi-flow-default-startup",
-		"workflow_name":   "XiaoZhi Flow 默认启动工作流",
-		"status":          "completed",
-		"start_time":      time.Now().Add(-5*time.Minute).Format(time.RFC3339),
-		"end_time":        time.Now().Add(-1*time.Minute).Format(time.RFC3339),
-		"duration":        240000000000, // 4分钟
-		"progress":        1.0,
-		"total_nodes":     11,
-		"completed_nodes": 11,
-		"failed_nodes":    0,
-		"current_nodes":   []string{},
-		"nodes":           s.getWorkflowNodes("xiaozhi-flow-default-startup"),
-	}
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    execution,
-		Message: "获取成功",
-		Code:    http.StatusOK,
-	})
-}
-
-// cancelExecution 取消执行
-func (s *Service) cancelExecution(c *gin.Context) {
-	executionID := c.Param("id")
-	s.logger.Info("取消执行", "execution_id", executionID)
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    map[string]interface{}{"execution_id": executionID, "action": "cancelled"},
-		Message: "执行已取消",
-		Code:    http.StatusOK,
-	})
-}
-
-// pauseExecution 暂停执行
-func (s *Service) pauseExecution(c *gin.Context) {
-	executionID := c.Param("id")
-	s.logger.Info("暂停执行", "execution_id", executionID)
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    map[string]interface{}{"execution_id": executionID, "action": "paused"},
-		Message: "执行已暂停",
-		Code:    http.StatusOK,
-	})
-}
-
-// resumeExecution 恢复执行
-func (s *Service) resumeExecution(c *gin.Context) {
-	executionID := c.Param("id")
-	s.logger.Info("恢复执行", "execution_id", executionID)
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    map[string]interface{}{"execution_id": executionID, "action": "resumed"},
-		Message: "执行已恢复",
-		Code:    http.StatusOK,
-	})
-}
-
-// getExecutionHistory 获取执行历史
-func (s *Service) getExecutionHistory(c *gin.Context) {
-	limitStr := c.DefaultQuery("limit", "10")
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil {
-		limit = 10
-	}
-
-	s.logger.Info("获取执行历史", "limit", limit)
-
-	// 模拟执行历史数据
-	executions := []map[string]interface{}{
-		{
-			"id":              "exec_001",
-			"workflow_id":     "xiaozhi-flow-default-startup",
-			"workflow_name":   "XiaoZhi Flow 默认启动工作流",
-			"status":          "completed",
-			"start_time":      time.Now().Add(-30*time.Minute).Format(time.RFC3339),
-			"end_time":        time.Now().Add(-25*time.Minute).Format(time.RFC3339),
-			"duration":        300000000000, // 5分钟
-			"progress":        1.0,
-			"completed_nodes": 11,
-			"failed_nodes":    0,
-		},
-		{
-			"id":              "exec_002",
-			"workflow_id":     "xiaozhi-flow-parallel-startup",
-			"workflow_name":   "XiaoZhi Flow 并行启动工作流",
-			"status":          "failed",
-			"start_time":      time.Now().Add(-60*time.Minute).Format(time.RFC3339),
-			"end_time":        time.Now().Add(-58*time.Minute).Format(time.RFC3339),
-			"duration":        120000000000, // 2分钟
-			"progress":        0.8,
-			"completed_nodes": 8,
-			"failed_nodes":    2,
-		},
-	}
-
-	// 限制返回数量
-	if limit > 0 && len(executions) > limit {
-		executions = executions[:limit]
-	}
-
-	c.JSON(http.StatusOK, httptransport.APIResponse{
-		Success: true,
-		Data:    executions,
-		Message: "获取成功",
-		Code:    http.StatusOK,
-	})
-}
-
-// handleWebSocket 处理WebSocket连接
-func (s *Service) handleWebSocket(c *gin.Context) {
-	s.logger.Info("处理启动流程WebSocket连接")
-	s.wsHandler.HandleWebSocket(c.Writer, c.Request)
-}
 
 // 辅助方法
 

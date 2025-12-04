@@ -31,6 +31,9 @@ import (
 	httpwebapi "xiaozhi-server-go/internal/transport/http/webapi"
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
 	httpstartup "xiaozhi-server-go/internal/transport/http/startup"
+	authv1 "xiaozhi-server-go/internal/transport/http/v1"
+	systemv1 "xiaozhi-server-go/internal/transport/http/v1"
+	devicev1 "xiaozhi-server-go/internal/transport/http/v1"
 	"xiaozhi-server-go/internal/core/transport"
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
@@ -845,11 +848,46 @@ func startHTTPServer(
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "startup:new-service", "failed to create startup service", err)
 	}
 
+	// 初始化V1认证服务
+	authServiceV1, err := authv1.NewAuthServiceV1(config, logger)
+	if err != nil {
+		logger.ErrorTag("API", "V1认证服务初始化失败: %v", err)
+		return nil, platformerrors.Wrap(platformerrors.KindTransport, "auth-v1:new-service", "failed to create auth v1 service", err)
+	}
+
+	// 初始化V1系统服务
+	systemServiceV1, err := systemv1.NewSystemServiceV1(config, logger)
+	if err != nil {
+		logger.ErrorTag("API", "V1系统服务初始化失败: %v", err)
+		return nil, platformerrors.Wrap(platformerrors.KindTransport, "system-v1:new-service", "failed to create system v1 service", err)
+	}
+
+	// 初始化V1设备服务
+	deviceServiceV1, err := devicev1.NewDeviceServiceV1(config, logger)
+	if err != nil {
+		logger.ErrorTag("API", "V1设备服务初始化失败: %v", err)
+		return nil, platformerrors.Wrap(platformerrors.KindTransport, "device-v1:new-service", "failed to create device v1 service", err)
+	}
+
 	// 注册服务路由
 	visionService.Register(groupCtx, apiGroup)
 	webapiService.Register(groupCtx, apiGroup)
 	otaService.Register(groupCtx, apiGroup)
 	startupService.Register(groupCtx, apiGroup)
+
+	// 注册V1 API服务路由
+	authServiceV1.Register(httpRouter.V1)        // 公开的认证接口
+
+	// 如果有认证中间件，注册需要认证的接口到V1Secure
+	if httpRouter.V1Secure != nil {
+		authServiceV1.RegisterSecure(httpRouter.V1Secure) // 需要认证的接口
+		systemServiceV1.Register(httpRouter.V1Secure)     // 系统管理需要认证
+		deviceServiceV1.Register(httpRouter.V1Secure)     // 设备管理需要认证
+	} else {
+		// 没有认证中间件时，注册到普通V1路由
+		systemServiceV1.Register(httpRouter.V1)
+		deviceServiceV1.Register(httpRouter.V1)
+	}
 
 	// Note: System config service removed as we no longer use database-backed configuration
 

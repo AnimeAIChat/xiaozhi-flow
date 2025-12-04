@@ -239,6 +239,12 @@ type InitRequest struct {
 	SystemConfig   interface{}           `json:"systemConfig"`
 }
 
+// DatabaseTestStepRequest 数据库测试步骤请求结构
+type DatabaseTestStepRequest struct {
+	Step   int            `json:"step"`
+	Config DatabaseConfig `json:"config,omitempty"`
+}
+
 // TableInfo 表信息结构
 type TableInfo struct {
 	Name      string      `json:"name"`
@@ -1482,7 +1488,7 @@ func (s *Service) updateConfigAfterInitialization(request InitRequest) error {
 // @Tags Admin
 // @Accept json
 // @Produce json
-// @Param step body object {step="number", config=DatabaseConfig} true "步骤信息"
+// @Param request body DatabaseTestStepRequest true "步骤信息"
 // @Success 200 {object} object
 // @Failure 400 {object} object
 // @Router /admin/system/test-database-step [post]

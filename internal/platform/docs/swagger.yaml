@@ -1,5 +1,15 @@
 basePath: /api
 definitions:
+  httptransport.APIResponse:
+    properties:
+      code:
+        type: integer
+      data: {}
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   ota.Activation:
     properties:
       challenge:
@@ -70,6 +80,992 @@ definitions:
         example: wss://your-server/ws
         type: string
     type: object
+  storage.ConfigRecord:
+    properties:
+      category:
+        description: 配置分类，如 "server", "web", "llm", "tts", "asr"
+        type: string
+      created_at:
+        type: string
+      description:
+        description: 配置描述
+        type: string
+      id:
+        type: integer
+      is_active:
+        description: 是否为活动配置
+        type: boolean
+      key:
+        description: 配置键，如 "server", "web", "llm.openai"
+        type: string
+      updated_at:
+        type: string
+      value:
+        allOf:
+        - $ref: '#/definitions/storage.FlexibleJSON'
+        description: 配置值，JSON格式（使用灵活类型处理不规范数据）
+      version:
+        description: 配置版本号，用于版本控制
+        type: integer
+    type: object
+  storage.FlexibleJSON:
+    properties:
+      data: {}
+    type: object
+  v1.AdminConfig:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  v1.BatchCommandRequest:
+    properties:
+      command:
+        type: string
+      device_ids:
+        items:
+          type: string
+        type: array
+      params:
+        additionalProperties: true
+        type: object
+      timeout:
+        type: integer
+    required:
+    - command
+    - device_ids
+    type: object
+  v1.BatchCommandResponse:
+    properties:
+      batch_id:
+        type: string
+      commands:
+        items:
+          $ref: '#/definitions/v1.CommandTask'
+        type: array
+      created_at:
+        type: string
+      total_cmds:
+        type: integer
+    type: object
+  v1.BatchConfigRequest:
+    properties:
+      configuration:
+        additionalProperties: true
+        type: object
+      device_ids:
+        items:
+          type: string
+        type: array
+      merge:
+        type: boolean
+      restart:
+        type: boolean
+    required:
+    - configuration
+    - device_ids
+    type: object
+  v1.BatchConfigResponse:
+    properties:
+      batch_id:
+        type: string
+      configs:
+        items:
+          $ref: '#/definitions/v1.ConfigTask'
+        type: array
+      created_at:
+        type: string
+      total_configs:
+        type: integer
+    type: object
+  v1.BatchOTAUpdateRequest:
+    properties:
+      description:
+        type: string
+      device_ids:
+        items:
+          type: string
+        type: array
+      firmware_version:
+        type: string
+      force_update:
+        type: boolean
+      schedule_time:
+        type: string
+    required:
+    - device_ids
+    - firmware_version
+    type: object
+  v1.BatchOTAUpdateResponse:
+    properties:
+      batch_id:
+        type: string
+      created_at:
+        type: string
+      tasks:
+        items:
+          $ref: '#/definitions/v1.OTATask'
+        type: array
+      total_tasks:
+        type: integer
+    type: object
+  v1.ChangePasswordRequest:
+    properties:
+      confirm_password:
+        type: string
+      current_password:
+        type: string
+      new_password:
+        minLength: 6
+        type: string
+    required:
+    - confirm_password
+    - current_password
+    - new_password
+    type: object
+  v1.ColumnInfo:
+    properties:
+      auto_increment:
+        type: boolean
+      default: {}
+      max_length:
+        type: integer
+      name:
+        type: string
+      nullable:
+        type: boolean
+      primary_key:
+        type: boolean
+      type:
+        type: string
+    type: object
+  v1.CommandTask:
+    properties:
+      command:
+        type: string
+      command_id:
+        type: string
+      device_id:
+        type: string
+      params:
+        additionalProperties: true
+        type: object
+      sent_at:
+        type: string
+      status:
+        type: string
+    type: object
+  v1.ConfigTask:
+    properties:
+      config_id:
+        type: string
+      configuration:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      device_id:
+        type: string
+      merge:
+        type: boolean
+      restart:
+        type: boolean
+      status:
+        type: string
+    type: object
+  v1.DatabaseConfig:
+    properties:
+      database:
+        type: string
+      host:
+        type: string
+      options:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      type:
+        enum:
+        - sqlite
+        - mysql
+        - postgresql
+        type: string
+      username:
+        type: string
+    required:
+    - database
+    - type
+    type: object
+  v1.DatabaseSchema:
+    properties:
+      foreign_keys:
+        items:
+          $ref: '#/definitions/v1.ForeignKeyInfo'
+        type: array
+      indexes:
+        items:
+          $ref: '#/definitions/v1.IndexInfo'
+        type: array
+      name:
+        type: string
+      tables:
+        items:
+          $ref: '#/definitions/v1.TableInfo'
+        type: array
+    type: object
+  v1.DatabaseStatus:
+    properties:
+      connection:
+        description: connected, disconnected
+        type: string
+      database:
+        type: string
+      host:
+        type: string
+      max_connections:
+        type: integer
+      open_connections:
+        type: integer
+      port:
+        type: integer
+      slow_queries:
+        type: integer
+      status:
+        type: string
+      type:
+        description: mysql, postgresql, sqlite
+        type: string
+    type: object
+  v1.DatabaseTestRequest:
+    properties:
+      config:
+        $ref: '#/definitions/v1.DatabaseConfig'
+    required:
+    - config
+    type: object
+  v1.DatabaseTestResponse:
+    properties:
+      connected:
+        type: boolean
+      details: {}
+      latency:
+        description: 连接延迟（毫秒）
+        type: integer
+      message:
+        type: string
+      success:
+        type: boolean
+      version:
+        type: string
+    type: object
+  v1.DeviceActivationRequest:
+    properties:
+      activation_code:
+        type: string
+      configuration:
+        additionalProperties: true
+        type: object
+      device_name:
+        type: string
+    required:
+    - activation_code
+    type: object
+  v1.DeviceActivationResponse:
+    properties:
+      access_token:
+        type: string
+      device_info:
+        $ref: '#/definitions/v1.DeviceInfo'
+      device_token:
+        type: string
+      expires_in:
+        type: integer
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  v1.DeviceInfo:
+    properties:
+      configuration:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      device_id:
+        type: string
+      device_name:
+        type: string
+      device_type:
+        type: string
+      firmware:
+        $ref: '#/definitions/v1.FirmwareInfo'
+      id:
+        type: integer
+      is_activated:
+        type: boolean
+      is_active:
+        type: boolean
+      last_seen:
+        type: string
+      location:
+        $ref: '#/definitions/v1.DeviceLocation'
+      metadata:
+        additionalProperties: true
+        type: object
+      model:
+        type: string
+      status:
+        description: online, offline, error, unknown
+        type: string
+      updated_at:
+        type: string
+      version:
+        type: string
+    type: object
+  v1.DeviceListResponse:
+    properties:
+      devices:
+        items:
+          $ref: '#/definitions/v1.DeviceInfo'
+        type: array
+      pagination:
+        $ref: '#/definitions/v1.Pagination'
+    type: object
+  v1.DeviceLocation:
+    properties:
+      address:
+        type: string
+      altitude:
+        type: number
+      city:
+        type: string
+      country:
+        type: string
+      latitude:
+        type: number
+      longitude:
+        type: number
+      province:
+        type: string
+    type: object
+  v1.DeviceRegistrationRequest:
+    properties:
+      device_id:
+        type: string
+      device_name:
+        type: string
+      device_type:
+        type: string
+      location:
+        $ref: '#/definitions/v1.DeviceLocation'
+      metadata:
+        additionalProperties: true
+        type: object
+      model:
+        type: string
+      version:
+        type: string
+    required:
+    - device_id
+    - device_name
+    - device_type
+    type: object
+  v1.DeviceUpdateRequest:
+    properties:
+      configuration:
+        additionalProperties: true
+        type: object
+      device_name:
+        type: string
+      is_active:
+        type: boolean
+      location:
+        $ref: '#/definitions/v1.DeviceLocation'
+      metadata:
+        additionalProperties: true
+        type: object
+    type: object
+  v1.FirmwareInfo:
+    properties:
+      checksum:
+        type: string
+      description:
+        type: string
+      download_count:
+        type: integer
+      release_date:
+        type: string
+      size:
+        type: integer
+      url:
+        type: string
+      version:
+        type: string
+    type: object
+  v1.FirmwareList:
+    properties:
+      firmware:
+        items:
+          $ref: '#/definitions/v1.FirmwareInfo'
+        type: array
+    type: object
+  v1.ForeignKeyInfo:
+    properties:
+      column_name:
+        type: string
+      name:
+        type: string
+      on_delete:
+        type: string
+      on_update:
+        type: string
+      refer_column:
+        type: string
+      refer_table:
+        type: string
+      table_name:
+        type: string
+    type: object
+  v1.HealthCheck:
+    properties:
+      details: {}
+      duration:
+        description: 毫秒
+        type: integer
+      message:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  v1.HealthCheckRequest:
+    properties:
+      checks:
+        items:
+          type: string
+        type: array
+      timeout:
+        description: 超时时间（秒）
+        type: integer
+    type: object
+  v1.HealthCheckResponse:
+    properties:
+      checks:
+        items:
+          $ref: '#/definitions/v1.HealthCheckResult'
+        type: array
+      duration:
+        description: 检查耗时（毫秒）
+        type: integer
+      overall:
+        type: string
+      status:
+        description: healthy, unhealthy, degraded
+        type: string
+      timestamp:
+        type: string
+    type: object
+  v1.HealthCheckResult:
+    properties:
+      details: {}
+      duration:
+        type: integer
+      error:
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      status:
+        type: string
+    type: object
+  v1.IndexInfo:
+    properties:
+      columns:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      table_name:
+        type: string
+      type:
+        description: btree, hash, fulltext
+        type: string
+      unique:
+        type: boolean
+    type: object
+  v1.InitRequest:
+    properties:
+      admin_config:
+        $ref: '#/definitions/v1.AdminConfig'
+      database_config:
+        $ref: '#/definitions/v1.DatabaseConfig'
+      providers:
+        additionalProperties: true
+        type: object
+      system_config: {}
+    required:
+    - admin_config
+    - database_config
+    type: object
+  v1.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  v1.LoginResponse:
+    properties:
+      access_token:
+        type: string
+      expires_in:
+        type: integer
+      refresh_token:
+        type: string
+      token_type:
+        type: string
+      user:
+        $ref: '#/definitions/v1.UserInfo'
+    type: object
+  v1.MQTTInfo:
+    properties:
+      broker:
+        type: string
+      clients:
+        type: integer
+      connected:
+        type: boolean
+      port:
+        type: integer
+      protocol:
+        type: string
+      status:
+        type: string
+      uptime:
+        type: integer
+    type: object
+  v1.OTAStatusResponse:
+    properties:
+      completed_at:
+        type: string
+      device_id:
+        type: string
+      error:
+        type: string
+      firmware_info:
+        $ref: '#/definitions/v1.FirmwareInfo'
+      message:
+        type: string
+      progress:
+        type: integer
+      started_at:
+        type: string
+      status:
+        type: string
+      update_id:
+        type: string
+    type: object
+  v1.OTATask:
+    properties:
+      created_at:
+        type: string
+      device_id:
+        type: string
+      firmware_version:
+        type: string
+      status:
+        type: string
+      update_id:
+        type: string
+    type: object
+  v1.OTAUpdateRequest:
+    properties:
+      checksum:
+        type: string
+      description:
+        type: string
+      firmware_version:
+        type: string
+      force_update:
+        type: boolean
+    required:
+    - firmware_version
+    type: object
+  v1.OTAUpdateResponse:
+    properties:
+      completed_at:
+        type: string
+      download_url:
+        type: string
+      downloaded:
+        type: integer
+      estimated_time:
+        type: integer
+      file_size:
+        type: integer
+      message:
+        type: string
+      progress:
+        description: 0-100
+        type: integer
+      started_at:
+        type: string
+      status:
+        description: pending, downloading, installing, completed, failed
+        type: string
+      update_id:
+        type: string
+    type: object
+  v1.Pagination:
+    properties:
+      has_next:
+        type: boolean
+      has_prev:
+        type: boolean
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  v1.Provider:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      created_at:
+        type: string
+      enabled:
+        type: boolean
+      metadata:
+        additionalProperties: true
+        type: object
+      name:
+        type: string
+      status:
+        description: active, inactive, error
+        type: string
+      type:
+        description: llm, tts, asr, vllm
+        type: string
+      updated_at:
+        type: string
+    type: object
+  v1.ProviderConfigRequest:
+    properties:
+      config:
+        additionalProperties: true
+        type: object
+      enabled:
+        type: boolean
+      name:
+        type: string
+      type:
+        type: string
+    required:
+    - config
+    - name
+    - type
+    type: object
+  v1.ProviderList:
+    properties:
+      providers:
+        items:
+          $ref: '#/definitions/v1.Provider'
+        type: array
+    type: object
+  v1.RefreshTokenRequest:
+    properties:
+      refresh_token:
+        type: string
+    required:
+    - refresh_token
+    type: object
+  v1.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      phone:
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  v1.ServerTimeInfo:
+    properties:
+      current_time:
+        type: string
+      load:
+        type: number
+      timezone:
+        type: string
+      uptime:
+        type: integer
+    type: object
+  v1.ServiceStatus:
+    properties:
+      checks:
+        items:
+          $ref: '#/definitions/v1.HealthCheck'
+        type: array
+      health:
+        description: healthy, unhealthy
+        type: string
+      message:
+        type: string
+      name:
+        type: string
+      start_time:
+        type: string
+      status:
+        description: running, stopped, error
+        type: string
+      uptime:
+        type: integer
+    type: object
+  v1.SessionListResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/v1.Pagination'
+      sessions:
+        items:
+          $ref: '#/definitions/v1.SessionSession'
+        type: array
+    type: object
+  v1.SessionSession:
+    properties:
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      id:
+        type: string
+      ip_address:
+        type: string
+      last_seen:
+        type: string
+      token:
+        type: string
+      user_agent:
+        type: string
+      user_id:
+        type: integer
+    type: object
+  v1.SystemConfigRequest:
+    properties:
+      setting:
+        type: string
+      value: {}
+    type: object
+  v1.SystemConfigResponse:
+    properties:
+      key:
+        type: string
+      type:
+        description: string, number, boolean, object
+        type: string
+      updated_at:
+        type: string
+      updated_by:
+        type: string
+      value: {}
+    type: object
+  v1.SystemStatistics:
+    properties:
+      active_sessions:
+        type: integer
+      cpu_usage:
+        type: number
+      disk_usage:
+        type: number
+      error_requests:
+        type: integer
+      memory_usage:
+        type: integer
+      registered_users:
+        type: integer
+      storage_used:
+        type: integer
+      success_requests:
+        type: integer
+      total_requests:
+        type: integer
+      total_users:
+        type: integer
+    type: object
+  v1.SystemStatus:
+    properties:
+      database:
+        $ref: '#/definitions/v1.DatabaseStatus'
+      environment:
+        type: string
+      go_version:
+        type: string
+      services:
+        items:
+          $ref: '#/definitions/v1.ServiceStatus'
+        type: array
+      start_time:
+        type: string
+      statistics:
+        $ref: '#/definitions/v1.SystemStatistics'
+      status:
+        type: string
+      uptime:
+        description: 运行时间（秒）
+        type: integer
+      version:
+        type: string
+    type: object
+  v1.TableInfo:
+    properties:
+      auto_increment:
+        type: integer
+      charset:
+        type: string
+      collation:
+        type: string
+      columns:
+        items:
+          $ref: '#/definitions/v1.ColumnInfo'
+        type: array
+      created_at:
+        type: string
+      data_length:
+        type: integer
+      engine:
+        type: string
+      index_length:
+        type: integer
+      name:
+        type: string
+      rows:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  v1.UpdateProfileRequest:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      email:
+        type: string
+      phone:
+        type: string
+      settings:
+        $ref: '#/definitions/v1.UserSettings'
+    type: object
+  v1.UserInfo:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      last_login:
+        type: string
+      phone:
+        type: string
+      role:
+        type: string
+      status:
+        description: active, inactive, suspended
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  v1.UserListResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/v1.Pagination'
+      users:
+        items:
+          $ref: '#/definitions/v1.UserProfile'
+        type: array
+    type: object
+  v1.UserProfile:
+    properties:
+      avatar:
+        type: string
+      bio:
+        type: string
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      last_login:
+        type: string
+      phone:
+        type: string
+      settings:
+        $ref: '#/definitions/v1.UserSettings'
+      status:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  v1.UserSettings:
+    properties:
+      language:
+        type: string
+      notifications:
+        type: boolean
+      theme:
+        type: string
+      timezone:
+        type: string
+    type: object
+  v1.WebSocketInfo:
+    properties:
+      clients:
+        type: integer
+      connected:
+        type: boolean
+      path:
+        type: string
+      protocol:
+        type: string
+      start_time:
+        type: string
+      status:
+        type: string
+      url:
+        type: string
+    type: object
   vision.VisionAnalysisData:
     properties:
       error:
@@ -78,6 +1074,16 @@ definitions:
       result:
         description: 分析结果（成功时）
         type: string
+    type: object
+  webapi.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+      message:
+        type: string
+      success:
+        type: boolean
     type: object
   webapi.AdminConfig:
     properties:
@@ -90,6 +1096,41 @@ definitions:
         type: string
       username:
         type: string
+    type: object
+  webapi.AuthResponse:
+    properties:
+      expires_at:
+        type: integer
+      token:
+        type: string
+      user:
+        $ref: '#/definitions/webapi.UserInfo'
+    type: object
+  webapi.ColumnInfo:
+    properties:
+      defaultValue:
+        type: string
+      description:
+        type: string
+      name:
+        type: string
+      nullable:
+        type: boolean
+      primaryKey:
+        type: boolean
+      type:
+        type: string
+      unique:
+        type: boolean
+    type: object
+  webapi.ConfigRecordResponse:
+    properties:
+      pagination:
+        $ref: '#/definitions/webapi.Pagination'
+      records:
+        items:
+          $ref: '#/definitions/storage.ConfigRecord'
+        type: array
     type: object
   webapi.ConnectionTestResult:
     properties:
@@ -106,6 +1147,21 @@ definitions:
       version:
         type: string
     type: object
+  webapi.CreateConfigRecordRequest:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      key:
+        type: string
+      value: {}
+    required:
+    - key
+    - value
+    type: object
   webapi.DatabaseConfig:
     properties:
       database:
@@ -114,12 +1170,71 @@ definitions:
         type: string
       password:
         type: string
+      path:
+        description: SQLite数据库文件路径
+        type: string
       port:
         type: integer
       type:
         type: string
       username:
         type: string
+    type: object
+  webapi.DatabaseSchema:
+    properties:
+      name:
+        type: string
+      relationships:
+        items:
+          $ref: '#/definitions/webapi.ForeignKeyInfo'
+        type: array
+      tables:
+        items:
+          $ref: '#/definitions/webapi.TableInfo'
+        type: array
+      totalRows:
+        type: integer
+      totalTables:
+        type: integer
+      type:
+        type: string
+    type: object
+  webapi.DatabaseTestStepRequest:
+    properties:
+      config:
+        $ref: '#/definitions/webapi.DatabaseConfig'
+      step:
+        type: integer
+    type: object
+  webapi.ForeignKeyInfo:
+    properties:
+      name:
+        type: string
+      onDelete:
+        type: string
+      onUpdate:
+        type: string
+      sourceColumn:
+        type: string
+      sourceTable:
+        type: string
+      targetColumn:
+        type: string
+      targetTable:
+        type: string
+    type: object
+  webapi.IndexInfo:
+    properties:
+      columns:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      type:
+        type: string
+      unique:
+        type: boolean
     type: object
   webapi.InitRequest:
     properties:
@@ -131,6 +1246,41 @@ definitions:
         additionalProperties: true
         type: object
       systemConfig: {}
+    type: object
+  webapi.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  webapi.Pagination:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
+    type: object
+  webapi.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+      username:
+        type: string
+    required:
+    - email
+    - password
+    - username
     type: object
   webapi.SystemConfig:
     properties:
@@ -145,6 +1295,50 @@ definitions:
       selectedVLLLM:
         type: string
     type: object
+  webapi.TableInfo:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/webapi.ColumnInfo'
+        type: array
+      createdAt:
+        type: string
+      indexes:
+        items:
+          $ref: '#/definitions/webapi.IndexInfo'
+        type: array
+      name:
+        type: string
+      rowCount:
+        type: integer
+      size:
+        type: integer
+      type:
+        type: string
+    type: object
+  webapi.UpdateConfigRecordRequest:
+    properties:
+      category:
+        type: string
+      description:
+        type: string
+      is_active:
+        type: boolean
+      value: {}
+    type: object
+  webapi.UserInfo:
+    properties:
+      email:
+        type: string
+      id:
+        type: integer
+      nickname:
+        type: string
+      role:
+        type: string
+      username:
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact: {}
@@ -152,6 +1346,208 @@ info:
   title: 小智服务端 API 文档
   version: "1.0"
 paths:
+  /admin/config/records:
+    get:
+      description: 获取所有配置记录，支持分页和过滤
+      parameters:
+      - description: 按分类过滤
+        in: query
+        name: category
+        type: string
+      - description: 按活跃状态过滤
+        in: query
+        name: active
+        type: boolean
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/webapi.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/webapi.ConfigRecordResponse'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取配置记录列表
+      tags:
+      - Admin
+    post:
+      consumes:
+      - application/json
+      description: 创建新的配置记录
+      parameters:
+      - description: 配置记录数据
+        in: body
+        name: record
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.CreateConfigRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/webapi.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/storage.ConfigRecord'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建配置记录
+      tags:
+      - Admin
+  /admin/config/records/{id}:
+    delete:
+      description: 根据ID删除配置记录
+      parameters:
+      - description: 配置记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除配置记录
+      tags:
+      - Admin
+    get:
+      description: 根据ID获取配置记录详情
+      parameters:
+      - description: 配置记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/webapi.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/storage.ConfigRecord'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取单个配置记录
+      tags:
+      - Admin
+    put:
+      consumes:
+      - application/json
+      description: 根据ID更新配置记录
+      parameters:
+      - description: 配置记录ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 配置记录更新数据
+        in: body
+        name: record
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.UpdateConfigRecordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/webapi.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/storage.ConfigRecord'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新配置记录
+      tags:
+      - Admin
+  /admin/database/schema:
+    get:
+      description: 获取数据库的完整模式信息，包括表、列、索引等
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.DatabaseSchema'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: 获取数据库模式
+      tags:
+      - Admin
+  /admin/database/tables:
+    get:
+      description: 获取数据库中所有表的基本信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: 获取数据库表列表
+      tags:
+      - Admin
   /admin/system:
     get:
       description: 获取服务器的系统配置信息，包括选择的提供商和默认提示词
@@ -169,6 +1565,19 @@ paths:
       security:
       - BearerAuth: []
       summary: 获取系统配置
+      tags:
+      - Admin
+  /admin/system/database-config:
+    get:
+      description: 获取当前保存的数据库配置（不包含密码）
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      summary: 获取数据库配置
       tags:
       - Admin
   /admin/system/init:
@@ -195,6 +1604,32 @@ paths:
           schema:
             type: object
       summary: 系统初始化
+      tags:
+      - Admin
+  /admin/system/save-database-config:
+    post:
+      consumes:
+      - application/json
+      description: 保存数据库配置到配置文件
+      parameters:
+      - description: 数据库配置
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.DatabaseConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+      summary: 保存数据库配置
       tags:
       - Admin
   /admin/system/status:
@@ -236,6 +1671,160 @@ paths:
       summary: 测试数据库连接
       tags:
       - Admin
+  /admin/system/test-database-step:
+    post:
+      consumes:
+      - application/json
+      description: 分步骤测试数据库配置和连接
+      parameters:
+      - description: 步骤信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.DatabaseTestStepRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+      summary: 测试数据库配置步骤
+      tags:
+      - Admin
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with username and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: User login
+      tags:
+      - Auth
+  /auth/logout:
+    delete:
+      description: Logout the current user and invalidate the session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: User logout
+      tags:
+      - Auth
+  /auth/logout-all:
+    delete:
+      description: Logout the user from all active sessions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout from all devices
+      tags:
+      - Auth
+  /auth/me:
+    get:
+      description: Get information about the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.UserInfo'
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current user
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      description: Refresh the authentication token
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.AuthResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Refresh token
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user account
+      parameters:
+      - description: Registration information
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/webapi.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/webapi.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            type: object
+      summary: User registration
+      tags:
+      - Auth
   /cfg:
     get:
       description: 检查配置服务的运行状态
@@ -249,6 +1838,349 @@ paths:
       summary: 检查配置服务状态
       tags:
       - Config
+  /connections/mqtt:
+    get:
+      description: 获取MQTT服务连接信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.MQTTInfo'
+              type: object
+      summary: 获取MQTT连接信息
+      tags:
+      - Connections
+  /connections/websocket:
+    get:
+      description: 获取WebSocket服务连接信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.WebSocketInfo'
+              type: object
+      summary: 获取WebSocket连接信息
+      tags:
+      - Connections
+  /devices:
+    get:
+      description: 获取设备列表，支持分页和过滤
+      parameters:
+      - description: 按状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 按设备类型过滤
+        in: query
+        name: device_type
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      - description: 是否返回位置信息
+        in: query
+        name: location
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceListResponse'
+              type: object
+      summary: 获取设备列表
+      tags:
+      - Devices
+    post:
+      consumes:
+      - application/json
+      description: 新设备注册到系统
+      parameters:
+      - description: 设备注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.DeviceRegistrationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceInfo'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 设备注册
+      tags:
+      - Devices
+  /devices/{id}:
+    delete:
+      description: 从系统中删除指定设备
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 删除设备
+      tags:
+      - Devices
+    get:
+      description: 根据ID获取设备的详细信息
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceInfo'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取设备详情
+      tags:
+      - Devices
+    put:
+      consumes:
+      - application/json
+      description: 更新指定设备的信息
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 设备更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.DeviceUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceInfo'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 更新设备信息
+      tags:
+      - Devices
+  /devices/{id}/activate:
+    post:
+      consumes:
+      - application/json
+      description: 激活已注册的设备
+      parameters:
+      - description: 设备ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 设备激活信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.DeviceActivationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceActivationResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 激活设备
+      tags:
+      - Devices
+  /devices/batch/command:
+    post:
+      consumes:
+      - application/json
+      description: 向多个设备批量执行命令
+      parameters:
+      - description: 批量命令参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.BatchCommandRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.BatchCommandResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 批量命令执行
+      tags:
+      - Devices
+  /devices/batch/config:
+    post:
+      consumes:
+      - application/json
+      description: 批量更新多个设备的配置
+      parameters:
+      - description: 批量配置参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.BatchConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.BatchConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 批量配置更新
+      tags:
+      - Devices
+  /devices/batch/ota:
+    post:
+      consumes:
+      - application/json
+      description: 为多个设备批量创建OTA更新任务
+      parameters:
+      - description: 批量OTA更新参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.BatchOTAUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.BatchOTAUpdateResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 批量OTA更新
+      tags:
+      - Devices
   /ota/:
     post:
       consumes:
@@ -290,6 +2222,737 @@ paths:
       summary: OTA设备注册和固件更新
       tags:
       - OTA
+  /ota/firmware:
+    get:
+      description: 获取可用的固件版本列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.FirmwareList'
+              type: object
+      summary: 获取固件列表
+      tags:
+      - OTA
+  /ota/status:
+    get:
+      description: 批量查询OTA更新状态
+      parameters:
+      - description: 更新任务ID
+        in: query
+        name: update_id
+        type: string
+      - description: 设备ID
+        in: query
+        name: device_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/v1.OTAStatusResponse'
+                  type: array
+              type: object
+      summary: 查询OTA状态
+      tags:
+      - OTA
+  /ota/updates:
+    post:
+      consumes:
+      - application/json
+      description: 为指定设备创建OTA固件更新任务
+      parameters:
+      - description: OTA更新请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.OTAUpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.OTAUpdateResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 创建OTA更新
+      tags:
+      - OTA
+  /ota/updates/{id}:
+    get:
+      description: 查询指定OTA更新任务的状态
+      parameters:
+      - description: 更新任务ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.OTAStatusResponse'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取OTA更新状态
+      tags:
+      - OTA
+  /ota/updates/{id}/cancel:
+    post:
+      description: 取消正在进行的OTA更新任务
+      parameters:
+      - description: 更新任务ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 取消OTA更新
+      tags:
+      - OTA
+  /providers:
+    get:
+      description: 获取所有配置的AI服务供应商
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.ProviderList'
+              type: object
+      summary: 获取供应商列表
+      tags:
+      - Providers
+    post:
+      consumes:
+      - application/json
+      description: 创建新的AI服务供应商配置
+      parameters:
+      - description: 供应商配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ProviderConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.Provider'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 创建供应商配置
+      tags:
+      - Providers
+  /providers/{type}/{name}:
+    delete:
+      description: 删除指定的供应商配置
+      parameters:
+      - description: 供应商类型
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: 供应商名称
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 删除供应商配置
+      tags:
+      - Providers
+    put:
+      consumes:
+      - application/json
+      description: 更新指定供应商的配置信息
+      parameters:
+      - description: 供应商类型
+        in: path
+        name: type
+        required: true
+        type: string
+      - description: 供应商名称
+        in: path
+        name: name
+        required: true
+        type: string
+      - description: 供应商配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ProviderConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.Provider'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 更新供应商配置
+      tags:
+      - Providers
+  /sessions:
+    get:
+      description: 获取当前用户的会话列表
+      parameters:
+      - description: 用户ID
+        format: int64
+        in: query
+        name: user_id
+        type: integer
+      - description: 是否只返回活跃会话
+        in: query
+        name: active
+        type: boolean
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.SessionListResponse'
+              type: object
+      summary: 获取会话列表
+      tags:
+      - Sessions
+  /sessions/{id}:
+    delete:
+      description: 撤销指定的用户会话
+      parameters:
+      - description: 会话ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 撤销会话
+      tags:
+      - Sessions
+  /startup/workflows:
+    get:
+      description: 获取所有可用的启动工作流列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取工作流列表
+      tags:
+      - Workflow
+  /startup/workflows/{id}:
+    get:
+      description: 根据ID获取特定工作流的详细信息
+      parameters:
+      - description: 工作流ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取工作流详情
+      tags:
+      - Workflow
+  /system/config:
+    get:
+      description: 获取系统配置项列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/v1.SystemConfigResponse'
+                  type: array
+              type: object
+      summary: 获取系统配置
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: 更新指定的系统配置项
+      parameters:
+      - description: 配置更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.SystemConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.SystemConfigResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 更新系统配置
+      tags:
+      - System
+  /system/config/schema/database:
+    get:
+      description: 获取数据库表结构信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DatabaseSchema'
+              type: object
+      summary: 获取数据库模式
+      tags:
+      - System
+  /system/config/test/database:
+    post:
+      consumes:
+      - application/json
+      description: 测试数据库连接配置
+      parameters:
+      - description: 数据库配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.DatabaseTestRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DatabaseTestResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 测试数据库连接
+      tags:
+      - System
+  /system/health:
+    get:
+      description: 快速健康检查
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.HealthCheckResponse'
+              type: object
+      summary: 健康检查
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: 执行详细的健康检查，支持指定检查项目
+      parameters:
+      - description: 健康检查参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/v1.HealthCheckRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.HealthCheckResponse'
+              type: object
+      summary: 详细健康检查
+      tags:
+      - System
+  /system/init:
+    get:
+      description: 检查系统是否已完成初始化
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取系统初始化状态
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: 执行系统初始化操作
+      parameters:
+      - description: 初始化配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.InitRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 系统初始化
+      tags:
+      - System
+  /system/status:
+    get:
+      description: 获取系统的运行状态和统计信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.SystemStatus'
+              type: object
+      summary: 获取系统状态
+      tags:
+      - System
+  /system/time:
+    get:
+      description: 获取服务器当前时间和相关信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.ServerTimeInfo'
+              type: object
+      summary: 获取服务器时间
+      tags:
+      - System
+  /users:
+    get:
+      description: 获取用户列表，支持分页和过滤
+      parameters:
+      - description: 按角色过滤
+        in: query
+        name: role
+        type: string
+      - description: 按状态过滤
+        in: query
+        name: status
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      - default: created_at
+        description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向
+        in: query
+        name: sort_order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserListResponse'
+              type: object
+      summary: 获取用户列表
+      tags:
+      - Users
+  /users/{id}:
+    get:
+      description: 根据ID获取特定用户的详细信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserInfo'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取用户信息
+      tags:
+      - Users
+  /users/change-password:
+    post:
+      consumes:
+      - application/json
+      description: 修改当前登录用户的密码
+      parameters:
+      - description: 密码修改信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.ChangePasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 修改密码
+      tags:
+      - Users
+  /users/profile:
+    get:
+      description: 获取当前登录用户的详细档案信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserProfile'
+              type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取用户档案
+      tags:
+      - Users
+    put:
+      consumes:
+      - application/json
+      description: 更新当前登录用户的档案信息
+      parameters:
+      - description: 档案更新信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.UpdateProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserProfile'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 更新用户档案
+      tags:
+      - Users
   /vision:
     get:
       description: 获取Vision服务的运行状态和可用模型信息

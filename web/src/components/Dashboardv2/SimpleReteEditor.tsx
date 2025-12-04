@@ -78,9 +78,12 @@ export const SimpleReteEditor: React.FC<{
   const [executionStats, setExecutionStats] = useState<any>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
 
+  // 使用 useRef 来防止重复初始化
+  const hasInitialized = useRef(false);
+
   // 初始化和连接管理
   useEffect(() => {
-    if (!autoConnect) return;
+    if (!autoConnect || hasInitialized.current) return;
 
     const initializeStartupFlow = async () => {
       try {
@@ -96,6 +99,7 @@ export const SimpleReteEditor: React.FC<{
           setNodes(workflowNodes);
           setConnections(workflowConnections);
 
+          // 使用最新的回调函数
           onNodesChange?.(workflowNodes);
           onConnectionsChange?.(workflowConnections);
 
@@ -106,10 +110,51 @@ export const SimpleReteEditor: React.FC<{
         message.error('启动流程加载失败，使用模拟数据');
 
         // 降级到模拟数据
-        initializeMockData();
+        const fallbackNodes: SimpleNode[] = [
+          {
+            id: 'storage-init',
+            data: {
+              label: '存储初始化',
+              type: 'database',
+              status: 'stopped',
+              description: '初始化数据库连接和存储系统',
+              metrics: { '关键节点': '是', '超时时间': '30s' }
+            },
+            x: 100,
+            y: 100
+          } as SimpleNode,
+          {
+            id: 'config-load',
+            data: {
+              label: '配置加载',
+              type: 'config',
+              status: 'stopped',
+              description: '加载系统配置和环境变量',
+              metrics: { '关键节点': '是', '超时时间': '10s' }
+            },
+            x: 400,
+            y: 100
+          } as SimpleNode
+        ];
+
+        setNodes(fallbackNodes);
+        onNodesChange?.(fallbackNodes);
+        setConnections([]);
+        onConnectionsChange?.([]);
       } finally {
         setIsLoading(false);
         message.destroy();
+      }
+    };
+
+    hasInitialized.current = true;
+    initializeStartupFlow();
+
+    return () => {
+      // 清理轮询
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
       }
     };
 
@@ -229,7 +274,7 @@ export const SimpleReteEditor: React.FC<{
         setPollingInterval(null);
       }
     };
-  }, [workflowId, autoConnect, startupAdapter, onNodesChange, onConnectionsChange, execution, nodes, connections]);
+  }, [workflowId, autoConnect]); // 移除会导致重新执行的不必要依赖项
 
   // 添加新节点
   const addNode = useCallback((nodeType: NodeData['type']) => {

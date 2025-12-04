@@ -9,6 +9,339 @@
     "host": "localhost:8080",
     "basePath": "/api",
     "paths": {
+        "/admin/config/records": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取所有配置记录，支持分页和过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取配置记录列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "按分类过滤",
+                        "name": "category",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "按活跃状态过滤",
+                        "name": "active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/webapi.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/webapi.ConfigRecordResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的配置记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "创建配置记录",
+                "parameters": [
+                    {
+                        "description": "配置记录数据",
+                        "name": "record",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.CreateConfigRecordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/webapi.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/storage.ConfigRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/config/records/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID获取配置记录详情",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取单个配置记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "配置记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/webapi.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/storage.ConfigRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID更新配置记录",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "更新配置记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "配置记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "配置记录更新数据",
+                        "name": "record",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.UpdateConfigRecordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/webapi.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/storage.ConfigRecord"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据ID删除配置记录",
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "删除配置记录",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "配置记录ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/database/schema": {
+            "get": {
+                "description": "获取数据库的完整模式信息，包括表、列、索引等",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取数据库模式",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.DatabaseSchema"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/database/tables": {
+            "get": {
+                "description": "获取数据库中所有表的基本信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取数据库表列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/system": {
             "get": {
                 "security": [
@@ -40,6 +373,26 @@
                 }
             }
         },
+        "/admin/system/database-config": {
+            "get": {
+                "description": "获取当前保存的数据库配置（不包含密码）",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "获取数据库配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/admin/system/init": {
             "post": {
                 "description": "初始化Xiaozhi-Flow系统，创建数据库和管理员用户",
@@ -61,6 +414,46 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/webapi.InitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/admin/system/save-database-config": {
+            "post": {
+                "description": "保存数据库配置到配置文件",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "保存数据库配置",
+                "parameters": [
+                    {
+                        "description": "数据库配置",
+                        "name": "config",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.DatabaseConfig"
                         }
                     }
                 ],
@@ -140,6 +533,250 @@
                 }
             }
         },
+        "/admin/system/test-database-step": {
+            "post": {
+                "description": "分步骤测试数据库配置和连接",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "测试数据库配置步骤",
+                "parameters": [
+                    {
+                        "description": "步骤信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.DatabaseTestStepRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/login": {
+            "post": {
+                "description": "Authenticate user with username and password",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Logout the current user and invalidate the session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User logout",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/logout-all": {
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Logout the user from all active sessions",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Logout from all devices",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Get information about the currently authenticated user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Get current user",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.UserInfo"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Refresh the authentication token",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Refresh token",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.AuthResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Register a new user account",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "User registration",
+                "parameters": [
+                    {
+                        "description": "Registration information",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/webapi.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/webapi.AuthResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/cfg": {
             "get": {
                 "description": "检查配置服务的运行状态",
@@ -155,6 +792,570 @@
                         "description": "OK",
                         "schema": {
                             "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/connections/mqtt": {
+            "get": {
+                "description": "获取MQTT服务连接信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Connections"
+                ],
+                "summary": "获取MQTT连接信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.MQTTInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/connections/websocket": {
+            "get": {
+                "description": "获取WebSocket服务连接信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Connections"
+                ],
+                "summary": "获取WebSocket连接信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.WebSocketInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/devices": {
+            "get": {
+                "description": "获取设备列表，支持分页和过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "获取设备列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "按状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "按设备类型过滤",
+                        "name": "device_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "排序字段",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "排序方向",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否返回位置信息",
+                        "name": "location",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "新设备注册到系统",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "设备注册",
+                "parameters": [
+                    {
+                        "description": "设备注册信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.DeviceRegistrationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/batch/command": {
+            "post": {
+                "description": "向多个设备批量执行命令",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "批量命令执行",
+                "parameters": [
+                    {
+                        "description": "批量命令参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.BatchCommandRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.BatchCommandResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/batch/config": {
+            "post": {
+                "description": "批量更新多个设备的配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "批量配置更新",
+                "parameters": [
+                    {
+                        "description": "批量配置参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.BatchConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.BatchConfigResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/batch/ota": {
+            "post": {
+                "description": "为多个设备批量创建OTA更新任务",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "批量OTA更新",
+                "parameters": [
+                    {
+                        "description": "批量OTA更新参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.BatchOTAUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.BatchOTAUpdateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}": {
+            "get": {
+                "description": "根据ID获取设备的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "获取设备详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新指定设备的信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "更新设备信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "设备更新信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.DeviceUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "从系统中删除指定设备",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "删除设备",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/devices/{id}/activate": {
+            "post": {
+                "description": "激活已注册的设备",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "激活设备",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "设备激活信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.DeviceActivationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceActivationResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
                         }
                     }
                 }
@@ -216,6 +1417,1205 @@
                         "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/ota/firmware": {
+            "get": {
+                "description": "获取可用的固件版本列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "获取固件列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.FirmwareList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/ota/status": {
+            "get": {
+                "description": "批量查询OTA更新状态",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "查询OTA状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "更新任务ID",
+                        "name": "update_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "device_id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v1.OTAStatusResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/ota/updates": {
+            "post": {
+                "description": "为指定设备创建OTA固件更新任务",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "创建OTA更新",
+                "parameters": [
+                    {
+                        "description": "OTA更新请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.OTAUpdateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.OTAUpdateResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ota/updates/{id}": {
+            "get": {
+                "description": "查询指定OTA更新任务的状态",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "获取OTA更新状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "更新任务ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.OTAStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/ota/updates/{id}/cancel": {
+            "post": {
+                "description": "取消正在进行的OTA更新任务",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "取消OTA更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "更新任务ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/providers": {
+            "get": {
+                "description": "获取所有配置的AI服务供应商",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "获取供应商列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.ProviderList"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "创建新的AI服务供应商配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "创建供应商配置",
+                "parameters": [
+                    {
+                        "description": "供应商配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.ProviderConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.Provider"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/providers/{type}/{name}": {
+            "put": {
+                "description": "更新指定供应商的配置信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "更新供应商配置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "供应商类型",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "供应商名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "供应商配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.ProviderConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.Provider"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "删除指定的供应商配置",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Providers"
+                ],
+                "summary": "删除供应商配置",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "供应商类型",
+                        "name": "type",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "供应商名称",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions": {
+            "get": {
+                "description": "获取当前用户的会话列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "获取会话列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "format": "int64",
+                        "description": "用户ID",
+                        "name": "user_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否只返回活跃会话",
+                        "name": "active",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.SessionListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{id}": {
+            "delete": {
+                "description": "撤销指定的用户会话",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "撤销会话",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "会话ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/startup/workflows": {
+            "get": {
+                "description": "获取所有可用的启动工作流列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workflow"
+                ],
+                "summary": "获取工作流列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/startup/workflows/{id}": {
+            "get": {
+                "description": "根据ID获取特定工作流的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workflow"
+                ],
+                "summary": "获取工作流详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "工作流ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/config": {
+            "get": {
+                "description": "获取系统配置项列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取系统配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/definitions/v1.SystemConfigResponse"
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "更新指定的系统配置项",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "更新系统配置",
+                "parameters": [
+                    {
+                        "description": "配置更新信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.SystemConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.SystemConfigResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/config/schema/database": {
+            "get": {
+                "description": "获取数据库表结构信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取数据库模式",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DatabaseSchema"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/system/config/test/database": {
+            "post": {
+                "description": "测试数据库连接配置",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "测试数据库连接",
+                "parameters": [
+                    {
+                        "description": "数据库配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.DatabaseTestRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DatabaseTestResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/health": {
+            "get": {
+                "description": "快速健康检查",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "健康检查",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.HealthCheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "执行详细的健康检查，支持指定检查项目",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "详细健康检查",
+                "parameters": [
+                    {
+                        "description": "健康检查参数",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/v1.HealthCheckRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.HealthCheckResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/system/init": {
+            "get": {
+                "description": "检查系统是否已完成初始化",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取系统初始化状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "执行系统初始化操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "系统初始化",
+                "parameters": [
+                    {
+                        "description": "初始化配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.InitRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/system/status": {
+            "get": {
+                "description": "获取系统的运行状态和统计信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取系统状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.SystemStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/system/time": {
+            "get": {
+                "description": "获取服务器当前时间和相关信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取服务器时间",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.ServerTimeInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/users": {
+            "get": {
+                "description": "获取用户列表，支持分页和过滤",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "获取用户列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "按角色过滤",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "按状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "created_at",
+                        "description": "排序字段",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "desc",
+                        "description": "排序方向",
+                        "name": "sort_order",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserListResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/users/change-password": {
+            "post": {
+                "description": "修改当前登录用户的密码",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "修改密码",
+                "parameters": [
+                    {
+                        "description": "密码修改信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.ChangePasswordRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/profile": {
+            "get": {
+                "description": "获取当前登录用户的详细档案信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "获取用户档案",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserProfile"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "更新当前登录用户的档案信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "更新用户档案",
+                "parameters": [
+                    {
+                        "description": "档案更新信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.UpdateProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserProfile"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}": {
+            "get": {
+                "description": "根据ID获取特定用户的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "获取用户信息",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
                         }
                     }
                 }
@@ -319,6 +2719,21 @@
         }
     },
     "definitions": {
+        "httptransport.APIResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "integer"
+                },
+                "data": {},
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
         "ota.Activation": {
             "type": "object",
             "properties": {
@@ -420,6 +2835,1486 @@
                 }
             }
         },
+        "storage.ConfigRecord": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "description": "配置分类，如 \"server\", \"web\", \"llm\", \"tts\", \"asr\"",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "description": {
+                    "description": "配置描述",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_active": {
+                    "description": "是否为活动配置",
+                    "type": "boolean"
+                },
+                "key": {
+                    "description": "配置键，如 \"server\", \"web\", \"llm.openai\"",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "value": {
+                    "description": "配置值，JSON格式（使用灵活类型处理不规范数据）",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/storage.FlexibleJSON"
+                        }
+                    ]
+                },
+                "version": {
+                    "description": "配置版本号，用于版本控制",
+                    "type": "integer"
+                }
+            }
+        },
+        "storage.FlexibleJSON": {
+            "type": "object",
+            "properties": {
+                "data": {}
+            }
+        },
+        "v1.AdminConfig": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.BatchCommandRequest": {
+            "type": "object",
+            "required": [
+                "command",
+                "device_ids"
+            ],
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "timeout": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.BatchCommandResponse": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "string"
+                },
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.CommandTask"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "total_cmds": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.BatchConfigRequest": {
+            "type": "object",
+            "required": [
+                "configuration",
+                "device_ids"
+            ],
+            "properties": {
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "merge": {
+                    "type": "boolean"
+                },
+                "restart": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.BatchConfigResponse": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "string"
+                },
+                "configs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.ConfigTask"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "total_configs": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.BatchOTAUpdateRequest": {
+            "type": "object",
+            "required": [
+                "device_ids",
+                "firmware_version"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "device_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "firmware_version": {
+                    "type": "string"
+                },
+                "force_update": {
+                    "type": "boolean"
+                },
+                "schedule_time": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.BatchOTAUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "batch_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.OTATask"
+                    }
+                },
+                "total_tasks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.ChangePasswordRequest": {
+            "type": "object",
+            "required": [
+                "confirm_password",
+                "current_password",
+                "new_password"
+            ],
+            "properties": {
+                "confirm_password": {
+                    "type": "string"
+                },
+                "current_password": {
+                    "type": "string"
+                },
+                "new_password": {
+                    "type": "string",
+                    "minLength": 6
+                }
+            }
+        },
+        "v1.ColumnInfo": {
+            "type": "object",
+            "properties": {
+                "auto_increment": {
+                    "type": "boolean"
+                },
+                "default": {},
+                "max_length": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                },
+                "primary_key": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.CommandTask": {
+            "type": "object",
+            "properties": {
+                "command": {
+                    "type": "string"
+                },
+                "command_id": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "params": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "sent_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.ConfigTask": {
+            "type": "object",
+            "properties": {
+                "config_id": {
+                    "type": "string"
+                },
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "merge": {
+                    "type": "boolean"
+                },
+                "restart": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DatabaseConfig": {
+            "type": "object",
+            "required": [
+                "database",
+                "type"
+            ],
+            "properties": {
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "options": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "sqlite",
+                        "mysql",
+                        "postgresql"
+                    ]
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DatabaseSchema": {
+            "type": "object",
+            "properties": {
+                "foreign_keys": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.ForeignKeyInfo"
+                    }
+                },
+                "indexes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.IndexInfo"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.TableInfo"
+                    }
+                }
+            }
+        },
+        "v1.DatabaseStatus": {
+            "type": "object",
+            "properties": {
+                "connection": {
+                    "description": "connected, disconnected",
+                    "type": "string"
+                },
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "max_connections": {
+                    "type": "integer"
+                },
+                "open_connections": {
+                    "type": "integer"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "slow_queries": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "mysql, postgresql, sqlite",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DatabaseTestRequest": {
+            "type": "object",
+            "required": [
+                "config"
+            ],
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/v1.DatabaseConfig"
+                }
+            }
+        },
+        "v1.DatabaseTestResponse": {
+            "type": "object",
+            "properties": {
+                "connected": {
+                    "type": "boolean"
+                },
+                "details": {},
+                "latency": {
+                    "description": "连接延迟（毫秒）",
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DeviceActivationRequest": {
+            "type": "object",
+            "required": [
+                "activation_code"
+            ],
+            "properties": {
+                "activation_code": {
+                    "type": "string"
+                },
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "device_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DeviceActivationResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "device_info": {
+                    "$ref": "#/definitions/v1.DeviceInfo"
+                },
+                "device_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.DeviceInfo": {
+            "type": "object",
+            "properties": {
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_type": {
+                    "type": "string"
+                },
+                "firmware": {
+                    "$ref": "#/definitions/v1.FirmwareInfo"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "is_activated": {
+                    "type": "boolean"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "location": {
+                    "$ref": "#/definitions/v1.DeviceLocation"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "model": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "online, offline, error, unknown",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DeviceListResponse": {
+            "type": "object",
+            "properties": {
+                "devices": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.DeviceInfo"
+                    }
+                },
+                "pagination": {
+                    "$ref": "#/definitions/v1.Pagination"
+                }
+            }
+        },
+        "v1.DeviceLocation": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "altitude": {
+                    "type": "number"
+                },
+                "city": {
+                    "type": "string"
+                },
+                "country": {
+                    "type": "string"
+                },
+                "latitude": {
+                    "type": "number"
+                },
+                "longitude": {
+                    "type": "number"
+                },
+                "province": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DeviceRegistrationRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "device_name",
+                "device_type"
+            ],
+            "properties": {
+                "device_id": {
+                    "type": "string"
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "device_type": {
+                    "type": "string"
+                },
+                "location": {
+                    "$ref": "#/definitions/v1.DeviceLocation"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "model": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.DeviceUpdateRequest": {
+            "type": "object",
+            "properties": {
+                "configuration": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "device_name": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "location": {
+                    "$ref": "#/definitions/v1.DeviceLocation"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
+        "v1.FirmwareInfo": {
+            "type": "object",
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "download_count": {
+                    "type": "integer"
+                },
+                "release_date": {
+                    "type": "string"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "url": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.FirmwareList": {
+            "type": "object",
+            "properties": {
+                "firmware": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.FirmwareInfo"
+                    }
+                }
+            }
+        },
+        "v1.ForeignKeyInfo": {
+            "type": "object",
+            "properties": {
+                "column_name": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "on_delete": {
+                    "type": "string"
+                },
+                "on_update": {
+                    "type": "string"
+                },
+                "refer_column": {
+                    "type": "string"
+                },
+                "refer_table": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.HealthCheck": {
+            "type": "object",
+            "properties": {
+                "details": {},
+                "duration": {
+                    "description": "毫秒",
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.HealthCheckRequest": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timeout": {
+                    "description": "超时时间（秒）",
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.HealthCheckResponse": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.HealthCheckResult"
+                    }
+                },
+                "duration": {
+                    "description": "检查耗时（毫秒）",
+                    "type": "integer"
+                },
+                "overall": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "healthy, unhealthy, degraded",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.HealthCheckResult": {
+            "type": "object",
+            "properties": {
+                "details": {},
+                "duration": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.IndexInfo": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "table_name": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "btree, hash, fulltext",
+                    "type": "string"
+                },
+                "unique": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.InitRequest": {
+            "type": "object",
+            "required": [
+                "admin_config",
+                "database_config"
+            ],
+            "properties": {
+                "admin_config": {
+                    "$ref": "#/definitions/v1.AdminConfig"
+                },
+                "database_config": {
+                    "$ref": "#/definitions/v1.DatabaseConfig"
+                },
+                "providers": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "system_config": {}
+            }
+        },
+        "v1.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "access_token": {
+                    "type": "string"
+                },
+                "expires_in": {
+                    "type": "integer"
+                },
+                "refresh_token": {
+                    "type": "string"
+                },
+                "token_type": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/v1.UserInfo"
+                }
+            }
+        },
+        "v1.MQTTInfo": {
+            "type": "object",
+            "properties": {
+                "broker": {
+                    "type": "string"
+                },
+                "clients": {
+                    "type": "integer"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.OTAStatusResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "firmware_info": {
+                    "$ref": "#/definitions/v1.FirmwareInfo"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "update_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.OTATask": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "device_id": {
+                    "type": "string"
+                },
+                "firmware_version": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "update_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.OTAUpdateRequest": {
+            "type": "object",
+            "required": [
+                "firmware_version"
+            ],
+            "properties": {
+                "checksum": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "firmware_version": {
+                    "type": "string"
+                },
+                "force_update": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.OTAUpdateResponse": {
+            "type": "object",
+            "properties": {
+                "completed_at": {
+                    "type": "string"
+                },
+                "download_url": {
+                    "type": "string"
+                },
+                "downloaded": {
+                    "type": "integer"
+                },
+                "estimated_time": {
+                    "type": "integer"
+                },
+                "file_size": {
+                    "type": "integer"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "progress": {
+                    "description": "0-100",
+                    "type": "integer"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "pending, downloading, installing, completed, failed",
+                    "type": "string"
+                },
+                "update_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.Pagination": {
+            "type": "object",
+            "properties": {
+                "has_next": {
+                    "type": "boolean"
+                },
+                "has_prev": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.Provider": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "metadata": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "active, inactive, error",
+                    "type": "string"
+                },
+                "type": {
+                    "description": "llm, tts, asr, vllm",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.ProviderConfigRequest": {
+            "type": "object",
+            "required": [
+                "config",
+                "name",
+                "type"
+            ],
+            "properties": {
+                "config": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.ProviderList": {
+            "type": "object",
+            "properties": {
+                "providers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.Provider"
+                    }
+                }
+            }
+        },
+        "v1.RefreshTokenRequest": {
+            "type": "object",
+            "required": [
+                "refresh_token"
+            ],
+            "properties": {
+                "refresh_token": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.ServerTimeInfo": {
+            "type": "object",
+            "properties": {
+                "current_time": {
+                    "type": "string"
+                },
+                "load": {
+                    "type": "number"
+                },
+                "timezone": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.ServiceStatus": {
+            "type": "object",
+            "properties": {
+                "checks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.HealthCheck"
+                    }
+                },
+                "health": {
+                    "description": "healthy, unhealthy",
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "running, stopped, error",
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.SessionListResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "$ref": "#/definitions/v1.Pagination"
+                },
+                "sessions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.SessionSession"
+                    }
+                }
+            }
+        },
+        "v1.SessionSession": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "ip_address": {
+                    "type": "string"
+                },
+                "last_seen": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_agent": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.SystemConfigRequest": {
+            "type": "object",
+            "properties": {
+                "setting": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "v1.SystemConfigResponse": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                },
+                "type": {
+                    "description": "string, number, boolean, object",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "updated_by": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
+        "v1.SystemStatistics": {
+            "type": "object",
+            "properties": {
+                "active_sessions": {
+                    "type": "integer"
+                },
+                "cpu_usage": {
+                    "type": "number"
+                },
+                "disk_usage": {
+                    "type": "number"
+                },
+                "error_requests": {
+                    "type": "integer"
+                },
+                "memory_usage": {
+                    "type": "integer"
+                },
+                "registered_users": {
+                    "type": "integer"
+                },
+                "storage_used": {
+                    "type": "integer"
+                },
+                "success_requests": {
+                    "type": "integer"
+                },
+                "total_requests": {
+                    "type": "integer"
+                },
+                "total_users": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.SystemStatus": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "$ref": "#/definitions/v1.DatabaseStatus"
+                },
+                "environment": {
+                    "type": "string"
+                },
+                "go_version": {
+                    "type": "string"
+                },
+                "services": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.ServiceStatus"
+                    }
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "statistics": {
+                    "$ref": "#/definitions/v1.SystemStatistics"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "description": "运行时间（秒）",
+                    "type": "integer"
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.TableInfo": {
+            "type": "object",
+            "properties": {
+                "auto_increment": {
+                    "type": "integer"
+                },
+                "charset": {
+                    "type": "string"
+                },
+                "collation": {
+                    "type": "string"
+                },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.ColumnInfo"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "data_length": {
+                    "type": "integer"
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "index_length": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.UpdateProfileRequest": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/v1.UserSettings"
+                }
+            }
+        },
+        "v1.UserInfo": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_login": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "status": {
+                    "description": "active, inactive, suspended",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.UserListResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "$ref": "#/definitions/v1.Pagination"
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.UserProfile"
+                    }
+                }
+            }
+        },
+        "v1.UserProfile": {
+            "type": "object",
+            "properties": {
+                "avatar": {
+                    "type": "string"
+                },
+                "bio": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "last_login": {
+                    "type": "string"
+                },
+                "phone": {
+                    "type": "string"
+                },
+                "settings": {
+                    "$ref": "#/definitions/v1.UserSettings"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.UserSettings": {
+            "type": "object",
+            "properties": {
+                "language": {
+                    "type": "string"
+                },
+                "notifications": {
+                    "type": "boolean"
+                },
+                "theme": {
+                    "type": "string"
+                },
+                "timezone": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.WebSocketInfo": {
+            "type": "object",
+            "properties": {
+                "clients": {
+                    "type": "integer"
+                },
+                "connected": {
+                    "type": "boolean"
+                },
+                "path": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "start_time": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "vision.VisionAnalysisData": {
             "type": "object",
             "properties": {
@@ -430,6 +4325,21 @@
                 "result": {
                     "description": "分析结果（成功时）",
                     "type": "string"
+                }
+            }
+        },
+        "webapi.APIResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },
@@ -448,6 +4358,60 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "webapi.AuthResponse": {
+            "type": "object",
+            "properties": {
+                "expires_at": {
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user": {
+                    "$ref": "#/definitions/webapi.UserInfo"
+                }
+            }
+        },
+        "webapi.ColumnInfo": {
+            "type": "object",
+            "properties": {
+                "defaultValue": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "nullable": {
+                    "type": "boolean"
+                },
+                "primaryKey": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "unique": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "webapi.ConfigRecordResponse": {
+            "type": "object",
+            "properties": {
+                "pagination": {
+                    "$ref": "#/definitions/webapi.Pagination"
+                },
+                "records": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.ConfigRecord"
+                    }
                 }
             }
         },
@@ -474,6 +4438,28 @@
                 }
             }
         },
+        "webapi.CreateConfigRecordRequest": {
+            "type": "object",
+            "required": [
+                "key",
+                "value"
+            ],
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "value": {}
+            }
+        },
         "webapi.DatabaseConfig": {
             "type": "object",
             "properties": {
@@ -486,6 +4472,10 @@
                 "password": {
                     "type": "string"
                 },
+                "path": {
+                    "description": "SQLite数据库文件路径",
+                    "type": "string"
+                },
                 "port": {
                     "type": "integer"
                 },
@@ -494,6 +4484,92 @@
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "webapi.DatabaseSchema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "relationships": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/webapi.ForeignKeyInfo"
+                    }
+                },
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/webapi.TableInfo"
+                    }
+                },
+                "totalRows": {
+                    "type": "integer"
+                },
+                "totalTables": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.DatabaseTestStepRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/webapi.DatabaseConfig"
+                },
+                "step": {
+                    "type": "integer"
+                }
+            }
+        },
+        "webapi.ForeignKeyInfo": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "onDelete": {
+                    "type": "string"
+                },
+                "onUpdate": {
+                    "type": "string"
+                },
+                "sourceColumn": {
+                    "type": "string"
+                },
+                "sourceTable": {
+                    "type": "string"
+                },
+                "targetColumn": {
+                    "type": "string"
+                },
+                "targetTable": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.IndexInfo": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "unique": {
+                    "type": "boolean"
                 }
             }
         },
@@ -513,6 +4589,58 @@
                 "systemConfig": {}
             }
         },
+        "webapi.LoginRequest": {
+            "type": "object",
+            "required": [
+                "password",
+                "username"
+            ],
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.Pagination": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer"
+                },
+                "page": {
+                    "type": "integer"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "webapi.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password",
+                "username"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "webapi.SystemConfig": {
             "type": "object",
             "properties": {
@@ -529,6 +4657,73 @@
                     "type": "string"
                 },
                 "selectedVLLLM": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.TableInfo": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/webapi.ColumnInfo"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "indexes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/webapi.IndexInfo"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "rowCount": {
+                    "type": "integer"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "webapi.UpdateConfigRecordRequest": {
+            "type": "object",
+            "properties": {
+                "category": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "is_active": {
+                    "type": "boolean"
+                },
+                "value": {}
+            }
+        },
+        "webapi.UserInfo": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "nickname": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "username": {
                     "type": "string"
                 }
             }

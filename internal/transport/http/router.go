@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/observability"
 	"xiaozhi-server-go/internal/utils"
+	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
 )
 
 // Options configures the HTTP router builder.
@@ -26,9 +26,11 @@ type Options struct {
 
 // Router bundles together the gin engine and common route groups.
 type Router struct {
-	Engine  *gin.Engine
-	API     *gin.RouterGroup
-	Secured *gin.RouterGroup
+	Engine   *gin.Engine
+	API      *gin.RouterGroup
+	Secured  *gin.RouterGroup
+	V1       *gin.RouterGroup
+	V1Secure *gin.RouterGroup
 }
 
 // Build constructs a gin engine pre-configured with logging, recovery, CORS and observability middlewares.
@@ -48,29 +50,33 @@ func Build(opts Options) (*Router, error) {
 	}
 
 	engine := gin.New()
+
+	// 使用新的中间件
 	engine.Use(gin.Recovery())
-	engine.Use(loggingMiddleware(logger))
+	engine.Use(httpMiddleware.ErrorMiddleware(logger))
+	engine.Use(httpMiddleware.ResponseMiddleware())
+	engine.Use(httpMiddleware.LoggingMiddleware(logger))
+	engine.Use(httpMiddleware.SecurityHeadersMiddleware())
+	engine.Use(httpMiddleware.RequestSizeMiddleware(10 << 20)) // 10MB
+	engine.Use(httpMiddleware.CORSMiddleware())
+	engine.Use(loggingMiddleware(logger)) // 保留原有的日志中间件作为备份
 	engine.Use(observabilityMiddleware())
 
 	engine.SetTrustedProxies([]string{"0.0.0.0"})
 
-	engine.Use(cors.New(cors.Config{
-		AllowOrigins: []string{"*"},
-		AllowMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowHeaders: []string{
-			"Origin",
-			"Content-Type",
-			"Authorization",
-			"Client-Id",
-			"Device-Id",
-			"Token",
-		},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	// 移除旧的CORS配置，使用新的统一CORS中间件
 
 	api := engine.Group("/api")
+
+	// 创建 V1 API 路由组
+	v1 := api.Group("/v1")
+	v1.Use(httpMiddleware.VersionMiddleware())
+
+	var v1Secure *gin.RouterGroup
+	if opts.AuthMiddleware != nil {
+		v1Secure = v1.Group("")
+		v1Secure.Use(opts.AuthMiddleware)
+	}
 
 	staticRoot := opts.StaticRoot
 	if staticRoot == "" {
@@ -109,9 +115,11 @@ func Build(opts Options) (*Router, error) {
 	}
 
 	return &Router{
-		Engine:  engine,
-		API:     api,
-		Secured: secured,
+		Engine:   engine,
+		API:      api,
+		Secured:  secured,
+		V1:       v1,
+		V1Secure: v1Secure,
 	}, nil
 }
 
