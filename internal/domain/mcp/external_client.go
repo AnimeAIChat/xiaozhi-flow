@@ -53,6 +53,15 @@ func NewExternalClient(config *Config, logger Logger) (*ExternalClient, error) {
 		}
 		c.stdioClient = stdioClient
 		c.useStdioClient = true
+	} else if config.URL != "" {
+		// Use Streamable HTTP connection
+		// This supports the newer MCP protocol with single endpoint
+		streamableClient, err := mcpclient.NewStreamableHttpClient(config.URL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create Streamable HTTP MCP client: %w", err)
+		}
+		c.client = streamableClient
+		c.useStdioClient = false
 	} else {
 		fmt.Println("Unsupported MCP client type, only stdio client is supported")
 	}
@@ -91,6 +100,58 @@ func (c *ExternalClient) Start(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to fetch tools: %w", err)
 		}
+	} else if c.client != nil {
+		// Start the client transport in a background goroutine
+		go func() {
+			if err := c.client.Start(context.Background()); err != nil {
+				c.logger.ErrorTag("MCP", "Client transport error: %v", err)
+			}
+		}()
+
+		// Create initialization request
+		initRequest := mcp.InitializeRequest{}
+		initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
+		initRequest.Params.ClientInfo = mcp.Implementation{
+			Name:    "zhi-server",
+			Version: "1.0.0",
+		}
+
+		// Set timeout context
+		initCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+
+		// Initialize client with retries to wait for transport to start
+		var initResult *mcp.InitializeResult
+		var err error
+		for i := 0; i < 10; i++ {
+			initResult, err = c.client.Initialize(initCtx, initRequest)
+			if err == nil {
+				break
+			}
+			// If transport is not ready, wait and retry
+			if strings.Contains(err.Error(), "transport not started") {
+				time.Sleep(500 * time.Millisecond)
+				continue
+			}
+			// Other errors are fatal
+			return fmt.Errorf("failed to initialize MCP client: %w", err)
+		}
+		
+		if err != nil {
+			return fmt.Errorf("failed to initialize MCP client after retries: %w", err)
+		}
+
+		c.name = initResult.ServerInfo.Name
+		c.logger.InfoTag("MCP", "已初始化服务器: %s %s (URL: %s)",
+			initResult.ServerInfo.Name,
+			initResult.ServerInfo.Version,
+			c.config.URL)
+
+		// Fetch tools list
+		err = c.fetchTools(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to fetch tools: %w", err)
+		}
 	}
 
 	c.mu.Lock()
@@ -102,45 +163,52 @@ func (c *ExternalClient) Start(ctx context.Context) error {
 
 // fetchTools fetches the available tools list
 func (c *ExternalClient) fetchTools(ctx context.Context) error {
+	var tools *mcp.ListToolsResult
+	var err error
+
 	if c.useStdioClient {
 		// Use protocol to get tools list
 		toolsRequest := mcp.ListToolsRequest{}
-		tools, err := c.stdioClient.ListTools(ctx, toolsRequest)
-		if err != nil {
-			return fmt.Errorf("failed to list tools: %w", err)
-		}
-
-		c.mu.Lock()
-		defer c.mu.Unlock()
-
-		// Clear current tools list
-		c.tools = make([]Tool, 0, len(tools.Tools))
-
-		// Add fetched tools
-		toolNames := ""
-		for _, tool := range tools.Tools {
-			required := tool.InputSchema.Required
-			if required == nil {
-				required = make([]string, 0)
-			}
-			c.tools = append(c.tools, Tool{
-				Name:        tool.Name,
-				Description: tool.Description,
-				InputSchema: ToolInputSchema{
-					Type:       tool.InputSchema.Type,
-					Properties: tool.InputSchema.Properties,
-					Required:   required,
-				},
-			})
-			toolNames += fmt.Sprintf("%s, ", tool.Name)
-		}
-		c.logger.InfoTag("MCP", "获取 %s 可用工具: %s", c.name, toolNames)
-		return nil
+		tools, err = c.stdioClient.ListTools(ctx, toolsRequest)
+	} else if c.client != nil {
+		toolsRequest := mcp.ListToolsRequest{}
+		tools, err = c.client.ListTools(ctx, toolsRequest)
 	} else {
 		// Original implementation remains unchanged
 		// Tools can be obtained through resource types here
 		return nil
 	}
+
+	if err != nil {
+		return fmt.Errorf("failed to list tools: %w", err)
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Clear current tools list
+	c.tools = make([]Tool, 0, len(tools.Tools))
+
+	// Add fetched tools
+	toolNames := ""
+	for _, tool := range tools.Tools {
+		required := tool.InputSchema.Required
+		if required == nil {
+			required = make([]string, 0)
+		}
+		c.tools = append(c.tools, Tool{
+			Name:        tool.Name,
+			Description: tool.Description,
+			InputSchema: ToolInputSchema{
+				Type:       tool.InputSchema.Type,
+				Properties: tool.InputSchema.Properties,
+				Required:   required,
+			},
+		})
+		toolNames += fmt.Sprintf("%s, ", tool.Name)
+	}
+	c.logger.InfoTag("MCP", "获取 %s 可用工具: %s", c.name, toolNames)
+	return nil
 }
 
 // Stop stops the external MCP client
@@ -219,54 +287,58 @@ func (c *ExternalClient) CallTool(
 		return nil, fmt.Errorf("tool %s not found", name)
 	}
 
+	var client *mcpclient.Client
 	if c.useStdioClient {
-		c.logger.InfoTag("MCP", "开始调用外部工具: %s, 参数: %+v", name, args)
-
-		// 确保参数类型正确，Python mcp-rag 期望特定格式的参数
-		processedArgs := c.processArguments(args)
-		c.logger.DebugTag("MCP", "处理后的参数: %+v", processedArgs)
-
-		callRequest := mcp.CallToolRequest{}
-		callRequest.Params.Name = name
-		callRequest.Params.Arguments = processedArgs
-
-		// 设置较短的超时时间，确保低延迟
-		timeoutCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
-		defer cancel()
-
-		c.logger.DebugTag("MCP", "发送 MCP 调用请求 (超时: 8s)...")
-		result, err := c.stdioClient.CallTool(timeoutCtx, callRequest)
-
-		if err != nil {
-			c.logger.ErrorTag("MCP", "调用外部工具失败: %s, 错误: %v", name, err)
-
-			// 对于rag工具，如果超时，返回一个友好的错误信息而不是直接失败
-			if name == "rag_ask" && strings.Contains(err.Error(), "deadline exceeded") {
-				c.logger.InfoTag("MCP", "RAG查询超时，返回建议信息")
-				return "抱歉，查询信息超时了，建议您可以：1) 换个更简单的查询方式 2) 稍后再试 3) 或者我可以根据一般知识为您解答", nil
-			}
-
-			return nil, fmt.Errorf("failed to call tool %s: %w", name, err)
-		}
-
-		c.logger.InfoTag("MCP", "外部工具调用成功: %s, 内容数量: %d", name, len(result.Content))
-
-		// 对于RAG工具，检查结果质量
-		if name == "rag_ask" {
-			content := c.processToolResult(result)
-			if contentStr, ok := content.(string); ok {
-				if len(contentStr) < 50 || strings.Contains(contentStr, "未找到") || strings.Contains(contentStr, "没有相关") {
-					c.logger.InfoTag("MCP", "RAG结果质量较低，返回友好提示")
-					return contentStr + "\n\n(如果这个结果不够详细，我可以根据一般知识为您补充解答)", nil
-				}
-			}
-		}
-
-		return c.processToolResult(result), nil
+		client = c.stdioClient
+	} else if c.client != nil {
+		client = c.client
+	} else {
+		return nil, fmt.Errorf("no active client connection")
 	}
 
-	// Original network client does not support direct tool calling
-	return nil, fmt.Errorf("tool calling not implemented for network client")
+	c.logger.InfoTag("MCP", "开始调用外部工具: %s, 参数: %+v", name, args)
+
+	// 确保参数类型正确，Python mcp-rag 期望特定格式的参数
+	processedArgs := c.processArguments(args)
+	c.logger.DebugTag("MCP", "处理后的参数: %+v", processedArgs)
+
+	callRequest := mcp.CallToolRequest{}
+	callRequest.Params.Name = name
+	callRequest.Params.Arguments = processedArgs
+
+	// 设置较短的超时时间，确保低延迟
+	timeoutCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
+	defer cancel()
+
+	c.logger.DebugTag("MCP", "发送 MCP 调用请求 (超时: 8s)...")
+	result, err := client.CallTool(timeoutCtx, callRequest)
+
+	if err != nil {
+		c.logger.ErrorTag("MCP", "调用外部工具失败: %s, 错误: %v", name, err)
+
+		// 对于rag工具，如果超时，返回一个友好的错误信息而不是直接失败
+		if name == "rag_ask" && strings.Contains(err.Error(), "deadline exceeded") {
+			c.logger.InfoTag("MCP", "RAG查询超时，返回建议信息")
+			return "抱歉，查询信息超时了，建议您可以：1) 换个更简单的查询方式 2) 稍后再试 3) 或者我可以根据一般知识为您解答", nil
+		}
+
+		return nil, fmt.Errorf("failed to call tool %s: %w", name, err)
+	}
+
+	c.logger.InfoTag("MCP", "外部工具调用成功: %s, 内容数量: %d", name, len(result.Content))
+
+	// 对于RAG工具，检查结果质量
+	if name == "rag_ask" {
+		content := c.processToolResult(result)
+		if contentStr, ok := content.(string); ok {
+			if len(contentStr) < 50 || strings.Contains(contentStr, "未找到") || strings.Contains(contentStr, "没有相关") {
+				c.logger.InfoTag("MCP", "RAG结果质量较低，返回友好提示")
+				return contentStr + "\n\n(如果这个结果不够详细，我可以根据一般知识为您补充解答)", nil
+			}
+		}
+	}
+
+	return c.processToolResult(result), nil
 }
 
 // processArguments 确保参数格式与 Python mcp-rag 兼容
