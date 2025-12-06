@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"xiaozhi-server-go/internal/platform/storage/migrations"
@@ -32,6 +33,12 @@ func ConfigStore() interface{} {
 
 // Global database instance for backward compatibility
 var db *gorm.DB
+
+// dbInitOnce ensures InitDatabase is only executed once
+var dbInitOnce sync.Once
+
+// Global error to store any initialization failure
+var dbInitError error
 
 // InitDatabaseWithConfig initializes database using the provided configuration
 func InitDatabaseWithConfig(config DatabaseConnection) error {
@@ -117,6 +124,97 @@ func ConnectDatabaseWithConfig(config DatabaseConnection) error {
 
 // InitDatabase checks database initialization status without creating it automatically.
 func InitDatabase() error {
+	dbInitOnce.Do(func() {
+		dbInitError = actualInitDatabase()
+	})
+	return dbInitError
+}
+
+// EnsureDatabaseConnected 确保数据库已连接，但不打印初始化日志
+// 这个函数用于设备连接时的容错检查，不会产生任何日志输出
+func EnsureDatabaseConnected() error {
+	// 如果数据库已经初始化并且连接有效，直接返回
+	if db != nil && ValidateDBConnection(db) {
+		return nil
+	}
+
+	// 如果没有初始化，执行静默初始化
+	return silentInitDatabase()
+}
+
+// silentInitDatabase 静默初始化数据库，不打印任何日志
+func silentInitDatabase() error {
+	// Use environment variable for database path if set (for testing)
+	dbPath := os.Getenv("XIAOZHI_DB_PATH")
+	if dbPath == "" {
+		dataDir := "./data"
+		dbPath = filepath.Join(dataDir, "xiaozhi.db")
+	}
+
+	// Check if database file exists (only for SQLite)
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		// 静默处理缺失的数据库文件
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("failed to check database file: %w", err)
+	}
+
+	// Database file exists, try to open and initialize it
+	var err error
+	db, err = gorm.Open(sqlite.Open(dbPath), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to open existing database: %w", err)
+	}
+
+	// Test the database connection before proceeding
+	sqlDB, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to get underlying database: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	// Set connection pool parameters for SQLite (never expire connections)
+	sqlDB.SetMaxOpenConns(25)
+	sqlDB.SetMaxIdleConns(25)
+	sqlDB.SetConnMaxLifetime(0)  // SQLite专用：连接永不自动过期
+	sqlDB.SetConnMaxIdleTime(0)  // SQLite专用：空闲连接永不自动关闭
+
+	// Verify the database connection is fully operational by running a test query
+	var testResult int64
+	if err := db.Raw("SELECT 1").Count(&testResult).Error; err != nil {
+		return fmt.Errorf("database connection test query failed: %w", err)
+	}
+
+	// Auto-migrate tables for existing database
+	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
+		return fmt.Errorf("failed to migrate existing database: %w", err)
+	}
+
+	// Run migrations
+	migrationManager := NewMigrationManager(db)
+	migrationManager.AddMigration(&migrations.Migration001Initial{})
+	migrationManager.AddMigration(&migrations.Migration002ConfigTables{})
+	migrationManager.AddMigration(&migrations.Migration003ModelSelections{})
+
+	if err := migrationManager.RunMigrations(); err != nil {
+		return fmt.Errorf("failed to run migrations on existing database: %w", err)
+	}
+
+	// Check admin user status silently
+	if err := initializeAdminUser(db, true); err != nil {
+		return fmt.Errorf("failed to check admin user status: %w", err)
+	}
+
+	return nil
+}
+
+// actualInitDatabase performs the actual database initialization
+func actualInitDatabase() error {
 	// Use environment variable for database path if set (for testing)
 	dbPath := os.Getenv("XIAOZHI_DB_PATH")
 	if dbPath == "" {
@@ -179,7 +277,7 @@ func InitDatabase() error {
 	}
 
 	// Check admin user status
-	if err := initializeAdminUser(db); err != nil {
+	if err := initializeAdminUser(db, false); err != nil {
 		return fmt.Errorf("failed to check admin user status: %w", err)
 	}
 
@@ -371,19 +469,22 @@ type VerificationCode struct {
 }
 
 // initializeAdminUser 检查管理员用户状态（不再自动创建）
-func initializeAdminUser(db *gorm.DB) error {
+// silent: 是否为静默模式，静默模式下不打印任何日志
+func initializeAdminUser(db *gorm.DB, silent bool) error {
 	// 检查是否已存在管理员用户
 	var count int64
 	if err := db.Model(&User{}).Where("role = ?", "admin").Count(&count).Error; err != nil {
 		return fmt.Errorf("failed to check admin user count: %w", err)
 	}
 
-	if count > 0 {
-		// 管理员用户已存在，系统已初始化
-		fmt.Printf("系统已初始化，找到 %d 个管理员用户\n", count)
-	} else {
-		// 管理员用户不存在，需要通过配置页面进行初始化
-		fmt.Printf("系统尚未初始化，请访问配置页面进行初始化\n")
+	if !silent {
+		if count > 0 {
+			// 管理员用户已存在，系统已初始化
+			fmt.Printf("系统已初始化，找到 %d 个管理员用户\n", count)
+		} else {
+			// 管理员用户不存在，需要通过配置页面进行初始化
+			fmt.Printf("系统尚未初始化，请访问配置页面进行初始化\n")
+		}
 	}
 
 	return nil

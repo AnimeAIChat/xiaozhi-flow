@@ -334,8 +334,8 @@ func (h *ConnectionHandler) checkDeviceInfo() {
 	}
 
 	// 尝试从数据库获取设备信息和用户模型选择
-	if err := storage.InitDatabase(); err != nil {
-		h.LogError(fmt.Sprintf("初始化数据库失败: %v，使用默认配置", err))
+	if err := storage.EnsureDatabaseConnected(); err != nil {
+		h.LogError(fmt.Sprintf("数据库连接失败: %v，使用默认配置", err))
 	} else {
 		db := storage.GetDB()
 		var device storage.Device
@@ -378,7 +378,7 @@ func (h *ConnectionHandler) getUserModelSelection() (llmProvider, ttsProvider, a
 
 	// 如果有用户ID，尝试获取用户的模型选择
 	if h.userID != "" {
-		if err := storage.InitDatabase(); err == nil {
+		if err := storage.EnsureDatabaseConnected(); err == nil {
 			db := storage.GetDB()
 
 			// 将用户ID字符串解析为整数
