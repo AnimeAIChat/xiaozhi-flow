@@ -336,13 +336,63 @@ func (m *Manager) BindConnection(
 	// Ensure local MCP tools are registered before handling requests.
 	m.registerLocalTools(fh)
 
+	// 绑定 XiaoZhi 客户端 (同步绑定连接，异步等待就绪)
+	if m.xiaozhiClient != nil {
+		m.logger.Debug("BindConnection: XiaoZhi client exists, attempting to bind")
+		// Get the underlying WebSocket connection to check if it's valid, but pass the Conn interface
+		wsConn := conn.GetWebSocketConn()
+		m.logger.Debug("BindConnection: GetWebSocketConn returned: %v (type: %T)", wsConn, wsConn)
+		if wsConn != nil {
+			m.logger.Debug("BindConnection: successfully obtained WebSocket connection, proceeding with XiaoZhi client binding")
+			if err := m.xiaozhiClient.BindConnection(conn); err != nil {
+				m.logger.Error("绑定XiaoZhi MCP客户端失败: %v", err)
+			} else {
+				// 异步等待客户端准备就绪，避免阻塞
+				go func() {
+					m.logger.Debug("BindConnection: waiting for XiaoZhi client to be ready")
+					// 使用较短的超时时间，避免长时间阻塞
+					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+					defer cancel()
+
+					if err := m.xiaozhiClient.WaitForReady(ctx); err != nil {
+						m.logger.Warn("等待XiaoZhi MCP客户端准备就绪失败或超时: %v", err)
+						return
+					}
+
+					// 注册 XiaoZhi 客户端工具
+					m.clientsMu.Lock()
+					m.clients["xiaozhi"] = m.xiaozhiClient
+					m.clientsMu.Unlock()
+
+					tools := m.xiaozhiClient.GetAvailableTools()
+					for _, tool := range tools {
+						toolName := tool.Function.Name
+						fh.RegisterFunction(toolName, tool)
+					}
+					m.logger.Info("Registered XiaoZhi MCP tools: %d", len(tools))
+
+					// Also register XiaoZhi tools in the internal registry
+					if err := m.registry.register(tools); err != nil {
+						m.logger.Error("注册XiaoZhi MCP工具到内部注册表失败: %v", err)
+					}
+
+					m.logger.Info("XiaoZhi MCP client binding completed successfully")
+				}()
+			}
+		} else {
+			m.logger.Warn("BindConnection: connection does not provide WebSocket access, skipping XiaoZhi client binding")
+		}
+	} else {
+		m.logger.Warn("BindConnection: XiaoZhi client is nil, skipping binding")
+	}
+
 	// 获取全局MCP管理器并注册外部工具
 	globalMCPManager := GetGlobalMCPManager()
 	if globalMCPManager.IsReady() {
 		m.registerGlobalToolsToConnection(fh, globalMCPManager)
 	}
 
-	// 完全异步处理MCP初始化和绑定，不阻塞连接建立
+	// 异步等待全局MCP管理器初始化完成
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -350,7 +400,7 @@ func (m *Manager) BindConnection(
 			}
 		}()
 
-		m.logger.Info("BindConnection: Starting async binding process")
+		m.logger.Info("BindConnection: Starting async global tools binding process")
 
 		// 等待全局MCP管理器初始化完成（如果还未完成）
 		for !globalMCPManager.IsReady() {
@@ -361,63 +411,12 @@ func (m *Manager) BindConnection(
 
 		// 注册全局外部工具到连接
 		m.registerGlobalToolsToConnection(fh, globalMCPManager)
-
-		// 绑定 XiaoZhi 客户端
-		if m.xiaozhiClient != nil {
-			m.logger.Debug("BindConnection: XiaoZhi client exists, attempting to bind")
-			// Get the underlying WebSocket connection
-			wsConn := conn.GetWebSocketConn()
-			m.logger.Debug("BindConnection: GetWebSocketConn returned: %v (type: %T)", wsConn, wsConn)
-			if wsConn == nil {
-				m.logger.Warn("BindConnection: connection does not provide WebSocket access, skipping XiaoZhi client binding")
-				return
-			}
-
-			m.logger.Debug("BindConnection: successfully obtained WebSocket connection, proceeding with XiaoZhi client binding")
-			if err := m.xiaozhiClient.BindConnection(wsConn); err != nil {
-				m.logger.Error("绑定XiaoZhi MCP客户端失败: %v", err)
-				return
-			}
-
-			// 异步等待客户端准备就绪，避免阻塞
-			go func() {
-				m.logger.Debug("BindConnection: waiting for XiaoZhi client to be ready")
-				// 使用较短的超时时间，避免长时间阻塞
-				ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-				defer cancel()
-
-				if err := m.xiaozhiClient.WaitForReady(ctx); err != nil {
-					m.logger.Warn("等待XiaoZhi MCP客户端准备就绪失败或超时: %v", err)
-					return
-				}
-
-				// 注册 XiaoZhi 客户端工具
-				m.clientsMu.Lock()
-				m.clients["xiaozhi"] = m.xiaozhiClient
-				m.clientsMu.Unlock()
-
-				tools := m.xiaozhiClient.GetAvailableTools()
-				for _, tool := range tools {
-					toolName := tool.Function.Name
-					fh.RegisterFunction(toolName, tool)
-				}
-				m.logger.Info("Registered XiaoZhi MCP tools: %d", len(tools))
-
-				// Also register XiaoZhi tools in the internal registry
-				if err := m.registry.register(tools); err != nil {
-					m.logger.Error("注册XiaoZhi MCP工具到内部注册表失败: %v", err)
-				}
-
-				m.logger.Info("XiaoZhi MCP client binding completed successfully")
-			}()
-		} else {
-			m.logger.Warn("BindConnection: XiaoZhi client is nil, skipping binding")
-		}
 	}()
 
 	return nil
 }
 
+// StartXiaoZhiSession triggers the MCP initialization sequence for the XiaoZhi client.
 // registerLocalTools ensures local MCP tools are registered with the current function registry.
 func (m *Manager) registerLocalTools(fh llm.FunctionRegistryInterface) {
 	if fh == nil {
@@ -499,7 +498,11 @@ func (m *Manager) registerGlobalToolsToConnection(fh llm.FunctionRegistryInterfa
 		}
 	}
 
-	m.logger.Info("registerGlobalToolsToConnection: 共注册了 %d 个外部MCP工具", registeredCount)
+	if registeredCount > 0 {
+		m.logger.Info("registerGlobalToolsToConnection: 共注册了 %d 个全局/插件MCP工具", registeredCount)
+	} else {
+		m.logger.Debug("registerGlobalToolsToConnection: 未发现全局/插件MCP工具")
+	}
 }
 
 // registerExternalTools registers external MCP client tools
@@ -536,7 +539,11 @@ func (m *Manager) registerExternalTools(fh llm.FunctionRegistryInterface) {
 		}
 	}
 
-	m.logger.Info("registerExternalTools: 共注册了 %d 个外部MCP工具", registeredCount)
+	if registeredCount > 0 {
+		m.logger.Info("registerExternalTools: 共注册了 %d 个全局/插件MCP工具", registeredCount)
+	} else {
+		m.logger.Debug("registerExternalTools: 未发现全局/插件MCP工具")
+	}
 }
 
 // Cleanup calls the underlying cleanup routine.

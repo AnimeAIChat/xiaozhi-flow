@@ -98,7 +98,9 @@ func (r *Router) Handle(w http.ResponseWriter, req *http.Request) {
 
 	deviceID, clientID := resolveIdentifiers(req, conn)
 	if r.logger != nil {
-		r.logger.InfoTag("WebSocket", "建立连接 device=%s client=%s", deviceID, clientID)
+		// 打印所有请求
+		r.logger.InfoTag("WebSocket", "收到HTTP请求 %v", req)      
+		r.logger.InfoTag("WebSocket", "建立连接 device=%s client=%s",deviceID, clientID)
 	}
 
 	wsConn := NewConnection(clientID, conn)

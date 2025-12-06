@@ -26,7 +26,7 @@ const (
 )
 
 type XiaoZhiMCPClient struct {
-	conn     *websocket.Conn
+	conn     Conn
 	tools    []Tool
 	mu       sync.RWMutex
 	ctx      context.Context
@@ -61,6 +61,7 @@ func NewXiaoZhiMCPClient(logger Logger, cfg *config.Config, auth *auth.Manager) 
 		callResults: make(map[int]chan interface{}),
 		nextID:      1,
 		toolNameMap: make(map[string]string),
+		ctx:         context.Background(),
 	}
 	return c, nil
 }
@@ -113,10 +114,7 @@ func (c *XiaoZhiMCPClient) Stop() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.conn != nil {
-		c.conn.Close()
-		c.conn = nil
-	}
+	c.conn = nil
 
 	// 清理资源
 	c.isReady = false
@@ -192,7 +190,13 @@ func (c *XiaoZhiMCPClient) CallTool(
 		}
 	}()
 	if !c.IsReady() {
-		return nil, fmt.Errorf("MCP客户端尚未准备就绪")
+		// 尝试等待一小段时间，看是否能就绪
+		// 这对于刚连接上就立即调用的情况可能有帮助
+		readyCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
+		defer cancel()
+		if err := c.WaitForReady(readyCtx); err != nil {
+			return nil, fmt.Errorf("MCP客户端尚未准备就绪: %w", err)
+		}
 	}
 
 	// 获取原始的工具名称
@@ -289,6 +293,13 @@ func (c *XiaoZhiMCPClient) CallTool(
 							return ret, nil
 						}
 						c.logger.Info("工具调用返回文本: %s", text)
+						// 检查是否是JSON格式的字符串
+						if strings.HasPrefix(strings.TrimSpace(text), "{") || strings.HasPrefix(strings.TrimSpace(text), "[") {
+							// 尝试解析JSON，如果成功则直接返回，不包装成ActionResponse
+							// 这样LLM可以直接使用JSON数据
+							// 但这里我们还是保持原样，让LLM去解析字符串
+						}
+						
 						ret := llm.ActionResponse{
 							Action: llm.ActionTypeReqLLM,
 							Result: text,
@@ -327,10 +338,7 @@ func (c *XiaoZhiMCPClient) ResetConnection() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.conn != nil {
-		c.conn.Close()
-		c.conn = nil
-	}
+	c.conn = nil
 	c.isReady = false
 	c.sessionID = "" // 清除会话ID
 	c.tools = make([]Tool, 0)
@@ -344,24 +352,18 @@ func (c *XiaoZhiMCPClient) ResetConnection() error {
 }
 
 // BindConnection binds the XiaoZhi client to a WebSocket connection
-func (c *XiaoZhiMCPClient) BindConnection(conn *websocket.Conn) error {
+func (c *XiaoZhiMCPClient) BindConnection(conn Conn) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.conn != nil {
-		c.conn.Close()
-	}
-
+	// We do not close the previous connection as we don't own it
 	c.conn = conn
 	c.isReady = false
 
-	// Send initialize message
-	if err := c.SendMCPInitializeMessage(); err != nil {
+	// Send initialize message directly without locking again
+	if err := c.sendMCPInitializeMessageLocked(); err != nil {
 		return fmt.Errorf("failed to send initialize message: %w", err)
 	}
-
-	// Start message handling goroutine
-	go c.handleMessages()
 
 	return nil
 }
@@ -369,8 +371,13 @@ func (c *XiaoZhiMCPClient) BindConnection(conn *websocket.Conn) error {
 // SendMCPInitializeMessage sends the MCP initialize message
 func (c *XiaoZhiMCPClient) SendMCPInitializeMessage() error {
 	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.sendMCPInitializeMessageLocked()
+}
+
+// sendMCPInitializeMessageLocked sends the MCP initialize message assuming lock is held
+func (c *XiaoZhiMCPClient) sendMCPInitializeMessageLocked() error {
 	conn := c.conn
-	c.mu.RUnlock()
 	if conn == nil {
 		return fmt.Errorf("connection is nil")
 	}
@@ -633,41 +640,3 @@ func (c *XiaoZhiMCPClient) WaitForReady(ctx context.Context) error {
 	}
 }
 
-// handleMessages handles incoming WebSocket messages
-func (c *XiaoZhiMCPClient) handleMessages() {
-	defer func() {
-		c.mu.Lock()
-		if c.conn != nil {
-			c.conn.Close()
-		}
-		c.mu.Unlock()
-	}()
-
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		default:
-			c.mu.RLock()
-			conn := c.conn
-			c.mu.RUnlock()
-
-			if conn == nil {
-				return
-			}
-
-			var msg map[string]interface{}
-			err := conn.ReadJSON(&msg)
-			if err != nil {
-				if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-					c.logger.Error("WebSocket error: %v", err)
-				}
-				return
-			}
-
-			if err := c.HandleMCPMessage(msg); err != nil {
-				c.logger.Error("Failed to handle MCP message: %v", err)
-			}
-		}
-	}
-}
