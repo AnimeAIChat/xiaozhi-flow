@@ -3,6 +3,7 @@ package webapi
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"xiaozhi-server-go/internal/platform/storage"
 
@@ -97,7 +98,7 @@ func (s *Service) handleGetConfigRecords(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param id path uint true "配置记录ID"
-// @Success 200 {object} APIResponse{data=storage.ConfigRecord}
+// @Success 200 {object} APIResponse{data=ConfigRecord}
 // @Failure 404 {object} object
 // @Router /admin/config/records/{id} [get]
 func (s *Service) handleGetConfigRecord(c *gin.Context) {
@@ -139,7 +140,7 @@ func (s *Service) handleGetConfigRecord(c *gin.Context) {
 // @Produce json
 // @Security BearerAuth
 // @Param record body CreateConfigRecordRequest true "配置记录数据"
-// @Success 201 {object} APIResponse{data=storage.ConfigRecord}
+// @Success 201 {object} APIResponse{data=ConfigRecord}
 // @Failure 400 {object} object
 // @Router /admin/config/records [post]
 func (s *Service) handleCreateConfigRecord(c *gin.Context) {
@@ -199,7 +200,7 @@ func (s *Service) handleCreateConfigRecord(c *gin.Context) {
 // @Security BearerAuth
 // @Param id path uint true "配置记录ID"
 // @Param record body UpdateConfigRecordRequest true "配置记录更新数据"
-// @Success 200 {object} APIResponse{data=storage.ConfigRecord}
+// @Success 200 {object} APIResponse{data=ConfigRecord}
 // @Failure 400 {object} object
 // @Failure 404 {object} object
 // @Router /admin/config/records/{id} [put]
@@ -315,9 +316,23 @@ type UpdateConfigRecordRequest struct {
 	IsActive    *bool       `json:"is_active"`
 }
 
+// ConfigRecordResponse 配置记录响应
 type ConfigRecordResponse struct {
-	Records    []storage.ConfigRecord `json:"records"`
-	Pagination Pagination            `json:"pagination"`
+	Records    []ConfigRecord `json:"records"`
+	Pagination Pagination     `json:"pagination"`
+}
+
+// ConfigRecord 配置记录（用于Swagger文档）
+type ConfigRecord struct {
+	ID          uint                   `json:"id"`
+	Key         string                 `json:"key"`
+	Value       interface{}            `json:"value"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	Version     int                    `json:"version"`
+	IsActive    bool                   `json:"is_active"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
 }
 
 type Pagination struct {
