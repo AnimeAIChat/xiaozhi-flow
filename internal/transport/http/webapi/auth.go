@@ -102,12 +102,12 @@ type UserInfo struct {
 }
 
 // handleLogin handles user login
-// @Summary User login
-// @Description Authenticate user with username and password
+// @Summary 用户登录
+// @Description 使用用户名和密码进行身份验证
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body LoginRequest true "Login credentials"
+// @Param request body LoginRequest true "登录凭据"
 // @Success 200 {object} AuthResponse
 // @Failure 400 {object} object
 // @Failure 401 {object} object
@@ -223,12 +223,12 @@ func (s *Service) handleLogin(c *gin.Context) {
 }
 
 // handleRegister handles user registration
-// @Summary User registration
-// @Description Register a new user account
+// @Summary 用户注册
+// @Description 注册新用户账户
 // @Tags Auth
 // @Accept json
 // @Produce json
-// @Param request body RegisterRequest true "Registration information"
+// @Param request body RegisterRequest true "注册信息"
 // @Success 200 {object} AuthResponse
 // @Failure 400 {object} object
 // @Failure 409 {object} object
@@ -360,8 +360,8 @@ func (s *Service) handleRegister(c *gin.Context) {
 }
 
 // handleMe handles getting current user information
-// @Summary Get current user
-// @Description Get information about the currently authenticated user
+// @Summary 获取当前用户信息
+// @Description 获取当前已验证用户的信息
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
@@ -420,8 +420,8 @@ func (s *Service) handleMe(c *gin.Context) {
 }
 
 // handleRefresh handles token refresh
-// @Summary Refresh token
-// @Description Refresh the authentication token
+// @Summary 刷新令牌
+// @Description 刷新身份验证令牌
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
@@ -494,8 +494,8 @@ func (s *Service) handleRefresh(c *gin.Context) {
 }
 
 // handleLogout handles user logout
-// @Summary User logout
-// @Description Logout the current user and invalidate the session
+// @Summary 用户登出
+// @Description 登出当前用户并使会话失效
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth
@@ -522,8 +522,8 @@ func (s *Service) handleLogout(c *gin.Context) {
 }
 
 // handleLogoutAll handles logout from all devices
-// @Summary Logout from all devices
-// @Description Logout the user from all active sessions
+// @Summary 从所有设备登出
+// @Description 从所有活动会话中登出用户
 // @Tags Auth
 // @Produce json
 // @Security BearerAuth

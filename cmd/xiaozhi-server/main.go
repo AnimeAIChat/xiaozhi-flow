@@ -4,6 +4,11 @@
 // @host localhost:8080
 // @BasePath /api
 
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description 请在请求头中添加 Bearer Token，格式为 "Authorization: Bearer <token>"
+
 package main
 
 import (
