@@ -46,11 +46,8 @@ func (s *DeviceServiceV1) Register(router *gin.RouterGroup) {
 		devices.POST("/:id/activate", s.activateDevice) // 激活设备
 	}
 
-	// OTA设备注册和固件更新
-	ota := router.Group("/ota")
-	{
-		ota.POST("", s.handleOTARequest) // 处理设备OTA请求，包括设备注册、激活码生成和固件信息返回
-	}
+	// 注意：OTA接口已移除，使用主服务的 /api/ota/ 接口
+	// 这样避免了重复的OTA接口，设备统一使用 /api/ota/ 进行通信
 }
 
 // registerDevice 设备注册
@@ -276,135 +273,8 @@ func (s *DeviceServiceV1) deleteDevice(c *gin.Context) {
 	httpUtils.Response.Success(c, map[string]interface{}{"device_id": deviceID}, "设备删除成功")
 }
 
-// handleOTARequest 处理设备OTA请求
-// @Summary 处理设备OTA请求
-// @Description 处理设备OTA请求，包括设备注册、激活码生成和固件信息返回
-// @Tags OTA
-// @Accept json
-// @Produce json
-// @Param request body v1.OTARequest true "OTA请求信息"
-// @Success 200 {object} httptransport.APIResponse{data=v1.OTAResponse}
-// @Failure 400 {object} httptransport.APIResponse
-// @Router /v1/ota [post]
-func (s *DeviceServiceV1) handleOTARequest(c *gin.Context) {
-	var request v1.OTARequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		httpUtils.Response.ValidationError(c, err)
-		return
-	}
-
-	s.logger.InfoTag("API", "处理OTA请求",
-		"action", request.Action,
-		"device_id", request.DeviceID,
-		"device_name", request.DeviceName,
-		"device_type", request.DeviceType,
-		"request_id", getRequestID(c),
-	)
-
-	var response v1.OTAResponse
-
-	switch request.Action {
-	case "register":
-		// 设备注册处理
-		if s.deviceExists(request.DeviceID) {
-			httpUtils.Response.Error(c, httpUtils.ErrorCodeDeviceExists, "设备已存在")
-			return
-		}
-
-		// 创建设备记录
-		device := v1.DeviceInfo{
-			DeviceID:   request.DeviceID,
-			DeviceName: request.DeviceName,
-			DeviceType: request.DeviceType,
-			Model:      request.Model,
-			Version:    request.Version,
-			Status:     "offline",
-			Location:   request.Location,
-			Metadata:   request.Metadata,
-			Configuration: make(map[string]interface{}),
-			IsActive:   false,
-			IsActivated: false,
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
-		}
-
-		// 分配数据库ID
-		device.ID = time.Now().UnixNano()
-
-		// 生成激活码
-		activationCode := fmt.Sprintf("ACT_%s", request.DeviceID)
-
-		response = v1.OTAResponse{
-			Success: true,
-			Message: "设备注册成功",
-			Data: device,
-			Activation: &v1.Activation{
-				Code:        activationCode,
-				DeviceID:    request.DeviceID,
-				ActivatedAt: time.Now(),
-				ExpiresAt:   time.Now().Add(24 * time.Hour),
-				IsActive:    false,
-			},
-		}
-
-	case "update":
-		// 固件更新处理
-		if request.FirmwareVersion == "" {
-			httpUtils.Response.BadRequest(c, "固件版本不能为空")
-			return
-		}
-
-		updateID := fmt.Sprintf("ota_%d", time.Now().UnixNano())
-
-		response = v1.OTAResponse{
-			Success: true,
-			Message: "OTA更新任务已创建",
-			Data: gin.H{
-				"update_id":     updateID,
-				"status":        "pending",
-				"progress":      0,
-				"message":       "OTA更新任务已创建，等待设备响应",
-				"download_url":  "https://example.com/firmware/" + request.FirmwareVersion + ".bin",
-				"file_size":     1080000,
-				"started_at":    nil,
-				"completed_at":  nil,
-			},
-		}
-
-	case "activate":
-		// 设备激活处理
-		if request.ActivationCode == "" {
-			httpUtils.Response.BadRequest(c, "激活码不能为空")
-			return
-		}
-
-		// 验证激活码
-		if !s.validateActivationCode(request.ActivationCode, request.DeviceID) {
-			httpUtils.Response.Error(c, httpUtils.ErrorCodeInvalidActivationCode, "无效的激活码")
-			return
-		}
-
-		// 生成设备令牌
-		deviceToken := fmt.Sprintf("device_token_%d", time.Now().UnixNano())
-		accessToken := fmt.Sprintf("access_token_%d", time.Now().UnixNano())
-
-		response = v1.OTAResponse{
-			Success:     true,
-			Message:     "设备激活成功",
-			DeviceToken: deviceToken,
-			Data: gin.H{
-				"access_token": accessToken,
-				"expires_in":   86400 * 30, // 30天
-			},
-		}
-
-	default:
-		httpUtils.Response.BadRequest(c, "无效的操作类型")
-		return
-	}
-
-	httpUtils.Response.Success(c, response, "OTA请求处理成功")
-}
+// 注意：handleOTARequest 函数已移除，避免与主OTA服务 (/api/ota/) 冲突
+// 设备应统一使用主服务的 /api/ota/ 接口进行OTA操作
 
 // activateDevice 激活设备
 // @Summary 激活设备

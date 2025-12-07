@@ -1437,58 +1437,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/v1/ota": {
-            "post": {
-                "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "处理设备OTA请求",
-                "parameters": [
-                    {
-                        "description": "OTA请求信息",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.OTARequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.OTAResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
         "/v1/providers": {
             "get": {
                 "description": "获取所有配置的AI服务供应商",
@@ -2626,26 +2574,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.Activation": {
-            "type": "object",
-            "properties": {
-                "activated_at": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "device_id": {
-                    "type": "string"
-                },
-                "expires_at": {
-                    "type": "string"
-                },
-                "is_active": {
-                    "type": "boolean"
-                }
-            }
-        },
         "v1.AdminConfig": {
             "type": "object",
             "required": [
@@ -3239,113 +3167,6 @@ const docTemplate = `{
                 }
             }
         },
-        "v1.MQTTInfo": {
-            "type": "object",
-            "properties": {
-                "broker": {
-                    "type": "string"
-                },
-                "clients": {
-                    "type": "integer"
-                },
-                "connected": {
-                    "type": "boolean"
-                },
-                "port": {
-                    "type": "integer"
-                },
-                "protocol": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "uptime": {
-                    "type": "integer"
-                }
-            }
-        },
-        "v1.OTARequest": {
-            "type": "object",
-            "required": [
-                "action",
-                "device_id",
-                "device_name",
-                "device_type"
-            ],
-            "properties": {
-                "action": {
-                    "description": "固件更新相关",
-                    "type": "string"
-                },
-                "activation_code": {
-                    "type": "string"
-                },
-                "configuration": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "device_id": {
-                    "description": "设备注册相关",
-                    "type": "string"
-                },
-                "device_name": {
-                    "type": "string"
-                },
-                "device_type": {
-                    "type": "string"
-                },
-                "firmware_version": {
-                    "type": "string"
-                },
-                "force_update": {
-                    "type": "boolean"
-                },
-                "location": {
-                    "$ref": "#/definitions/v1.DeviceLocation"
-                },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "model": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.OTAResponse": {
-            "type": "object",
-            "properties": {
-                "activation": {
-                    "$ref": "#/definitions/v1.Activation"
-                },
-                "data": {},
-                "device_token": {
-                    "type": "string"
-                },
-                "error_code": {
-                    "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                },
-                "mqtt_info": {
-                    "$ref": "#/definitions/v1.MQTTInfo"
-                },
-                "server_time": {
-                    "$ref": "#/definitions/v1.ServerTimeInfo"
-                },
-                "success": {
-                    "type": "boolean"
-                },
-                "websocket_info": {
-                    "$ref": "#/definitions/v1.WebSocketInfo"
-                }
-            }
-        },
         "v1.Pagination": {
             "type": "object",
             "properties": {
@@ -3821,32 +3642,6 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "timezone": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.WebSocketInfo": {
-            "type": "object",
-            "properties": {
-                "clients": {
-                    "type": "integer"
-                },
-                "connected": {
-                    "type": "boolean"
-                },
-                "path": {
-                    "type": "string"
-                },
-                "protocol": {
-                    "type": "string"
-                },
-                "start_time": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "url": {
                     "type": "string"
                 }
             }
