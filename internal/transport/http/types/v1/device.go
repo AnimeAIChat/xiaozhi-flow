@@ -72,6 +72,19 @@ type DeviceActivationResponse struct {
 	DeviceInfo    DeviceInfo  `json:"device_info,omitempty"`
 }
 
+// DeviceStatusRequest 设备状态管理请求
+type DeviceStatusRequest struct {
+	DeviceID string `json:"device_id" binding:"required"` // 设备MAC地址
+	IsActive bool   `json:"is_active" binding:"required"` // 激活状态：true激活，false禁用
+}
+
+// DeviceStatusResponse 设备状态管理响应
+type DeviceStatusResponse struct {
+	Success   bool       `json:"success"`
+	Message   string     `json:"message"`
+	DeviceInfo DeviceInfo `json:"device_info"`
+}
+
 // DeviceUpdateRequest 设备更新请求
 type DeviceUpdateRequest struct {
 	DeviceName    string                `json:"device_name,omitempty"`

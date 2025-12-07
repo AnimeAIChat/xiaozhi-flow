@@ -1223,6 +1223,64 @@
                 }
             }
         },
+        "/v1/devices/status": {
+            "post": {
+                "description": "管理员快速激活或禁用设备，通过设备MAC地址和激活状态",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Devices"
+                ],
+                "summary": "管理员激活/禁用设备",
+                "parameters": [
+                    {
+                        "description": "设备状态管理请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.DeviceStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.DeviceStatusResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/v1/devices/{id}": {
             "get": {
                 "description": "根据ID获取设备的详细信息",
@@ -2925,6 +2983,37 @@
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "v1.DeviceStatusRequest": {
+            "type": "object",
+            "required": [
+                "device_id",
+                "is_active"
+            ],
+            "properties": {
+                "device_id": {
+                    "description": "设备MAC地址",
+                    "type": "string"
+                },
+                "is_active": {
+                    "description": "激活状态：true激活，false禁用",
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.DeviceStatusResponse": {
+            "type": "object",
+            "properties": {
+                "device_info": {
+                    "$ref": "#/definitions/v1.DeviceInfo"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
                 }
             }
         },

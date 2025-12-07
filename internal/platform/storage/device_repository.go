@@ -100,6 +100,26 @@ func (r *deviceRepository) Delete(ctx context.Context, deviceID string) error {
 	return nil
 }
 
+// UpdateDeviceStatus 更新设备状态
+func (r *deviceRepository) UpdateDeviceStatus(ctx context.Context, deviceID string, isActive bool) error {
+	// 根据激活状态设置auth_status
+	var authStatus string
+	if isActive {
+		authStatus = "approved" // 激活状态：已认证
+	} else {
+		authStatus = "rejected" // 禁用状态：已拒绝
+	}
+
+	// 更新设备auth_status
+	if err := r.db.WithContext(ctx).
+		Model(&Device{}).
+		Where("device_id = ?", deviceID).
+		Update("auth_status", authStatus).Error; err != nil {
+		return errors.Wrap(errors.KindStorage, "device.update_status", "failed to update device auth_status", err)
+	}
+	return nil
+}
+
 // toModel 将领域对象转换为存储模型
 func (r *deviceRepository) toModel(device *aggregate.Device) *Device {
 	model := &Device{

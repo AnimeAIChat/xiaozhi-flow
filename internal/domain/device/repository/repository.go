@@ -23,6 +23,9 @@ type DeviceRepository interface {
 	// Delete 删除设备
 	Delete(ctx context.Context, deviceID string) error
 
+	// UpdateDeviceStatus 更新设备状态
+	UpdateDeviceStatus(ctx context.Context, deviceID string, isActive bool) error
+
 	// ListByUserID 根据用户ID列出设备
 	ListByUserID(ctx context.Context, userID int) ([]*aggregate.Device, error)
 }

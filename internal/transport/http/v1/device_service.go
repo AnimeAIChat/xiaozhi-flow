@@ -44,6 +44,7 @@ func (s *DeviceServiceV1) Register(router *gin.RouterGroup) {
 		devices.PUT("/:id", s.updateDevice)          // 更新设备信息
 		devices.DELETE("/:id", s.deleteDevice)       // 删除设备
 		devices.POST("/:id/activate", s.activateDevice) // 激活设备
+		devices.POST("/status", s.updateDeviceStatus) // 管理员激活/禁用设备
 	}
 
 	// 注意：OTA接口已移除，使用主服务的 /api/ota/ 接口
@@ -348,8 +349,81 @@ func (s *DeviceServiceV1) activateDevice(c *gin.Context) {
 	httpUtils.Response.Success(c, response, "设备激活成功")
 }
 
+// updateDeviceStatus 管理员激活/禁用设备
+// @Summary 管理员激活/禁用设备
+// @Description 管理员快速激活或禁用设备，通过设备MAC地址和激活状态
+// @Tags Devices
+// @Accept json
+// @Produce json
+// @Param request body v1.DeviceStatusRequest true "设备状态管理请求"
+// @Success 200 {object} httptransport.APIResponse{data=v1.DeviceStatusResponse}
+// @Failure 400 {object} httptransport.APIResponse
+// @Failure 404 {object} httptransport.APIResponse
+// @Router /v1/devices/status [post]
+func (s *DeviceServiceV1) updateDeviceStatus(c *gin.Context) {
+	var request v1.DeviceStatusRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		s.logger.ErrorTag("API", "JSON绑定失败",
+			"error", err,
+			"request_id", getRequestID(c),
+		)
+		httpUtils.Response.ValidationError(c, err)
+		return
+	}
 
+	s.logger.InfoTag("API", "管理员更新设备状态",
+		"device_id", request.DeviceID,
+		"is_active", request.IsActive,
+		"request_id", getRequestID(c),
+	)
 
+	// 获取设备
+	device := s.getMockDevice(request.DeviceID)
+	if device == nil {
+		httpUtils.Response.NotFound(c, "设备")
+		return
+	}
+
+	// 更新设备认证状态
+	oldAuthStatus := device.Status // 这里复用Status字段来表示auth_status
+
+	if request.IsActive {
+		// 激活设备：设置为已认证状态
+		device.Status = "approved"
+		device.IsActivated = true
+	} else {
+		// 禁用设备：设置为已拒绝状态
+		device.Status = "rejected"
+		device.IsActivated = false
+	}
+
+	device.IsActive = request.IsActive
+	device.UpdatedAt = time.Now()
+
+	// 构建响应消息
+	var message string
+	if request.IsActive {
+		message = "设备激活成功"
+	} else {
+		message = "设备禁用成功"
+	}
+
+	// 记录状态变化
+	s.logger.InfoTag("API", "设备认证状态已更新",
+		"device_id", request.DeviceID,
+		"old_auth_status", oldAuthStatus,
+		"new_auth_status", device.Status,
+		"request_id", getRequestID(c),
+	)
+
+	response := v1.DeviceStatusResponse{
+		Success:   true,
+		Message:   message,
+		DeviceInfo: *device,
+	}
+
+	httpUtils.Response.Success(c, response, message)
+}
 
 
 
@@ -370,8 +444,8 @@ func (s *DeviceServiceV1) deviceExists(deviceID string) bool {
 
 func (s *DeviceServiceV1) getMockDevice(deviceID string) *v1.DeviceInfo {
 	// 模拟设备数据
-	if deviceID == "device_001" {
-		return &v1.DeviceInfo{
+	mockDevices := map[string]*v1.DeviceInfo{
+		"device_001": {
 			ID:             1,
 			DeviceID:       "device_001",
 			DeviceName:     "智能门锁",
@@ -399,9 +473,75 @@ func (s *DeviceServiceV1) getMockDevice(deviceID string) *v1.DeviceInfo {
 			IsActivated: true,
 			CreatedAt:   time.Now().Add(-7 * 24 * time.Hour),
 			UpdatedAt:   time.Now(),
-		}
+		},
+		"device_002": {
+			ID:             2,
+			DeviceID:       "device_002",
+			DeviceName:     "温湿度传感器",
+			DeviceType:     "sensor",
+			Model:          "XZ-T200",
+			Version:        "1.1.0",
+			Status:         "offline",
+			Location: &v1.DeviceLocation{
+				Latitude:  31.2304,
+				Longitude: 121.4737,
+				Address:   "上海市浦东新区",
+				City:      "上海",
+				Province:  "上海",
+				Country:   "中国",
+			},
+			Configuration: map[string]interface{}{
+				"temperature_unit": "celsius",
+				"report_interval":  300,
+			},
+			Metadata: map[string]interface{}{
+				"manufacturer": "XiaoZhi Tech",
+				"serial_number": "SN002",
+			},
+			IsActive:    false,
+			IsActivated: true,
+			CreatedAt:   time.Now().Add(-5 * 24 * time.Hour),
+			UpdatedAt:   time.Now().Add(-1 * time.Hour),
+		},
+		"device_003": {
+			ID:             3,
+			DeviceID:       "device_003",
+			DeviceName:     "智能摄像头",
+			DeviceType:     "camera",
+			Model:          "XZ-C300",
+			Version:        "1.0.0",
+			Status:         "updating",
+			Location: &v1.DeviceLocation{
+				Latitude:  22.5431,
+				Longitude: 114.0579,
+				Address:   "深圳市南山区",
+				City:      "深圳",
+				Province:  "广东",
+				Country:   "中国",
+			},
+			Configuration: map[string]interface{}{
+				"resolution": "1080p",
+				"night_vision": true,
+			},
+			Metadata: map[string]interface{}{
+				"manufacturer": "XiaoZhi Tech",
+				"serial_number": "SN003",
+			},
+			IsActive:    true,
+			IsActivated: true,
+			CreatedAt:   time.Now().Add(-3 * 24 * time.Hour),
+			UpdatedAt:   time.Now().Add(-30 * time.Minute),
+		},
 	}
-	return nil
+
+	device, exists := mockDevices[deviceID]
+	if !exists {
+		return nil
+	}
+
+	// 返回设备的副本以避免修改原始数据
+	deviceCopy := *device
+	return &deviceCopy
 }
 
 func (s *DeviceServiceV1) getMockDeviceList(query v1.DeviceQuery) ([]v1.DeviceInfo, v1.Pagination) {

@@ -322,6 +322,27 @@ definitions:
     - device_name
     - device_type
     type: object
+  v1.DeviceStatusRequest:
+    properties:
+      device_id:
+        description: 设备MAC地址
+        type: string
+      is_active:
+        description: 激活状态：true激活，false禁用
+        type: boolean
+    required:
+    - device_id
+    - is_active
+    type: object
+  v1.DeviceStatusResponse:
+    properties:
+      device_info:
+        $ref: '#/definitions/v1.DeviceInfo'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
   v1.DeviceUpdateRequest:
     properties:
       configuration:
@@ -1982,6 +2003,41 @@ paths:
           schema:
             $ref: '#/definitions/httptransport.APIResponse'
       summary: 激活设备
+      tags:
+      - Devices
+  /v1/devices/status:
+    post:
+      consumes:
+      - application/json
+      description: 管理员快速激活或禁用设备，通过设备MAC地址和激活状态
+      parameters:
+      - description: 设备状态管理请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.DeviceStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.DeviceStatusResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 管理员激活/禁用设备
       tags:
       - Devices
   /v1/providers:
