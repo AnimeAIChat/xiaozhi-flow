@@ -803,7 +803,297 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices": {
+        "/ota/": {
+            "post": {
+                "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "OTA"
+                ],
+                "summary": "OTA设备注册和固件更新",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "设备ID",
+                        "name": "device-id",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "客户端ID",
+                        "name": "client-id",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "设备信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/ota.OTAResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/startup/workflows": {
+            "get": {
+                "description": "获取所有可用的启动工作流列表",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workflow"
+                ],
+                "summary": "获取工作流列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/startup/workflows/{id}": {
+            "get": {
+                "description": "根据ID获取特定工作流的详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workflow"
+                ],
+                "summary": "获取工作流详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "工作流ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/auth/login": {
+            "post": {
+                "description": "用户登录验证，返回访问令牌和用户信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "用户登录",
+                "parameters": [
+                    {
+                        "description": "登录信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.LoginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/auth/refresh": {
+            "post": {
+                "description": "使用刷新令牌获取新的访问令牌",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "刷新访问令牌",
+                "parameters": [
+                    {
+                        "description": "刷新令牌请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.RefreshTokenRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.LoginResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/auth/register": {
+            "post": {
+                "description": "新用户注册",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "用户注册",
+                "parameters": [
+                    {
+                        "description": "注册信息",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UserInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httptransport.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/devices": {
             "get": {
                 "description": "获取设备列表，支持分页和过滤",
                 "produces": [
@@ -939,7 +1229,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices/{id}": {
+        "/v1/devices/{id}": {
             "get": {
                 "description": "根据ID获取设备的详细信息",
                 "produces": [
@@ -1082,7 +1372,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/devices/{id}/activate": {
+        "/v1/devices/{id}/activate": {
             "post": {
                 "description": "激活已注册的设备",
                 "consumes": [
@@ -1147,7 +1437,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ota": {
+        "/v1/ota": {
             "post": {
                 "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
                 "consumes": [
@@ -1199,68 +1489,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/ota/": {
-            "post": {
-                "description": "处理设备OTA请求，包括设备注册、激活码生成和固件信息返回",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "OTA"
-                ],
-                "summary": "OTA设备注册和固件更新",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "设备ID",
-                        "name": "device-id",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "客户端ID",
-                        "name": "client-id",
-                        "in": "header",
-                        "required": true
-                    },
-                    {
-                        "description": "设备信息",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/ota.OTAResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/providers": {
+        "/v1/providers": {
             "get": {
                 "description": "获取所有配置的AI服务供应商",
                 "produces": [
@@ -1342,7 +1571,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/providers/{type}/{name}": {
+        "/v1/providers/{type}/{name}": {
             "put": {
                 "description": "更新指定供应商的配置信息",
                 "consumes": [
@@ -1454,7 +1683,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions": {
+        "/v1/sessions": {
             "get": {
                 "description": "获取当前用户的会话列表",
                 "produces": [
@@ -1515,7 +1744,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions/{id}": {
+        "/v1/sessions/{id}": {
             "delete": {
                 "description": "撤销指定的用户会话",
                 "produces": [
@@ -1550,62 +1779,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/startup/workflows": {
-            "get": {
-                "description": "获取所有可用的启动工作流列表",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Workflow"
-                ],
-                "summary": "获取工作流列表",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/startup/workflows/{id}": {
-            "get": {
-                "description": "根据ID获取特定工作流的详细信息",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Workflow"
-                ],
-                "summary": "获取工作流详情",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "工作流ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    },
-                    "404": {
-                        "description": "Not Found",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/system/config": {
+        "/v1/system/config": {
             "get": {
                 "description": "获取系统配置项列表",
                 "produces": [
@@ -1690,7 +1864,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/config/schema/database": {
+        "/v1/system/config/schema/database": {
             "get": {
                 "description": "获取数据库表结构信息",
                 "produces": [
@@ -1722,7 +1896,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/config/test/database": {
+        "/v1/system/config/test/database": {
             "post": {
                 "description": "测试数据库连接配置",
                 "consumes": [
@@ -1774,7 +1948,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/health": {
+        "/v1/system/health": {
             "get": {
                 "description": "快速健康检查",
                 "produces": [
@@ -1849,7 +2023,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/init": {
+        "/v1/system/init": {
             "get": {
                 "description": "检查系统是否已完成初始化",
                 "produces": [
@@ -1907,7 +2081,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/status": {
+        "/v1/system/status": {
             "get": {
                 "description": "获取系统的运行状态和统计信息",
                 "produces": [
@@ -1939,7 +2113,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/system/time": {
+        "/v1/system/time": {
             "get": {
                 "description": "获取服务器当前时间和相关信息",
                 "produces": [
@@ -1971,7 +2145,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users": {
+        "/v1/users": {
             "get": {
                 "description": "获取用户列表，支持分页和过滤",
                 "produces": [
@@ -2051,7 +2225,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/change-password": {
+        "/v1/users/change-password": {
             "post": {
                 "description": "修改当前登录用户的密码",
                 "consumes": [
@@ -2097,7 +2271,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/profile": {
+        "/v1/users/profile": {
             "get": {
                 "description": "获取当前登录用户的详细档案信息",
                 "produces": [
@@ -2191,7 +2365,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/users/{id}": {
+        "/v1/users/{id}": {
             "get": {
                 "description": "根据ID获取特定用户的详细信息",
                 "produces": [

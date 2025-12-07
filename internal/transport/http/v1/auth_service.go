@@ -74,7 +74,7 @@ func (s *AuthServiceV1) RegisterSecure(router *gin.RouterGroup) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.LoginResponse}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 401 {object} httptransport.APIResponse
-// @Router /auth/login [post]
+// @Router /v1/auth/login [post]
 func (s *AuthServiceV1) login(c *gin.Context) {
 	var request v1.LoginRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -124,7 +124,7 @@ func (s *AuthServiceV1) login(c *gin.Context) {
 // @Success 201 {object} httptransport.APIResponse{data=v1.UserInfo}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 409 {object} httptransport.APIResponse
-// @Router /auth/register [post]
+// @Router /v1/auth/register [post]
 func (s *AuthServiceV1) register(c *gin.Context) {
 	var request v1.RegisterRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -174,7 +174,7 @@ func (s *AuthServiceV1) register(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.LoginResponse}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 401 {object} httptransport.APIResponse
-// @Router /auth/refresh [post]
+// @Router /v1/auth/refresh [post]
 func (s *AuthServiceV1) refreshToken(c *gin.Context) {
 	var request v1.RefreshTokenRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -233,7 +233,7 @@ func (s *AuthServiceV1) refreshToken(c *gin.Context) {
 // @Param sort_by query string false "排序字段" default(created_at)
 // @Param sort_order query string false "排序方向" default(desc)
 // @Success 200 {object} httptransport.APIResponse{data=v1.UserListResponse}
-// @Router /users [get]
+// @Router /v1/users [get]
 func (s *AuthServiceV1) listUsers(c *gin.Context) {
 	var query v1.UserListQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -269,7 +269,7 @@ func (s *AuthServiceV1) listUsers(c *gin.Context) {
 // @Param id path int true "用户ID"
 // @Success 200 {object} httptransport.APIResponse{data=v1.UserInfo}
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /users/{id} [get]
+// @Router /v1/users/{id} [get]
 func (s *AuthServiceV1) getUser(c *gin.Context) {
 	userID := c.Param("id")
 	if userID == "" {
@@ -299,7 +299,7 @@ func (s *AuthServiceV1) getUser(c *gin.Context) {
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.UserProfile}
 // @Failure 401 {object} httptransport.APIResponse
-// @Router /users/profile [get]
+// @Router /v1/users/profile [get]
 func (s *AuthServiceV1) getUserProfile(c *gin.Context) {
 	s.logger.InfoTag("API", "获取用户档案",
 		"request_id", getRequestID(c),
@@ -322,7 +322,7 @@ func (s *AuthServiceV1) getUserProfile(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.UserProfile}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 401 {object} httptransport.APIResponse
-// @Router /users/profile [put]
+// @Router /v1/users/profile [put]
 func (s *AuthServiceV1) updateProfile(c *gin.Context) {
 	var request v1.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -374,7 +374,7 @@ func (s *AuthServiceV1) updateProfile(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 401 {object} httptransport.APIResponse
-// @Router /users/change-password [post]
+// @Router /v1/users/change-password [post]
 func (s *AuthServiceV1) changePassword(c *gin.Context) {
 	var request v1.ChangePasswordRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -413,7 +413,7 @@ func (s *AuthServiceV1) changePassword(c *gin.Context) {
 // @Param page query int false "页码" default(1)
 // @Param limit query int false "每页数量" default(20)
 // @Success 200 {object} httptransport.APIResponse{data=v1.SessionListResponse}
-// @Router /sessions [get]
+// @Router /v1/sessions [get]
 func (s *AuthServiceV1) listSessions(c *gin.Context) {
 	var query v1.SessionListQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -448,7 +448,7 @@ func (s *AuthServiceV1) listSessions(c *gin.Context) {
 // @Param id path string true "会话ID"
 // @Success 200 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /sessions/{id} [delete]
+// @Router /v1/sessions/{id} [delete]
 func (s *AuthServiceV1) revokeSession(c *gin.Context) {
 	sessionID := c.Param("id")
 	if sessionID == "" {

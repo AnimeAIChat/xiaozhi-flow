@@ -1691,7 +1691,189 @@ paths:
       summary: 检查配置服务状态
       tags:
       - Config
-  /devices:
+  /ota/:
+    post:
+      consumes:
+      - application/json
+      description: 处理设备OTA请求，包括设备注册、激活码生成和固件信息返回
+      parameters:
+      - description: 设备ID
+        in: header
+        name: device-id
+        required: true
+        type: string
+      - description: 客户端ID
+        in: header
+        name: client-id
+        required: true
+        type: string
+      - description: 设备信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ota.OTAResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: OTA设备注册和固件更新
+      tags:
+      - OTA
+  /startup/workflows:
+    get:
+      description: 获取所有可用的启动工作流列表
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取工作流列表
+      tags:
+      - Workflow
+  /startup/workflows/{id}:
+    get:
+      description: 根据ID获取特定工作流的详细信息
+      parameters:
+      - description: 工作流ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 获取工作流详情
+      tags:
+      - Workflow
+  /v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 用户登录验证，返回访问令牌和用户信息
+      parameters:
+      - description: 登录信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 用户登录
+      tags:
+      - Auth
+  /v1/auth/refresh:
+    post:
+      consumes:
+      - application/json
+      description: 使用刷新令牌获取新的访问令牌
+      parameters:
+      - description: 刷新令牌请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RefreshTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.LoginResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 刷新访问令牌
+      tags:
+      - Auth
+  /v1/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: 新用户注册
+      parameters:
+      - description: 注册信息
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UserInfo'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httptransport.APIResponse'
+      summary: 用户注册
+      tags:
+      - Auth
+  /v1/devices:
     get:
       description: 获取设备列表，支持分页和过滤
       parameters:
@@ -1776,7 +1958,7 @@ paths:
       summary: 设备注册
       tags:
       - Devices
-  /devices/{id}:
+  /v1/devices/{id}:
     delete:
       description: 从系统中删除指定设备
       parameters:
@@ -1865,7 +2047,7 @@ paths:
       summary: 更新设备信息
       tags:
       - Devices
-  /devices/{id}/activate:
+  /v1/devices/{id}/activate:
     post:
       consumes:
       - application/json
@@ -1905,7 +2087,7 @@ paths:
       summary: 激活设备
       tags:
       - Devices
-  /ota:
+  /v1/ota:
     post:
       consumes:
       - application/json
@@ -1936,48 +2118,7 @@ paths:
       summary: 处理设备OTA请求
       tags:
       - OTA
-  /ota/:
-    post:
-      consumes:
-      - application/json
-      description: 处理设备OTA请求，包括设备注册、激活码生成和固件信息返回
-      parameters:
-      - description: 设备ID
-        in: header
-        name: device-id
-        required: true
-        type: string
-      - description: 客户端ID
-        in: header
-        name: client-id
-        required: true
-        type: string
-      - description: 设备信息
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/ota.OTAResponse'
-        "400":
-          description: Bad Request
-          schema:
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            type: object
-      summary: OTA设备注册和固件更新
-      tags:
-      - OTA
-  /providers:
+  /v1/providers:
     get:
       description: 获取所有配置的AI服务供应商
       produces:
@@ -2025,7 +2166,7 @@ paths:
       summary: 创建供应商配置
       tags:
       - Providers
-  /providers/{type}/{name}:
+  /v1/providers/{type}/{name}:
     delete:
       description: 删除指定的供应商配置
       parameters:
@@ -2097,7 +2238,7 @@ paths:
       summary: 更新供应商配置
       tags:
       - Providers
-  /sessions:
+  /v1/sessions:
     get:
       description: 获取当前用户的会话列表
       parameters:
@@ -2135,7 +2276,7 @@ paths:
       summary: 获取会话列表
       tags:
       - Sessions
-  /sessions/{id}:
+  /v1/sessions/{id}:
     delete:
       description: 撤销指定的用户会话
       parameters:
@@ -2158,43 +2299,7 @@ paths:
       summary: 撤销会话
       tags:
       - Sessions
-  /startup/workflows:
-    get:
-      description: 获取所有可用的启动工作流列表
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 获取工作流列表
-      tags:
-      - Workflow
-  /startup/workflows/{id}:
-    get:
-      description: 根据ID获取特定工作流的详细信息
-      parameters:
-      - description: 工作流ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 获取工作流详情
-      tags:
-      - Workflow
-  /system/config:
+  /v1/system/config:
     get:
       description: 获取系统配置项列表
       produces:
@@ -2244,7 +2349,7 @@ paths:
       summary: 更新系统配置
       tags:
       - System
-  /system/config/schema/database:
+  /v1/system/config/schema/database:
     get:
       description: 获取数据库表结构信息
       produces:
@@ -2262,7 +2367,7 @@ paths:
       summary: 获取数据库模式
       tags:
       - System
-  /system/config/test/database:
+  /v1/system/config/test/database:
     post:
       consumes:
       - application/json
@@ -2293,7 +2398,7 @@ paths:
       summary: 测试数据库连接
       tags:
       - System
-  /system/health:
+  /v1/system/health:
     get:
       description: 快速健康检查
       produces:
@@ -2336,7 +2441,7 @@ paths:
       summary: 详细健康检查
       tags:
       - System
-  /system/init:
+  /v1/system/init:
     get:
       description: 检查系统是否已完成初始化
       produces:
@@ -2374,7 +2479,7 @@ paths:
       summary: 系统初始化
       tags:
       - System
-  /system/status:
+  /v1/system/status:
     get:
       description: 获取系统的运行状态和统计信息
       produces:
@@ -2392,7 +2497,7 @@ paths:
       summary: 获取系统状态
       tags:
       - System
-  /system/time:
+  /v1/system/time:
     get:
       description: 获取服务器当前时间和相关信息
       produces:
@@ -2410,7 +2515,7 @@ paths:
       summary: 获取服务器时间
       tags:
       - System
-  /users:
+  /v1/users:
     get:
       description: 获取用户列表，支持分页和过滤
       parameters:
@@ -2461,7 +2566,7 @@ paths:
       summary: 获取用户列表
       tags:
       - Users
-  /users/{id}:
+  /v1/users/{id}:
     get:
       description: 根据ID获取特定用户的详细信息
       parameters:
@@ -2489,7 +2594,7 @@ paths:
       summary: 获取用户信息
       tags:
       - Users
-  /users/change-password:
+  /v1/users/change-password:
     post:
       consumes:
       - application/json
@@ -2519,7 +2624,7 @@ paths:
       summary: 修改密码
       tags:
       - Users
-  /users/profile:
+  /v1/users/profile:
     get:
       description: 获取当前登录用户的详细档案信息
       produces:

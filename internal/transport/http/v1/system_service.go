@@ -76,7 +76,7 @@ func (s *SystemServiceV1) Register(router *gin.RouterGroup) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.SystemStatus}
-// @Router /system/status [get]
+// @Router /v1/system/status [get]
 func (s *SystemServiceV1) getSystemStatus(c *gin.Context) {
 	s.logger.InfoTag("API", "获取系统状态",
 		"request_id", getRequestID(c),
@@ -94,7 +94,7 @@ func (s *SystemServiceV1) getSystemStatus(c *gin.Context) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.HealthCheckResponse}
-// @Router /system/health [get]
+// @Router /v1/system/health [get]
 func (s *SystemServiceV1) healthCheck(c *gin.Context) {
 	s.logger.InfoTag("API", "健康检查",
 		"request_id", getRequestID(c),
@@ -136,7 +136,7 @@ func (s *SystemServiceV1) healthCheck(c *gin.Context) {
 // @Produce json
 // @Param request body v1.HealthCheckRequest false "健康检查参数"
 // @Success 200 {object} httptransport.APIResponse{data=v1.HealthCheckResponse}
-// @Router /system/health [post]
+// @Router /v1/system/health [post]
 func (s *SystemServiceV1) detailedHealthCheck(c *gin.Context) {
 	var request v1.HealthCheckRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -199,7 +199,7 @@ func (s *SystemServiceV1) detailedHealthCheck(c *gin.Context) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.ServerTimeInfo}
-// @Router /system/time [get]
+// @Router /v1/system/time [get]
 func (s *SystemServiceV1) getServerTime(c *gin.Context) {
 	s.logger.InfoTag("API", "获取服务器时间",
 		"request_id", getRequestID(c),
@@ -222,7 +222,7 @@ func (s *SystemServiceV1) getServerTime(c *gin.Context) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=[]v1.SystemConfigResponse}
-// @Router /system/config [get]
+// @Router /v1/system/config [get]
 func (s *SystemServiceV1) listConfigs(c *gin.Context) {
 	s.logger.InfoTag("API", "获取系统配置",
 		"request_id", getRequestID(c),
@@ -265,7 +265,7 @@ func (s *SystemServiceV1) listConfigs(c *gin.Context) {
 // @Param request body v1.DatabaseTestRequest true "数据库配置"
 // @Success 200 {object} httptransport.APIResponse{data=v1.DatabaseTestResponse}
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /system/config/test/database [post]
+// @Router /v1/system/config/test/database [post]
 func (s *SystemServiceV1) testDatabase(c *gin.Context) {
 	var request v1.DatabaseTestRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -303,7 +303,7 @@ func (s *SystemServiceV1) testDatabase(c *gin.Context) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.DatabaseSchema}
-// @Router /system/config/schema/database [get]
+// @Router /v1/system/config/schema/database [get]
 func (s *SystemServiceV1) getDatabaseSchema(c *gin.Context) {
 	s.logger.InfoTag("API", "获取数据库模式",
 		"request_id", getRequestID(c),
@@ -394,7 +394,7 @@ func (s *SystemServiceV1) getDatabaseSchema(c *gin.Context) {
 // @Param request body v1.SystemConfigRequest true "配置更新信息"
 // @Success 200 {object} httptransport.APIResponse{data=v1.SystemConfigResponse}
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /system/config [post]
+// @Router /v1/system/config [post]
 func (s *SystemServiceV1) updateConfig(c *gin.Context) {
 	var request v1.SystemConfigRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -440,7 +440,7 @@ func (s *SystemServiceV1) updateConfig(c *gin.Context) {
 // @Tags Providers
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse{data=v1.ProviderList}
-// @Router /providers [get]
+// @Router /v1/providers [get]
 func (s *SystemServiceV1) listProviders(c *gin.Context) {
 	s.logger.InfoTag("API", "获取供应商列表",
 		"request_id", getRequestID(c),
@@ -496,7 +496,7 @@ func (s *SystemServiceV1) listProviders(c *gin.Context) {
 // @Param request body v1.ProviderConfigRequest true "供应商配置"
 // @Success 201 {object} httptransport.APIResponse{data=v1.Provider}
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /providers [post]
+// @Router /v1/providers [post]
 func (s *SystemServiceV1) createProvider(c *gin.Context) {
 	var request v1.ProviderConfigRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -544,7 +544,7 @@ func (s *SystemServiceV1) createProvider(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.Provider}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /providers/{type}/{name} [put]
+// @Router /v1/providers/{type}/{name} [put]
 func (s *SystemServiceV1) updateProvider(c *gin.Context) {
 	providerType := c.Param("type")
 	providerName := c.Param("name")
@@ -597,7 +597,7 @@ func (s *SystemServiceV1) updateProvider(c *gin.Context) {
 // @Param name path string true "供应商名称"
 // @Success 200 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /providers/{type}/{name} [delete]
+// @Router /v1/providers/{type}/{name} [delete]
 func (s *SystemServiceV1) deleteProvider(c *gin.Context) {
 	providerType := c.Param("type")
 	providerName := c.Param("name")
@@ -628,7 +628,7 @@ func (s *SystemServiceV1) deleteProvider(c *gin.Context) {
 // @Tags System
 // @Produce json
 // @Success 200 {object} httptransport.APIResponse
-// @Router /system/init [get]
+// @Router /v1/system/init [get]
 func (s *SystemServiceV1) getInitStatus(c *gin.Context) {
 	s.logger.InfoTag("API", "获取初始化状态",
 		"request_id", getRequestID(c),
@@ -656,7 +656,7 @@ func (s *SystemServiceV1) getInitStatus(c *gin.Context) {
 // @Param request body v1.InitRequest true "初始化配置"
 // @Success 200 {object} httptransport.APIResponse
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /system/init [post]
+// @Router /v1/system/init [post]
 func (s *SystemServiceV1) initializeSystem(c *gin.Context) {
 	var request v1.InitRequest
 	if err := c.ShouldBindJSON(&request); err != nil {

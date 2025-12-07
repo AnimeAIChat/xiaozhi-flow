@@ -62,7 +62,7 @@ func (s *DeviceServiceV1) Register(router *gin.RouterGroup) {
 // @Param request body v1.DeviceRegistrationRequest true "设备注册信息"
 // @Success 201 {object} httptransport.APIResponse{data=v1.DeviceInfo}
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /devices [post]
+// @Router /v1/devices [post]
 func (s *DeviceServiceV1) registerDevice(c *gin.Context) {
 	var request v1.DeviceRegistrationRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -120,7 +120,7 @@ func (s *DeviceServiceV1) registerDevice(c *gin.Context) {
 // @Param sort_order query string false "排序方向" default(desc)
 // @Param location query bool false "是否返回位置信息"
 // @Success 200 {object} httptransport.APIResponse{data=v1.DeviceListResponse}
-// @Router /devices [get]
+// @Router /v1/devices [get]
 func (s *DeviceServiceV1) listDevices(c *gin.Context) {
 	var query v1.DeviceQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
@@ -156,7 +156,7 @@ func (s *DeviceServiceV1) listDevices(c *gin.Context) {
 // @Param id path string true "设备ID"
 // @Success 200 {object} httptransport.APIResponse{data=v1.DeviceInfo}
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /devices/{id} [get]
+// @Router /v1/devices/{id} [get]
 func (s *DeviceServiceV1) getDevice(c *gin.Context) {
 	deviceID := c.Param("id")
 	if deviceID == "" {
@@ -190,7 +190,7 @@ func (s *DeviceServiceV1) getDevice(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.DeviceInfo}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /devices/{id} [put]
+// @Router /v1/devices/{id} [put]
 func (s *DeviceServiceV1) updateDevice(c *gin.Context) {
 	deviceID := c.Param("id")
 	if deviceID == "" {
@@ -247,7 +247,7 @@ func (s *DeviceServiceV1) updateDevice(c *gin.Context) {
 // @Param id path string true "设备ID"
 // @Success 200 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /devices/{id} [delete]
+// @Router /v1/devices/{id} [delete]
 func (s *DeviceServiceV1) deleteDevice(c *gin.Context) {
 	deviceID := c.Param("id")
 	if deviceID == "" {
@@ -285,7 +285,7 @@ func (s *DeviceServiceV1) deleteDevice(c *gin.Context) {
 // @Param request body v1.OTARequest true "OTA请求信息"
 // @Success 200 {object} httptransport.APIResponse{data=v1.OTAResponse}
 // @Failure 400 {object} httptransport.APIResponse
-// @Router /ota [post]
+// @Router /v1/ota [post]
 func (s *DeviceServiceV1) handleOTARequest(c *gin.Context) {
 	var request v1.OTARequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -417,7 +417,7 @@ func (s *DeviceServiceV1) handleOTARequest(c *gin.Context) {
 // @Success 200 {object} httptransport.APIResponse{data=v1.DeviceActivationResponse}
 // @Failure 400 {object} httptransport.APIResponse
 // @Failure 404 {object} httptransport.APIResponse
-// @Router /devices/{id}/activate [post]
+// @Router /v1/devices/{id}/activate [post]
 func (s *DeviceServiceV1) activateDevice(c *gin.Context) {
 	deviceID := c.Param("id")
 	if deviceID == "" {
