@@ -1,21 +1,27 @@
 package v1
 
 import (
+	"context"
 	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"xiaozhi-server-go/internal/domain/device/aggregate"
+	"xiaozhi-server-go/internal/domain/device/repository"
 	"xiaozhi-server-go/internal/platform/config"
+	"xiaozhi-server-go/internal/platform/storage"
 	"xiaozhi-server-go/internal/transport/http/types/v1"
 	httpUtils "xiaozhi-server-go/internal/transport/http/utils"
 	"xiaozhi-server-go/internal/utils"
+	"gorm.io/gorm"
 )
 
 // DeviceServiceV1 V1版本设备服务
 type DeviceServiceV1 struct {
-	logger *utils.Logger
-	config *config.Config
-	// TODO: 添加实际的业务逻辑依赖
+	logger            *utils.Logger
+	config            *config.Config
+	db                *gorm.DB
+	deviceRepo        repository.DeviceRepository
 }
 
 // NewDeviceServiceV1 创建设备服务V1实例
@@ -27,10 +33,44 @@ func NewDeviceServiceV1(config *config.Config, logger *utils.Logger) (*DeviceSer
 		return nil, fmt.Errorf("logger is required")
 	}
 
-	return &DeviceServiceV1{
-		logger: logger,
-		config: config,
-	}, nil
+	logger.InfoTag("DeviceService", "开始初始化设备服务")
+
+	// 获取数据库连接
+	db := storage.GetDB()
+	if db == nil {
+		logger.ErrorTag("DeviceService", "数据库未初始化")
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	logger.InfoTag("DeviceService", "数据库连接成功")
+
+	// 测试数据库连接
+	sqlDB, err := db.DB()
+	if err != nil {
+		logger.ErrorTag("DeviceService", "获取底层SQL数据库连接失败", "error", err)
+		return nil, fmt.Errorf("failed to get underlying database: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		logger.ErrorTag("DeviceService", "数据库连接测试失败", "error", err)
+		return nil, fmt.Errorf("database connection test failed: %w", err)
+	}
+
+	logger.InfoTag("DeviceService", "数据库连接测试成功")
+
+	// 创建设备仓库
+	deviceRepo := storage.NewDeviceRepository(db)
+	logger.InfoTag("DeviceService", "设备仓库创建成功")
+
+	service := &DeviceServiceV1{
+		logger:     logger,
+		config:     config,
+		db:         db,
+		deviceRepo: deviceRepo,
+	}
+
+	logger.InfoTag("DeviceService", "设备服务初始化完成")
+	return service, nil
 }
 
 // Register 注册设备API路由
@@ -76,31 +116,42 @@ func (s *DeviceServiceV1) registerDevice(c *gin.Context) {
 	)
 
 	// 检查设备是否已存在
-	if s.deviceExists(request.DeviceID) {
+	ctx := context.Background()
+	existingDevice, err := s.deviceRepo.FindByDeviceID(ctx, request.DeviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "检查设备是否存在失败", "error", err, "device_id", request.DeviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "检查设备失败")
+		return
+	}
+	if existingDevice != nil {
 		httpUtils.Response.Error(c, httpUtils.ErrorCodeDeviceExists, "设备已存在")
 		return
 	}
 
-	// 创建设备记录
-	device := v1.DeviceInfo{
-		DeviceID:   request.DeviceID,
-		DeviceName: request.DeviceName,
-		DeviceType: request.DeviceType,
-		Model:      request.Model,
-		Version:    request.Version,
-		Status:     "offline",
-		Location:   request.Location,
-		Metadata:   request.Metadata,
-		Configuration: make(map[string]interface{}),
-		IsActive:   false,
-		IsActivated: false,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+	// 创建设备聚合根
+	now := time.Now()
+	newDevice := &aggregate.Device{
+		DeviceID:       request.DeviceID,
+		ClientID:       fmt.Sprintf("client_%s", request.DeviceID),
+		Name:           request.DeviceName,
+		BoardType:      request.DeviceType,
+		ChipModelName:  request.Model,
+		Version:        request.Version,
+		Online:         false,
+		AuthStatus:     aggregate.DeviceStatusPending,
+		RegisterTime:   now,
+		LastActiveTime: now,
 	}
 
-	// 分配数据库ID
-	device.ID = time.Now().UnixNano()
+	// 保存到数据库
+	if err := s.deviceRepo.Save(ctx, newDevice); err != nil {
+		s.logger.ErrorTag("API", "保存设备失败", "error", err, "device_id", request.DeviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "设备注册失败")
+		return
+	}
 
+	// 转换为API响应格式
+	device := s.convertAggregateToAPI(newDevice)
 	httpUtils.Response.Created(c, device, "设备注册成功")
 }
 
@@ -135,8 +186,28 @@ func (s *DeviceServiceV1) listDevices(c *gin.Context) {
 		"request_id", getRequestID(c),
 	)
 
-	// 模拟获取设备列表
-	devices, pagination := s.getMockDeviceList(query)
+	// 从数据库获取设备列表
+	s.logger.InfoTag("API", "开始从数据库获取设备列表", "request_id", getRequestID(c))
+	devices, total, err := s.getDeviceListFromDB(query)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备列表失败",
+			"error", err,
+			"error_details", err.Error(),
+			"request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, fmt.Sprintf("获取设备列表失败: %v", err))
+		return
+	}
+
+	// 计算分页信息
+	totalPages := (total + int64(query.Limit) - 1) / int64(query.Limit)
+	pagination := v1.Pagination{
+		Page:       int64(query.Page),
+		Limit:      int64(query.Limit),
+		Total:      total,
+		TotalPages: totalPages,
+		HasNext:    int64(query.Page) < totalPages,
+		HasPrev:    query.Page > 1,
+	}
 
 	response := v1.DeviceListResponse{
 		Devices:    devices,
@@ -167,8 +238,13 @@ func (s *DeviceServiceV1) getDevice(c *gin.Context) {
 		"request_id", getRequestID(c),
 	)
 
-	// 模拟获取设备详情
-	device := s.getMockDevice(deviceID)
+	// 从数据库获取设备详情
+	device, err := s.getDeviceFromDB(deviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备详情失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "获取设备详情失败")
+		return
+	}
 	if device == nil {
 		httpUtils.Response.NotFound(c, "设备")
 		return
@@ -208,33 +284,47 @@ func (s *DeviceServiceV1) updateDevice(c *gin.Context) {
 		"request_id", getRequestID(c),
 	)
 
-	// 获取设备并更新
-	device := s.getMockDevice(deviceID)
+	// 从数据库获取设备
+	ctx := context.Background()
+	device, err := s.deviceRepo.FindByDeviceID(ctx, deviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "获取设备失败")
+		return
+	}
 	if device == nil {
 		httpUtils.Response.NotFound(c, "设备")
 		return
 	}
 
 	// 更新字段
+	updated := false
 	if request.DeviceName != "" {
-		device.DeviceName = request.DeviceName
-	}
-	if request.Location != nil {
-		device.Location = request.Location
-	}
-	if request.Configuration != nil {
-		device.Configuration = request.Configuration
-	}
-	if request.Metadata != nil {
-		device.Metadata = request.Metadata
+		device.Name = request.DeviceName
+		updated = true
 	}
 	if request.IsActive != nil {
-		device.IsActive = *request.IsActive
+		device.Online = *request.IsActive
+		// 同时更新认证状态
+		if *request.IsActive {
+			device.AuthStatus = aggregate.DeviceStatusApproved
+		} else {
+			device.AuthStatus = aggregate.DeviceStatusRejected
+		}
+		updated = true
 	}
 
-	device.UpdatedAt = time.Now()
+	// 更新数据库
+	if updated {
+		device.LastActiveTime = time.Now()
+		if err := s.deviceRepo.Update(ctx, device); err != nil {
+			s.logger.ErrorTag("API", "更新设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+			httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "更新设备失败")
+			return
+		}
+	}
 
-	httpUtils.Response.Success(c, device, "设备信息更新成功")
+	httpUtils.Response.Success(c, s.convertAggregateToAPI(device), "设备信息更新成功")
 }
 
 // deleteDevice 删除设备
@@ -259,7 +349,12 @@ func (s *DeviceServiceV1) deleteDevice(c *gin.Context) {
 	)
 
 	// 检查设备是否存在
-	device := s.getMockDevice(deviceID)
+	device, err := s.getDeviceFromDB(deviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "获取设备失败")
+		return
+	}
 	if device == nil {
 		httpUtils.Response.NotFound(c, "设备")
 		return
@@ -268,6 +363,14 @@ func (s *DeviceServiceV1) deleteDevice(c *gin.Context) {
 	// 检查设备是否可以删除（例如没有正在进行的OTA更新）
 	if device.Status == "updating" {
 		httpUtils.Response.Error(c, httpUtils.ErrorCodeDeviceUpdating, "设备正在更新中，无法删除")
+		return
+	}
+
+	// 从数据库删除设备
+	ctx := context.Background()
+	if err := s.deviceRepo.Delete(ctx, deviceID); err != nil {
+		s.logger.ErrorTag("API", "删除设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "删除设备失败")
 		return
 	}
 
@@ -308,15 +411,21 @@ func (s *DeviceServiceV1) activateDevice(c *gin.Context) {
 		"request_id", getRequestID(c),
 	)
 
-	// 获取设备
-	device := s.getMockDevice(deviceID)
+	// 从数据库获取设备
+	ctx := context.Background()
+	device, err := s.deviceRepo.FindByDeviceID(ctx, deviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "获取设备失败")
+		return
+	}
 	if device == nil {
 		httpUtils.Response.NotFound(c, "设备")
 		return
 	}
 
 	// 检查设备是否已激活
-	if device.IsActivated {
+	if device.AuthStatus == aggregate.DeviceStatusApproved {
 		httpUtils.Response.Error(c, httpUtils.ErrorCodeDeviceActivated, "设备已激活")
 		return
 	}
@@ -327,11 +436,17 @@ func (s *DeviceServiceV1) activateDevice(c *gin.Context) {
 		return
 	}
 
-	// 激活设备
-	device.IsActivated = true
-	device.IsActive = true
-	device.Status = "online"
-	device.UpdatedAt = time.Now()
+	// 激活设备 - 更新数据库
+	if err := s.deviceRepo.UpdateDeviceStatus(ctx, deviceID, true); err != nil {
+		s.logger.ErrorTag("API", "激活设备失败", "error", err, "device_id", deviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "激活设备失败")
+		return
+	}
+
+	// 更新本地对象状态以返回
+	device.AuthStatus = aggregate.DeviceStatusApproved
+	device.Online = true
+	device.LastActiveTime = time.Now()
 
 	// 生成设备令牌
 	deviceToken := fmt.Sprintf("device_token_%d", time.Now().UnixNano())
@@ -343,7 +458,7 @@ func (s *DeviceServiceV1) activateDevice(c *gin.Context) {
 		AccessToken: accessToken,
 		ExpiresIn:   86400 * 30, // 30天
 		Message:     "设备激活成功",
-		DeviceInfo:  *device,
+		DeviceInfo:  *s.convertAggregateToAPI(device),
 	}
 
 	httpUtils.Response.Success(c, response, "设备激活成功")
@@ -373,36 +488,46 @@ func (s *DeviceServiceV1) updateDeviceStatus(c *gin.Context) {
 
 	s.logger.InfoTag("API", "管理员更新设备状态",
 		"device_id", request.DeviceID,
-		"is_active", request.IsActive,
+		"is_active", *request.IsActive,
 		"request_id", getRequestID(c),
 	)
 
-	// 获取设备
-	device := s.getMockDevice(request.DeviceID)
+	// 从数据库获取设备
+	ctx := context.Background()
+	device, err := s.deviceRepo.FindByDeviceID(ctx, request.DeviceID)
+	if err != nil {
+		s.logger.ErrorTag("API", "获取设备失败", "error", err, "device_id", request.DeviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "获取设备失败")
+		return
+	}
 	if device == nil {
 		httpUtils.Response.NotFound(c, "设备")
 		return
 	}
 
-	// 更新设备认证状态
-	oldAuthStatus := device.Status // 这里复用Status字段来表示auth_status
+	// 获取旧的认证状态
+	oldAuthStatus := device.AuthStatus
 
-	if request.IsActive {
-		// 激活设备：设置为已认证状态
-		device.Status = "approved"
-		device.IsActivated = true
-	} else {
-		// 禁用设备：设置为已拒绝状态
-		device.Status = "rejected"
-		device.IsActivated = false
+	// 更新数据库中的设备认证状态
+	if err := s.deviceRepo.UpdateDeviceStatus(ctx, request.DeviceID, *request.IsActive); err != nil {
+		s.logger.ErrorTag("API", "更新设备状态失败", "error", err, "device_id", request.DeviceID, "request_id", getRequestID(c))
+		httpUtils.Response.Error(c, httpUtils.ErrorCodeInternalServer, "更新设备状态失败")
+		return
 	}
 
-	device.IsActive = request.IsActive
-	device.UpdatedAt = time.Now()
+	// 更新本地对象状态
+	if *request.IsActive {
+		device.AuthStatus = aggregate.DeviceStatusApproved
+		device.Online = true
+	} else {
+		device.AuthStatus = aggregate.DeviceStatusRejected
+		device.Online = false
+	}
+	device.LastActiveTime = time.Now()
 
 	// 构建响应消息
 	var message string
-	if request.IsActive {
+	if *request.IsActive {
 		message = "设备激活成功"
 	} else {
 		message = "设备禁用成功"
@@ -412,14 +537,14 @@ func (s *DeviceServiceV1) updateDeviceStatus(c *gin.Context) {
 	s.logger.InfoTag("API", "设备认证状态已更新",
 		"device_id", request.DeviceID,
 		"old_auth_status", oldAuthStatus,
-		"new_auth_status", device.Status,
+		"new_auth_status", device.AuthStatus,
 		"request_id", getRequestID(c),
 	)
 
 	response := v1.DeviceStatusResponse{
-		Success:   true,
-		Message:   message,
-		DeviceInfo: *device,
+		Success:    true,
+		Message:    message,
+		DeviceInfo: *s.convertAggregateToAPI(device),
 	}
 
 	httpUtils.Response.Success(c, response, message)
@@ -428,234 +553,223 @@ func (s *DeviceServiceV1) updateDeviceStatus(c *gin.Context) {
 
 
 
-// ========== 模拟数据方法 ==========
-// TODO: 实际实现中应该从数据库或配置中获取真实数据
-
-func (s *DeviceServiceV1) deviceExists(deviceID string) bool {
-	// 简单模拟设备存在性检查
-	existingDevices := []string{"device_001", "device_002", "device_003"}
-	for _, existing := range existingDevices {
-		if existing == deviceID {
-			return true
-		}
-	}
-	return false
-}
-
-func (s *DeviceServiceV1) getMockDevice(deviceID string) *v1.DeviceInfo {
-	// 模拟设备数据
-	mockDevices := map[string]*v1.DeviceInfo{
-		"device_001": {
-			ID:             1,
-			DeviceID:       "device_001",
-			DeviceName:     "智能门锁",
-			DeviceType:     "smart_lock",
-			Model:          "XZ-L100",
-			Version:        "1.0.0",
-			Status:         "online",
-			Location: &v1.DeviceLocation{
-				Latitude:  39.9042,
-				Longitude: 116.4074,
-				Address:   "北京市朝阳区",
-				City:      "北京",
-				Province:  "北京",
-				Country:   "中国",
-			},
-			Configuration: map[string]interface{}{
-				"auto_lock": true,
-				"lock_delay": 30,
-			},
-			Metadata: map[string]interface{}{
-				"manufacturer": "XiaoZhi Tech",
-				"serial_number": "SN001",
-			},
-			IsActive:    true,
-			IsActivated: true,
-			CreatedAt:   time.Now().Add(-7 * 24 * time.Hour),
-			UpdatedAt:   time.Now(),
-		},
-		"device_002": {
-			ID:             2,
-			DeviceID:       "device_002",
-			DeviceName:     "温湿度传感器",
-			DeviceType:     "sensor",
-			Model:          "XZ-T200",
-			Version:        "1.1.0",
-			Status:         "offline",
-			Location: &v1.DeviceLocation{
-				Latitude:  31.2304,
-				Longitude: 121.4737,
-				Address:   "上海市浦东新区",
-				City:      "上海",
-				Province:  "上海",
-				Country:   "中国",
-			},
-			Configuration: map[string]interface{}{
-				"temperature_unit": "celsius",
-				"report_interval":  300,
-			},
-			Metadata: map[string]interface{}{
-				"manufacturer": "XiaoZhi Tech",
-				"serial_number": "SN002",
-			},
-			IsActive:    false,
-			IsActivated: true,
-			CreatedAt:   time.Now().Add(-5 * 24 * time.Hour),
-			UpdatedAt:   time.Now().Add(-1 * time.Hour),
-		},
-		"device_003": {
-			ID:             3,
-			DeviceID:       "device_003",
-			DeviceName:     "智能摄像头",
-			DeviceType:     "camera",
-			Model:          "XZ-C300",
-			Version:        "1.0.0",
-			Status:         "updating",
-			Location: &v1.DeviceLocation{
-				Latitude:  22.5431,
-				Longitude: 114.0579,
-				Address:   "深圳市南山区",
-				City:      "深圳",
-				Province:  "广东",
-				Country:   "中国",
-			},
-			Configuration: map[string]interface{}{
-				"resolution": "1080p",
-				"night_vision": true,
-			},
-			Metadata: map[string]interface{}{
-				"manufacturer": "XiaoZhi Tech",
-				"serial_number": "SN003",
-			},
-			IsActive:    true,
-			IsActivated: true,
-			CreatedAt:   time.Now().Add(-3 * 24 * time.Hour),
-			UpdatedAt:   time.Now().Add(-30 * time.Minute),
-		},
-	}
-
-	device, exists := mockDevices[deviceID]
-	if !exists {
+// ========== 数据转换方法 ==========
+// convertStorageToAPI 将数据库Device模型转换为API类型
+func (s *DeviceServiceV1) convertStorageToAPI(device *storage.Device) *v1.DeviceInfo {
+	if device == nil {
 		return nil
 	}
 
-	// 返回设备的副本以避免修改原始数据
-	deviceCopy := *device
-	return &deviceCopy
+	// 转换在线状态
+	status := "offline"
+	if device.Online {
+		status = "online"
+	}
+
+	// 如果auth_status存在，使用它作为状态
+	if device.AuthStatus != "" {
+		status = device.AuthStatus
+	}
+
+	deviceInfo := &v1.DeviceInfo{
+		ID:            int64(device.ID),
+		DeviceID:      device.DeviceID,
+		DeviceName:    device.Name,
+		DeviceType:    device.BoardType, // 使用BoardType作为设备类型
+		Model:         device.ChipModelName,
+		Version:       device.Version,
+		Status:        status,
+		Configuration: make(map[string]interface{}),
+		Metadata:      make(map[string]interface{}),
+		IsActive:      device.Online,
+		IsActivated:   device.AuthStatus == "approved",
+		CreatedAt:     device.RegisterTimeV2,
+		UpdatedAt:     device.LastActiveTimeV2,
+	}
+
+	// 如果有最后活跃时间，设置LastSeen
+	if !device.LastActiveTimeV2.IsZero() {
+		deviceInfo.LastSeen = &device.LastActiveTimeV2
+	}
+
+	// 添加一些基础元数据
+	if device.ChipModelName != "" {
+		deviceInfo.Metadata["chip_model"] = device.ChipModelName
+	}
+	if device.SSID != "" {
+		deviceInfo.Metadata["ssid"] = device.SSID
+	}
+	if device.LastIP != "" {
+		deviceInfo.Metadata["last_ip"] = device.LastIP
+	}
+
+	return deviceInfo
 }
 
-func (s *DeviceServiceV1) getMockDeviceList(query v1.DeviceQuery) ([]v1.DeviceInfo, v1.Pagination) {
-	// 模拟设备列表数据
-	devices := []v1.DeviceInfo{
-		{
-			ID:             1,
-			DeviceID:       "device_001",
-			DeviceName:     "智能门锁",
-			DeviceType:     "smart_lock",
-			Model:          "XZ-L100",
-			Version:        "1.0.0",
-			Status:         "online",
-			IsActive:       true,
-			IsActivated:    true,
-			CreatedAt:      time.Now().Add(-7 * 24 * time.Hour),
-			UpdatedAt:      time.Now(),
-		},
-		{
-			ID:             2,
-			DeviceID:       "device_002",
-			DeviceName:     "温湿度传感器",
-			DeviceType:     "sensor",
-			Model:          "XZ-T200",
-			Version:        "1.1.0",
-			Status:         "offline",
-			IsActive:       false,
-			IsActivated:    true,
-			CreatedAt:      time.Now().Add(-5 * 24 * time.Hour),
-			UpdatedAt:      time.Now().Add(-1 * time.Hour),
-		},
-		{
-			ID:             3,
-			DeviceID:       "device_003",
-			DeviceName:     "智能摄像头",
-			DeviceType:     "camera",
-			Model:          "XZ-C300",
-			Version:        "1.0.0",
-			Status:         "updating",
-			IsActive:       true,
-			IsActivated:    true,
-			CreatedAt:      time.Now().Add(-3 * 24 * time.Hour),
-			UpdatedAt:      time.Now().Add(-30 * time.Minute),
-		},
+// convertAggregateToAPI 将领域聚合Device模型转换为API类型
+func (s *DeviceServiceV1) convertAggregateToAPI(device *aggregate.Device) *v1.DeviceInfo {
+	if device == nil {
+		return nil
 	}
 
-	// 简单的过滤逻辑
-	var filtered []v1.DeviceInfo
-	for _, device := range devices {
-		if query.Status != "" && device.Status != query.Status {
-			continue
-		}
-		if query.DeviceType != "" && device.DeviceType != query.DeviceType {
-			continue
-		}
-		if query.Search != "" {
-			// 简单搜索逻辑
-			match := false
-			for _, field := range []string{device.DeviceName, device.DeviceID} {
-				if len(field) >= len(query.Search) {
-					if field[:len(query.Search)] == query.Search {
-						match = true
-						break
-					}
-				}
-			}
-			if !match {
-				continue
-			}
-		}
-		filtered = append(filtered, device)
+	// 转换在线状态
+	status := "offline"
+	if device.Online {
+		status = "online"
 	}
 
-	// 分页逻辑
-	total := int64(len(filtered))
-	totalPages := (total + int64(query.Limit) - 1) / int64(query.Limit)
-	start := (query.Page - 1) * query.Limit
-	end := start + query.Limit
-	if end > len(filtered) {
-		end = len(filtered)
-	}
-	if start >= len(filtered) {
-		return []v1.DeviceInfo{}, v1.Pagination{
-			Page:       int64(query.Page),
-			Limit:      int64(query.Limit),
-			Total:      total,
-			TotalPages: totalPages,
-			HasNext:    false,
-			HasPrev:    query.Page > 1,
-		}
+	// 如果auth_status存在，使用它作为状态
+	if string(device.AuthStatus) != "" {
+		status = string(device.AuthStatus)
 	}
 
-	// 处理位置信息
-	pagedDevices := filtered[start:end]
-	if !query.Location {
-		for i := range pagedDevices {
-			pagedDevices[i].Location = nil
-		}
+	deviceInfo := &v1.DeviceInfo{
+		ID:            int64(device.ID),
+		DeviceID:      device.DeviceID,
+		DeviceName:    device.Name,
+		DeviceType:    device.BoardType,
+		Model:         device.ChipModelName,
+		Version:       device.Version,
+		Status:        status,
+		Configuration: make(map[string]interface{}),
+		Metadata:      make(map[string]interface{}),
+		IsActive:      device.Online,
+		IsActivated:   device.AuthStatus == aggregate.DeviceStatusApproved,
+		CreatedAt:     device.RegisterTime,
+		UpdatedAt:     device.LastActiveTime,
 	}
 
-	pagination := v1.Pagination{
-		Page:       int64(query.Page),
-		Limit:      int64(query.Limit),
-		Total:      total,
-		TotalPages: totalPages,
-		HasNext:    int64(query.Page) < totalPages,
-		HasPrev:    query.Page > 1,
+	// 如果有最后活跃时间，设置LastSeen
+	if !device.LastActiveTime.IsZero() {
+		deviceInfo.LastSeen = &device.LastActiveTime
 	}
 
-	return pagedDevices, pagination
+	// 添加一些基础元数据
+	if device.ChipModelName != "" {
+		deviceInfo.Metadata["chip_model"] = device.ChipModelName
+	}
+	if device.SSID != "" {
+		deviceInfo.Metadata["ssid"] = device.SSID
+	}
+	if device.LastIP != "" {
+		deviceInfo.Metadata["last_ip"] = device.LastIP
+	}
+
+	return deviceInfo
 }
 
 func (s *DeviceServiceV1) validateActivationCode(code, deviceID string) bool {
 	// 简单的激活码验证逻辑
 	return code == fmt.Sprintf("ACT_%s", deviceID)
+}
+
+// ========== 数据库查询方法 ==========
+
+// getDeviceListFromDB 从数据库获取设备列表
+func (s *DeviceServiceV1) getDeviceListFromDB(query v1.DeviceQuery) ([]v1.DeviceInfo, int64, error) {
+	// 检查数据库连接
+	if s.db == nil {
+		return nil, 0, fmt.Errorf("database connection is nil")
+	}
+
+	s.logger.DebugTag("API", "getDeviceListFromDB: 开始查询",
+		"status", query.Status,
+		"device_type", query.DeviceType,
+		"search", query.Search,
+		"page", query.Page,
+		"limit", query.Limit)
+
+	// 构建查询
+	db := s.db.Model(&storage.Device{})
+	if db == nil {
+		return nil, 0, fmt.Errorf("failed to create database model")
+	}
+
+	// 添加过滤条件
+	if query.Status != "" {
+		db = db.Where("auth_status = ?", query.Status)
+	}
+	if query.DeviceType != "" {
+		db = db.Where("board_type = ?", query.DeviceType)
+	}
+	if query.Search != "" {
+		searchPattern := "%" + query.Search + "%"
+		db = db.Where("device_id LIKE ? OR name LIKE ?", searchPattern, searchPattern)
+	}
+
+	// 获取总数
+	var total int64
+	if err := db.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to count devices: %w", err)
+	}
+
+	s.logger.DebugTag("API", "getDeviceListFromDB: 设备总数", "total", total)
+
+	// 添加排序
+	orderBy := "register_time_v2 DESC"
+	if query.SortBy != "" {
+		direction := "ASC"
+		if query.SortOrder == "desc" {
+			direction = "DESC"
+		}
+		// 映射API字段名到数据库字段名
+		dbField := query.SortBy
+		switch query.SortBy {
+		case "created_at":
+			dbField = "register_time_v2"
+		case "updated_at":
+			dbField = "last_active_time_v2"
+		case "device_name":
+			dbField = "name"
+		case "device_type":
+			dbField = "board_type"
+		}
+		orderBy = fmt.Sprintf("%s %s", dbField, direction)
+	}
+	db = db.Order(orderBy)
+
+	// 分页
+	offset := (query.Page - 1) * query.Limit
+
+	// 查询数据
+	var devices []storage.Device
+	if err := db.Offset(offset).Limit(query.Limit).Find(&devices).Error; err != nil {
+		return nil, 0, fmt.Errorf("failed to fetch devices: %w", err)
+	}
+
+	s.logger.DebugTag("API", "getDeviceListFromDB: 查询到设备数量", "count", len(devices))
+
+	// 转换为API类型
+	var deviceInfos []v1.DeviceInfo
+	for _, device := range devices {
+		deviceInfo := s.convertStorageToAPI(&device)
+
+		// 如果不要求位置信息，清空位置数据
+		if !query.Location {
+			deviceInfo.Location = nil
+		}
+
+		deviceInfos = append(deviceInfos, *deviceInfo)
+	}
+
+	return deviceInfos, total, nil
+}
+
+// getDeviceFromDB 从数据库获取单个设备
+func (s *DeviceServiceV1) getDeviceFromDB(deviceID string) (*v1.DeviceInfo, error) {
+	ctx := context.Background()
+
+	// 从领域层获取设备
+	deviceAggregate, err := s.deviceRepo.FindByDeviceID(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find device: %w", err)
+	}
+	if deviceAggregate == nil {
+		return nil, nil // 设备不存在
+	}
+
+	// 转换为API类型
+	deviceInfo := s.convertAggregateToAPI(deviceAggregate)
+	return deviceInfo, nil
 }
 

@@ -75,7 +75,7 @@ type DeviceActivationResponse struct {
 // DeviceStatusRequest 设备状态管理请求
 type DeviceStatusRequest struct {
 	DeviceID string `json:"device_id" binding:"required"` // 设备MAC地址
-	IsActive bool   `json:"is_active" binding:"required"` // 激活状态：true激活，false禁用
+	IsActive *bool  `json:"is_active" binding:"required"` // 激活状态：true激活，false禁用
 }
 
 // DeviceStatusResponse 设备状态管理响应
