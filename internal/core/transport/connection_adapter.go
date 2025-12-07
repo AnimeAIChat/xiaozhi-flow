@@ -12,6 +12,8 @@ import (
 	"xiaozhi-server-go/internal/core/pool"
 	utils "xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/task"
+	"xiaozhi-server-go/internal/domain/device/repository"
+	"xiaozhi-server-go/internal/domain/device/aggregate"
 )
 
 // ConnectionContextAdapter 连接上下文适配器，完全兼容现有的ConnectionContext逻辑
@@ -111,6 +113,14 @@ func (a *ConnectionContextAdapter) GetSessionID() string {
 	return a.clientID
 }
 
+// GetDeviceID 获取设备ID
+func (a *ConnectionContextAdapter) GetDeviceID() string {
+	if a.handler != nil {
+		return a.handler.GetDeviceID()
+	}
+	return ""
+}
+
 // IsActive 检查连接是否仍然活跃
 func (a *ConnectionContextAdapter) IsActive() bool {
 	return !a.closed.Load()
@@ -158,6 +168,7 @@ type DefaultConnectionHandlerFactory struct {
 	poolManager *pool.PoolManager
 	taskMgr     *task.TaskManager
 	logger      *utils.Logger
+	deviceRepo  repository.DeviceRepository
 }
 
 // NewDefaultConnectionHandlerFactory 创建默认连接处理器工厂
@@ -166,12 +177,14 @@ func NewDefaultConnectionHandlerFactory(
 	poolManager *pool.PoolManager,
 	taskMgr *task.TaskManager,
 	logger *utils.Logger,
+	deviceRepo repository.DeviceRepository,
 ) *DefaultConnectionHandlerFactory {
 	return &DefaultConnectionHandlerFactory{
 		config:      config,
 		poolManager: poolManager,
 		taskMgr:     taskMgr,
 		logger:      logger,
+		deviceRepo:  deviceRepo,
 	}
 }
 
@@ -183,6 +196,29 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	if f.poolManager == nil {
 		f.logger.Error("池管理器未初始化")
 		return nil
+	}
+
+	// 检查设备状态
+	if f.deviceRepo != nil {
+		deviceID := req.Header.Get("Device-Id")
+		if deviceID == "" {
+			deviceID = req.URL.Query().Get("device-id")
+		}
+
+		if deviceID != "" {
+			// 使用请求上下文进行数据库查询
+			device, err := f.deviceRepo.FindByDeviceID(req.Context(), deviceID)
+			if err != nil {
+				f.logger.ErrorTag("连接", "查询设备信息失败: %v", err)
+				// 查询失败是否允许连接？为了安全起见，最好拒绝，或者根据策略
+				// 这里暂时允许，避免数据库故障导致无法连接
+			} else if device != nil {
+				if device.AuthStatus == aggregate.DeviceStatusRejected {
+					f.logger.WarnTag("连接", "设备 %s 已被禁用，拒绝连接", deviceID)
+					return nil
+				}
+			}
+		}
 	}
 
 	// 从资源池获取提供者集合

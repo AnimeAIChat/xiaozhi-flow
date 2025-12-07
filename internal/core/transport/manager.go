@@ -98,6 +98,21 @@ func (m *TransportManager) Stop() error {
 	return lastErr
 }
 
+// CloseDeviceConnection 关闭指定设备的连接
+func (m *TransportManager) CloseDeviceConnection(deviceID string) error {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var lastErr error
+	for name, transport := range m.transports {
+		if err := transport.CloseDeviceConnection(deviceID); err != nil {
+			m.logger.Error("传输层 %s 关闭设备连接失败: %v", name, err)
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
 // GetStats 获取传输管理器统计信息（实现TransportManager接口）
 func (m *TransportManager) GetStats() map[string]interface{} {
 	m.mu.RLock()

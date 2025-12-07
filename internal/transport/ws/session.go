@@ -15,6 +15,7 @@ type SessionHandler interface {
 	Handle()
 	Close()
 	GetSessionID() string
+	GetDeviceID() string
 }
 
 // Session encapsulates the lifecycle of a single websocket connection.
@@ -65,6 +66,11 @@ func (s *Session) Context() context.Context {
 // ID exposes the session identifier.
 func (s *Session) ID() string {
 	return s.id
+}
+
+// DeviceID exposes the device identifier.
+func (s *Session) DeviceID() string {
+	return s.handler.GetDeviceID()
 }
 
 // Run executes the session handler and invokes onDone once exiting.

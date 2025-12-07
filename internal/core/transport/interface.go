@@ -19,6 +19,8 @@ type Transport interface {
 	GetActiveConnectionCount() (int, int)
 	// 获取传输类型
 	GetType() string
+	// 关闭指定设备的连接
+	CloseDeviceConnection(deviceID string) error
 }
 
 type Connection = core.Connection
@@ -31,6 +33,8 @@ type ConnectionHandler interface {
 	Close()
 	// 获取会话ID
 	GetSessionID() string
+	// 获取设备ID
+	GetDeviceID() string
 }
 
 // ConnectionHandlerFactory 连接处理器工厂接口

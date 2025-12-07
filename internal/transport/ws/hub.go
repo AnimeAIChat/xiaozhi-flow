@@ -50,6 +50,24 @@ func (h *Hub) CloseAll(reason error) {
 	})
 }
 
+// CloseByDeviceID terminates all active sessions for a specific device.
+func (h *Hub) CloseByDeviceID(deviceID string, reason error) {
+	if reason == nil {
+		reason = ErrSessionShutdown
+	}
+
+	h.sessions.Range(func(key, value any) bool {
+		if session, ok := value.(*Session); ok {
+			if session.DeviceID() == deviceID {
+				h.logger.InfoTag("Hub", "Closing session for device %s", deviceID)
+				session.Close(reason)
+				h.sessions.Delete(key)
+			}
+		}
+		return true
+	})
+}
+
 // Counts exposes the number of active websocket connections.
 func (h *Hub) Counts() (clients int, sessions int) {
 	h.sessions.Range(func(key, value any) bool {

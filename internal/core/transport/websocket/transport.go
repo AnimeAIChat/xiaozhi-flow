@@ -94,3 +94,11 @@ func (t *WebSocketTransport) GetActiveConnectionCount() (int, int) {
 func (t *WebSocketTransport) GetType() string {
 	return "websocket"
 }
+
+// CloseDeviceConnection closes all connections for a specific device.
+func (t *WebSocketTransport) CloseDeviceConnection(deviceID string) error {
+	if t.hub != nil {
+		t.hub.CloseByDeviceID(deviceID, nil)
+	}
+	return nil
+}

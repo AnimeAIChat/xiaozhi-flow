@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"xiaozhi-server-go/internal/utils"
@@ -22,6 +23,7 @@ type Server struct {
 	router  *Router
 	logger  *utils.Logger
 	httpSrv *http.Server
+	mu      sync.Mutex
 }
 
 // NewServer builds a websocket transport server.
@@ -45,6 +47,9 @@ func (s *Server) SetHandlerBuilder(builder HandlerBuilder) {
 
 // Start boots the HTTP server and listens for websocket upgrades.
 func (s *Server) Start(ctx context.Context) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if s.httpSrv != nil {
 		return nil
 	}

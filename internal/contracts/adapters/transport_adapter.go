@@ -10,6 +10,7 @@ import (
 	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/core/pool"
 	"xiaozhi-server-go/internal/domain/task"
+	"xiaozhi-server-go/internal/domain/device/repository"
 )
 
 // TransportAdapter 传输层适配器
@@ -26,7 +27,7 @@ type TransportAdapter struct {
 }
 
 // NewTransportAdapter 创建传输层适配器
-func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter *LegacyPoolManagerAdapter) *TransportAdapter {
+func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository) *TransportAdapter {
 	adapter := &TransportAdapter{
 		config:        cfg,
 		logger:        logger,
@@ -57,7 +58,7 @@ func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter
 		adapter.wsTransport = websockettransport.NewWebSocketTransport(cfg, logger)
 
 		// 设置连接处理器工厂
-		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, poolManager, taskMgr, logger)
+		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, poolManager, taskMgr, logger, deviceRepo)
 		adapter.wsTransport.SetConnectionHandler(connFactory)
 
 		if logger != nil {
@@ -72,11 +73,17 @@ func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter
 	return adapter
 }
 
+// GetWebSocketTransport 获取WebSocket传输实例
+func (ta *TransportAdapter) GetWebSocketTransport() *websockettransport.WebSocketTransport {
+	return ta.wsTransport
+}
+
 // StartTransportServer 启动传输服务器
 func (ta *TransportAdapter) StartTransportServer(ctx context.Context, authManager interface{}, domainMCPManager interface{}) error {
 	if ta.logger != nil {
 		ta.logger.InfoTag("传输适配器", "正在启动传输服务器...")
 	}
+
 
 	// 如果WebSocket服务被禁用，直接返回成功
 	if !ta.config.Transport.WebSocket.Enabled {
@@ -140,11 +147,20 @@ func (ta *TransportAdapter) StopTransportServer() error {
 	return nil
 }
 
+// CloseDeviceConnection 关闭指定设备的连接
+func (ta *TransportAdapter) CloseDeviceConnection(deviceID string) error {
+	if ta.wsTransport != nil {
+		return ta.wsTransport.CloseDeviceConnection(deviceID)
+	}
+	return nil
+}
+
 // TransportManager 传输管理器接口
 type TransportManager interface {
 	Start(ctx context.Context) error
 	Stop() error
 	GetStats() map[string]interface{}
+	CloseDeviceConnection(deviceID string) error
 }
 
 // MockTransportManager 模拟传输管理器
@@ -182,4 +198,8 @@ func (m *MockTransportManager) GetStats() map[string]interface{} {
 		"total_requests":     0,
 		"uptime_seconds":     0,
 	}
+}
+
+func (m *MockTransportManager) CloseDeviceConnection(deviceID string) error {
+	return nil
 }

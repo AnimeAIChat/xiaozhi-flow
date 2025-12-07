@@ -16,16 +16,22 @@ import (
 	"gorm.io/gorm"
 )
 
+// DeviceConnectionManager 设备连接管理器接口
+type DeviceConnectionManager interface {
+	CloseDeviceConnection(deviceID string) error
+}
+
 // DeviceServiceV1 V1版本设备服务
 type DeviceServiceV1 struct {
 	logger            *utils.Logger
 	config            *config.Config
 	db                *gorm.DB
 	deviceRepo        repository.DeviceRepository
+	connManager       DeviceConnectionManager
 }
 
 // NewDeviceServiceV1 创建设备服务V1实例
-func NewDeviceServiceV1(config *config.Config, logger *utils.Logger) (*DeviceServiceV1, error) {
+func NewDeviceServiceV1(config *config.Config, logger *utils.Logger, connManager DeviceConnectionManager) (*DeviceServiceV1, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -63,10 +69,11 @@ func NewDeviceServiceV1(config *config.Config, logger *utils.Logger) (*DeviceSer
 	logger.InfoTag("DeviceService", "设备仓库创建成功")
 
 	service := &DeviceServiceV1{
-		logger:     logger,
-		config:     config,
-		db:         db,
-		deviceRepo: deviceRepo,
+		logger:      logger,
+		config:      config,
+		db:          db,
+		deviceRepo:  deviceRepo,
+		connManager: connManager,
 	}
 
 	logger.InfoTag("DeviceService", "设备服务初始化完成")
@@ -310,6 +317,14 @@ func (s *DeviceServiceV1) updateDevice(c *gin.Context) {
 			device.AuthStatus = aggregate.DeviceStatusApproved
 		} else {
 			device.AuthStatus = aggregate.DeviceStatusRejected
+			// 如果禁用设备，强制断开连接
+			if s.connManager != nil {
+				if err := s.connManager.CloseDeviceConnection(deviceID); err != nil {
+					s.logger.WarnTag("API", "断开设备连接失败: %v", err)
+				} else {
+					s.logger.InfoTag("API", "已强制断开设备连接", "device_id", deviceID)
+				}
+			}
 		}
 		updated = true
 	}
@@ -522,6 +537,14 @@ func (s *DeviceServiceV1) updateDeviceStatus(c *gin.Context) {
 	} else {
 		device.AuthStatus = aggregate.DeviceStatusRejected
 		device.Online = false
+		// 如果禁用设备，强制断开连接
+		if s.connManager != nil {
+			if err := s.connManager.CloseDeviceConnection(request.DeviceID); err != nil {
+				s.logger.WarnTag("API", "断开设备连接失败: %v", err)
+			} else {
+				s.logger.InfoTag("API", "已强制断开设备连接", "device_id", request.DeviceID)
+			}
+		}
 	}
 	device.LastActiveTime = time.Now()
 

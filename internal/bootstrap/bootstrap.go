@@ -20,6 +20,7 @@ import (
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
 	"xiaozhi-server-go/internal/domain/device/service"
+	"xiaozhi-server-go/internal/domain/device/repository"
 	"xiaozhi-server-go/internal/domain/eventbus"
 	platformerrors "xiaozhi-server-go/internal/platform/errors"
 	platformlogging "xiaozhi-server-go/internal/platform/logging"
@@ -723,6 +724,7 @@ func startTransportServer(
 	authManager *domainauth.AuthManager,
 	domainMCPManager *domainmcp.Manager,
 	componentContainer *adapters.ComponentContainer,
+	deviceRepo repository.DeviceRepository,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (adapters.TransportManager, error) {
@@ -735,10 +737,15 @@ func startTransportServer(
 	legacyAdapter := componentContainer.GetLegacyAdapter()
 
 	// 创建传输适配器
-	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter)
+	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter, deviceRepo)
 
 	// 创建真正的传输管理器
 	transportManager := transport.NewTransportManager(config, logger)
+
+	// 注册WebSocket传输
+	if wsTransport := transportAdapter.GetWebSocketTransport(); wsTransport != nil {
+		transportManager.RegisterTransport("websocket", wsTransport)
+	}
 
 	// 启动传输服务器
 	if err := transportAdapter.StartTransportServer(groupCtx, authManager, domainMCPManager); err != nil {
@@ -781,6 +788,8 @@ func startHTTPServer(
 	config *platformconfig.Config,
 	logger *utils.Logger,
 	configRepo types.Repository,
+	transportManager adapters.TransportManager,
+	deviceRepo repository.DeviceRepository,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (*http.Server, error) {
@@ -805,7 +814,6 @@ func startHTTPServer(
 
 	// 初始化设备服务
 	db := platformstorage.GetDB()
-	deviceRepo := platformstorage.NewDeviceRepository(db)
 	verificationRepo := platformstorage.NewVerificationCodeRepository(db)
 
 	deviceService := service.NewDeviceService(
@@ -866,7 +874,7 @@ func startHTTPServer(
 	}
 
 	// 初始化V1设备服务
-	deviceServiceV1, err := devicev1.NewDeviceServiceV1(config, logger)
+	deviceServiceV1, err := devicev1.NewDeviceServiceV1(config, logger, transportManager)
 	if err != nil {
 		logger.ErrorTag("API", "V1设备服务初始化失败: %v", err)
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "device-v1:new-service", "failed to create device v1 service", err)
@@ -995,11 +1003,16 @@ func startServices(
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) error {
-	if _, err := startTransportServer(config, logger, authManager, domainMCPManager, componentContainer, g, groupCtx); err != nil {
+	// 初始化设备仓库
+	db := platformstorage.GetDB()
+	deviceRepo := platformstorage.NewDeviceRepository(db)
+
+	transportManager, err := startTransportServer(config, logger, authManager, domainMCPManager, componentContainer, deviceRepo, g, groupCtx)
+	if err != nil {
 		return fmt.Errorf("启动 Transport 服务失败: %w", err)
 	}
 
-	if _, err := startHTTPServer(config, logger, configRepo, g, groupCtx); err != nil {
+	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, g, groupCtx); err != nil {
 		return fmt.Errorf("启动 Http 服务失败: %w", err)
 	}
 
