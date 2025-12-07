@@ -87,7 +87,7 @@ func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) error {
 
 	// 需要认证的路由
 	protectedGroup := router.Group("")
-	protectedGroup.Use(s.authMiddleware())
+	protectedGroup.Use(s.AuthMiddleware())
 	{
 		// 认证相关路由 (需要认证)
 		authProtectedGroup := protectedGroup.Group("/auth")
@@ -125,7 +125,7 @@ func (s *Service) registerAdminRoutes(router *gin.RouterGroup) {
 
 	// 需要认证的分组
 	securedGroup := adminGroup.Group("")
-	securedGroup.Use(s.authMiddleware())
+	securedGroup.Use(s.AuthMiddleware())
 	{
 		securedGroup.GET("/system", s.handleSystemGet)
 		securedGroup.GET("/system/providers/:type", s.handleSystemProvidersType)
@@ -143,7 +143,7 @@ func (s *Service) registerAdminRoutes(router *gin.RouterGroup) {
 
 	// 需要管理员权限的分组
 	adminOnlyGroup := adminGroup.Group("")
-	adminOnlyGroup.Use(s.authMiddleware(), s.adminMiddleware())
+	adminOnlyGroup.Use(s.AuthMiddleware(), s.adminMiddleware())
 	{
 		adminOnlyGroup.POST("/system", s.handleSystemPost)
 		adminOnlyGroup.DELETE("/system/device", s.handleDeviceDeleteAdmin)
@@ -401,8 +401,8 @@ func (s *Service) handleDeviceDeleteAdmin(c *gin.Context) {
 	s.respondError(c, http.StatusNotImplemented, "Device management functionality not implemented in new architecture")
 }
 
-// authMiddleware 认证中间件
-func (s *Service) authMiddleware() gin.HandlerFunc {
+// AuthMiddleware 认证中间件（公开方法）
+func (s *Service) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 检查系统是否已初始化
 		if !s.isSystemInitialized() {

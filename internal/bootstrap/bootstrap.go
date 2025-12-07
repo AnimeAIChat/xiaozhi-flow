@@ -784,9 +784,18 @@ func startHTTPServer(
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (*http.Server, error) {
+	// 首先初始化webapi服务以获取认证中间件
+	webapiService, err := httpwebapi.NewService(config, logger)
+	if err != nil {
+		logger.ErrorTag("WebAPI", "WebAPI 服务初始化失败: %v", err)
+		return nil, platformerrors.Wrap(platformerrors.KindTransport, "webapi:new-service", "failed to create webapi service", err)
+	}
+
+	// 构建HTTP路由器，传入认证中间件
 	httpRouter, err := httptransport.Build(httptransport.Options{
-		Config: config,
-		Logger: logger,
+		Config:         config,
+		Logger:         logger,
+		AuthMiddleware: webapiService.AuthMiddleware(),
 	})
 	if err != nil {
 		return nil, err
@@ -828,12 +837,6 @@ func startHTTPServer(
 	if err != nil {
 		logger.ErrorTag("视觉", "Vision 服务初始化失败: %v", err)
 		return nil, platformerrors.Wrap(platformerrors.KindVision, "vision:new-service", "failed to create vision service", err)
-	}
-
-	webapiService, err := httpwebapi.NewService(config, logger)
-	if err != nil {
-		logger.ErrorTag("WebAPI", "WebAPI 服务初始化失败: %v", err)
-		return nil, platformerrors.Wrap(platformerrors.KindTransport, "webapi:new-service", "failed to create webapi service", err)
 	}
 
 	otaService, err := httpota.NewService(config.Web.Websocket, config, deviceService, logger)
