@@ -391,6 +391,13 @@ func loadDefaultConfigStep(_ context.Context, state *appState) error {
 	configRepo := configmanager.NewDatabaseRepository(platformstorage.GetDB())
 	state.configRepo = configRepo
 
+	// Try to migrate legacy config
+	if err := configRepo.MigrateLegacyConfig(); err != nil {
+		// Log error but continue, as migration failure shouldn't stop startup if config can still be loaded
+		// But since we don't have logger yet, we just print to stderr
+		fmt.Fprintf(os.Stderr, "Failed to migrate legacy config: %v\n", err)
+	}
+
 	// Load configuration from database, fallback to defaults if not found
 	config, err := configRepo.LoadConfig()
 	if err != nil {

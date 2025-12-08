@@ -21,6 +21,16 @@ type Config struct {
 	LLM           map[string]LLMConfig
 	VLLLM         map[string]VLLLMConfig
 	MCP           MCPConfig
+	Plugins       map[string]PluginConfig
+}
+
+type PluginConfig struct {
+	ID          string                 `json:"id"`
+	Name        string                 `json:"name"`
+	Type        string                 `json:"type"`
+	Description string                 `json:"description"`
+	Enabled     bool                   `json:"enabled"`
+	Config      map[string]interface{} `json:"config"`
 }
 
 type ServerConfig struct {
