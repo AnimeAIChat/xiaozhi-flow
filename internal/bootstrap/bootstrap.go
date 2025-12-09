@@ -44,7 +44,6 @@ import (
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
 	"xiaozhi-server-go/internal/utils"
-	"xiaozhi-server-go/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
