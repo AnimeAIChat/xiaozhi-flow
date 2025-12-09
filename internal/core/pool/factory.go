@@ -13,7 +13,6 @@ import (
 	"xiaozhi-server-go/internal/utils"
 
 	// 导入ASR提供者实现以触发注册
-	_ "xiaozhi-server-go/internal/core/providers/asr/doubao"
 	_ "xiaozhi-server-go/internal/core/providers/asr/deepgram"
 	_ "xiaozhi-server-go/internal/core/providers/asr/gosherpa"
 	_ "xiaozhi-server-go/internal/core/providers/asr/stepfun"
@@ -26,7 +25,6 @@ import (
 
 	// 导入TTS提供者实现以触发注册
 	_ "xiaozhi-server-go/internal/core/providers/tts/deepgram"
-	_ "xiaozhi-server-go/internal/core/providers/tts/doubao"
 	_ "xiaozhi-server-go/internal/core/providers/tts/edge"
 	_ "xiaozhi-server-go/internal/core/providers/tts/gosherpa"
 

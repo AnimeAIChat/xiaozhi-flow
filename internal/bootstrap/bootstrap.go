@@ -19,9 +19,7 @@ import (
 	domainllm "xiaozhi-server-go/internal/domain/llm"
 	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
-	"xiaozhi-server-go/internal/plugin/builtin/asr"
 	"xiaozhi-server-go/internal/plugin/builtin/openai"
-	"xiaozhi-server-go/internal/plugin/builtin/tts"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/plugin/providers/chatglm"
 	"xiaozhi-server-go/internal/plugin/providers/coze"
@@ -350,12 +348,6 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	// In the future, this could be dynamic or loaded from external plugins
 	openaiProvider := openai.NewProvider()
 	registry.Register("openai", openaiProvider)
-
-	asrProvider := asr.NewProvider()
-	registry.Register("builtin_asr", asrProvider)
-
-	ttsProvider := tts.NewProvider()
-	registry.Register("builtin_tts", ttsProvider)
 
 	// Register Vendor Plugins
 	registry.Register("chatglm", chatglm.NewProvider())
