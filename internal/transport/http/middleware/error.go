@@ -1,16 +1,16 @@
 package middleware
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"net/http"
 	"runtime/debug"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ErrorMiddleware 错误处理中间件
-func ErrorMiddleware(logger *utils.Logger) gin.HandlerFunc {
+func ErrorMiddleware(logger *logging.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -42,7 +42,7 @@ func ErrorMiddleware(logger *utils.Logger) gin.HandlerFunc {
 }
 
 // handleError 处理具体错误
-func handleError(c *gin.Context, ginErr *gin.Error, logger *utils.Logger) {
+func handleError(c *gin.Context, ginErr *gin.Error, logger *logging.Logger) {
 	err := ginErr.Err
 
 	// 记录错误日志
@@ -154,3 +154,5 @@ func CORSMiddleware() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+

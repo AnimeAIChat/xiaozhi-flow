@@ -1,11 +1,11 @@
 package asr
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"bytes"
 	"fmt"
 	"time"
 	providers "xiaozhi-server-go/internal/domain/providers/types"
-	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/eventbus"
 )
 
@@ -139,7 +139,7 @@ func (p *BaseProvider) Cleanup() error {
 }
 
 // Factory ASR工厂函数类型
-type Factory func(config *Config, deleteFile bool, logger *utils.Logger) (Provider, error)
+type Factory func(config *Config, deleteFile bool, logger *logging.Logger) (Provider, error)
 
 var factories = make(map[string]Factory)
 
@@ -149,7 +149,7 @@ func Register(name string, factory Factory) {
 }
 
 // Create 创建ASR提供者实例
-func Create(name string, config *Config, deleteFile bool, logger *utils.Logger) (Provider, error) {
+func Create(name string, config *Config, deleteFile bool, logger *logging.Logger) (Provider, error) {
 	factory, ok := factories[name]
 	if !ok {
 		return nil, fmt.Errorf("未知的ASR提供者: %s", name)
@@ -194,3 +194,6 @@ func (p *BaseProvider) InitAudioProcessing() {
 	p.silenceThreshold = 0.01 // 默认能量阈值
 	p.silenceDuration = 800   // 默认静音判断时长(ms)
 }
+
+
+

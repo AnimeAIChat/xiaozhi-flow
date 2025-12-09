@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"net/http"
 	"sync/atomic"
@@ -11,7 +12,6 @@ import (
 	"xiaozhi-server-go/internal/core"
 	"xiaozhi-server-go/internal/core/pool"
 	"xiaozhi-server-go/internal/plugin/capability"
-	utils "xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
 	"xiaozhi-server-go/internal/domain/device/aggregate"
@@ -23,7 +23,7 @@ type ConnectionContextAdapter struct {
 	providerSet *pool.ProviderSet
 	poolManager *pool.PoolManager
 	clientID    string
-	logger      *utils.Logger
+	logger      *logging.Logger
 	conn        Connection
 	ctx         context.Context
 	cancel      context.CancelCauseFunc
@@ -38,7 +38,7 @@ func NewConnectionContextAdapter(
 	registry *capability.Registry,
 	poolManager *pool.PoolManager,
 	taskMgr *task.TaskManager,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	req *http.Request,
 ) *ConnectionContextAdapter {
 	clientID := conn.GetID()
@@ -169,7 +169,7 @@ type DefaultConnectionHandlerFactory struct {
 	config      *config.Config
 	poolManager *pool.PoolManager
 	taskMgr     *task.TaskManager
-	logger      *utils.Logger
+	logger      *logging.Logger
 	deviceRepo  repository.DeviceRepository
 	registry    *capability.Registry
 }
@@ -179,7 +179,7 @@ func NewDefaultConnectionHandlerFactory(
 	config *config.Config,
 	poolManager *pool.PoolManager,
 	taskMgr *task.TaskManager,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	deviceRepo repository.DeviceRepository,
 	registry *capability.Registry,
 ) *DefaultConnectionHandlerFactory {
@@ -264,3 +264,6 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 func (f *DefaultConnectionHandlerFactory) SetPoolManager(poolManager *pool.PoolManager) {
 	f.poolManager = poolManager
 }
+
+
+

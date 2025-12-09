@@ -114,6 +114,7 @@ type TTSConfig struct {
 	Token           string
 	Cluster         string
 	SupportedVoices []VoiceInfo
+	Extra           map[string]interface{}
 }
 
 type VoiceInfo struct {

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-server-go/internal/startup"
+	"xiaozhi-server-go/internal/startup/model"
 	"xiaozhi-server-go/internal/workflow"
 )
 
 // ServiceNodeExecutor 服务节点执行器
 type ServiceNodeExecutor struct {
-	logger startup.StartupLogger
+	logger model.StartupLogger
 }
 
 // NewServiceNodeExecutor 创建服务节点执行器
-func NewServiceNodeExecutor(logger startup.StartupLogger) *ServiceNodeExecutor {
+func NewServiceNodeExecutor(logger model.StartupLogger) *ServiceNodeExecutor {
 	return &ServiceNodeExecutor{
 		logger: logger,
 	}
@@ -24,12 +24,12 @@ func NewServiceNodeExecutor(logger startup.StartupLogger) *ServiceNodeExecutor {
 // Execute 执行服务节点
 func (e *ServiceNodeExecutor) Execute(
 	ctx context.Context,
-	node *startup.StartupNode,
+	node *model.StartupNode,
 	inputs map[string]interface{},
 	context map[string]interface{},
-) (*startup.StartupNodeResult, error) {
+) (*model.StartupNodeResult, error) {
 	startTime := time.Now()
-	result := &startup.StartupNodeResult{
+	result := &model.StartupNodeResult{
 		NodeID:   node.ID,
 		NodeName: node.Name,
 		NodeType: node.Type,
@@ -37,7 +37,7 @@ func (e *ServiceNodeExecutor) Execute(
 		Status:   workflow.NodeStatusRunning,
 		Inputs:   inputs,
 		Outputs:  make(map[string]interface{}),
-		Logs:     make([]startup.StartupNodeLog, 0),
+		Logs:     make([]model.StartupNodeLog, 0),
 	}
 
 	e.logger.Info("Executing service node", "node_id", node.ID, "node_name", node.Name)
@@ -102,10 +102,10 @@ func (e *ServiceNodeExecutor) Execute(
 // executeInitLogging 执行初始化日志系统
 func (e *ServiceNodeExecutor) executeInitLogging(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting logging provider initialization",
@@ -127,7 +127,7 @@ func (e *ServiceNodeExecutor) executeInitLogging(
 		"max_backups", maxBackups,
 		"compress", compress)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Logging configuration: level=%s, dir=%s, file=%s", logLevel, logDir, logFile),
@@ -141,7 +141,7 @@ func (e *ServiceNodeExecutor) executeInitLogging(
 	// 4. 配置日志轮转
 	// 5. 设置事件总线处理器
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Logging provider initialized successfully",
@@ -165,10 +165,10 @@ func (e *ServiceNodeExecutor) executeInitLogging(
 // executeInitComponents 执行初始化组件容器
 func (e *ServiceNodeExecutor) executeInitComponents(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting components container initialization",
@@ -182,7 +182,7 @@ func (e *ServiceNodeExecutor) executeInitComponents(
 		"enable_di_container", enableDIContainer,
 		"enable_runtime_container", enableRuntimeContainer)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Components configuration: DI=%v, Runtime=%v", enableDIContainer, enableRuntimeContainer),
@@ -196,13 +196,13 @@ func (e *ServiceNodeExecutor) executeInitComponents(
 	// 4. 初始化组件适配器
 	// 5. 设置组件生命周期管理
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Bootstrap manager created",
 	})
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Component container initialized successfully",
@@ -223,10 +223,10 @@ func (e *ServiceNodeExecutor) executeInitComponents(
 // executeInitMCPManager 执行初始化MCP管理器
 func (e *ServiceNodeExecutor) executeInitMCPManager(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting MCP manager initialization",
@@ -244,7 +244,7 @@ func (e *ServiceNodeExecutor) executeInitMCPManager(
 		"tool_timeout", toolTimeout,
 		"max_retries", maxRetries)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("MCP configuration: global=%v, local=%v, timeout=%s", enableGlobalManager, enableLocalClients, toolTimeout),
@@ -258,7 +258,7 @@ func (e *ServiceNodeExecutor) executeInitMCPManager(
 	// 4. 配置工具超时和重试策略
 
 	if enableGlobalManager {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Global MCP manager initialized",
@@ -266,7 +266,7 @@ func (e *ServiceNodeExecutor) executeInitMCPManager(
 	}
 
 	if enableLocalClients {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Local MCP clients initialized",
@@ -289,10 +289,10 @@ func (e *ServiceNodeExecutor) executeInitMCPManager(
 // executeSetupObservability 执行设置可观测性钩子
 func (e *ServiceNodeExecutor) executeSetupObservability(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting observability setup",
@@ -310,7 +310,7 @@ func (e *ServiceNodeExecutor) executeSetupObservability(
 		"metrics_endpoint", metricsEndpoint,
 		"tracing_endpoint", tracingEndpoint)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Observability configuration: metrics=%v, tracing=%v", enableMetrics, enableTracing),
@@ -324,7 +324,7 @@ func (e *ServiceNodeExecutor) executeSetupObservability(
 	// 4. 初始化监控仪表板
 
 	if enableMetrics {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Metrics collection enabled at %s", metricsEndpoint),
@@ -332,7 +332,7 @@ func (e *ServiceNodeExecutor) executeSetupObservability(
 	}
 
 	if enableTracing && tracingEndpoint != "" {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Distributed tracing enabled with endpoint: %s", tracingEndpoint),
@@ -355,10 +355,10 @@ func (e *ServiceNodeExecutor) executeSetupObservability(
 // executeStartServices 执行启动系统服务
 func (e *ServiceNodeExecutor) executeStartServices(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting system services",
@@ -388,14 +388,14 @@ func (e *ServiceNodeExecutor) executeStartServices(
 	// 4. 设置优雅关闭处理
 
 	if startHTTPServer {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Starting HTTP server on port %d", httpPort),
 		})
 
 		if enableStaticServing {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   "Static file serving enabled",
@@ -403,7 +403,7 @@ func (e *ServiceNodeExecutor) executeStartServices(
 		}
 
 		if enableAPIDocs {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   "API documentation enabled",
@@ -413,7 +413,7 @@ func (e *ServiceNodeExecutor) executeStartServices(
 		// 模拟HTTP服务器启动时间
 		select {
 		case <-time.After(1 * time.Second):
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("HTTP server started successfully on port %d", httpPort),
@@ -424,7 +424,7 @@ func (e *ServiceNodeExecutor) executeStartServices(
 	}
 
 	if startWebSocketServer {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Starting WebSocket server on port %d", websocketPort),
@@ -433,7 +433,7 @@ func (e *ServiceNodeExecutor) executeStartServices(
 		// 模拟WebSocket服务器启动时间
 		select {
 		case <-time.After(500 * time.Millisecond):
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("WebSocket server started successfully on port %d", websocketPort),
@@ -444,13 +444,13 @@ func (e *ServiceNodeExecutor) executeStartServices(
 	}
 
 	if startOTAService {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Starting OTA service",
 		})
 
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "OTA service started successfully",
@@ -474,13 +474,13 @@ func (e *ServiceNodeExecutor) executeStartServices(
 }
 
 // Validate 验证节点配置
-func (e *ServiceNodeExecutor) Validate(ctx context.Context, node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) Validate(ctx context.Context, node *model.StartupNode) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID is required")
 	}
 
-	if node.Type != startup.StartupNodeService {
-		return fmt.Errorf("invalid node type: expected %s, got %s", startup.StartupNodeService, node.Type)
+	if node.Type != model.StartupNodeService {
+		return fmt.Errorf("invalid node type: expected %s, got %s", model.StartupNodeService, node.Type)
 	}
 
 	// 根据节点ID验证特定配置
@@ -501,7 +501,7 @@ func (e *ServiceNodeExecutor) Validate(ctx context.Context, node *startup.Startu
 }
 
 // validateLoggingConfig 验证日志配置
-func (e *ServiceNodeExecutor) validateLoggingConfig(node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) validateLoggingConfig(node *model.StartupNode) error {
 	logLevel := getStringConfig(node.Config, "log_level", "")
 	validLogLevels := []string{"debug", "info", "warn", "error"}
 	if logLevel != "" && !contains(validLogLevels, logLevel) {
@@ -517,13 +517,13 @@ func (e *ServiceNodeExecutor) validateLoggingConfig(node *startup.StartupNode) e
 }
 
 // validateComponentsConfig 验证组件配置
-func (e *ServiceNodeExecutor) validateComponentsConfig(node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) validateComponentsConfig(node *model.StartupNode) error {
 	// 组件配置相对简单，主要是布尔值配置
 	return nil
 }
 
 // validateMCPConfig 验证MCP配置
-func (e *ServiceNodeExecutor) validateMCPConfig(node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) validateMCPConfig(node *model.StartupNode) error {
 	maxRetries := getIntConfig(node.Config, "max_retries", -1)
 	if maxRetries < 0 || maxRetries > 10 {
 		return fmt.Errorf("max_retries must be between 0 and 10")
@@ -533,7 +533,7 @@ func (e *ServiceNodeExecutor) validateMCPConfig(node *startup.StartupNode) error
 }
 
 // validateObservabilityConfig 验证可观测性配置
-func (e *ServiceNodeExecutor) validateObservabilityConfig(node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) validateObservabilityConfig(node *model.StartupNode) error {
 	metricsEndpoint := getStringConfig(node.Config, "metrics_endpoint", "")
 	if metricsEndpoint != "" && !isValidEndpoint(metricsEndpoint) {
 		return fmt.Errorf("invalid metrics_endpoint format: %s", metricsEndpoint)
@@ -548,7 +548,7 @@ func (e *ServiceNodeExecutor) validateObservabilityConfig(node *startup.StartupN
 }
 
 // validateStartServicesConfig 验证启动服务配置
-func (e *ServiceNodeExecutor) validateStartServicesConfig(node *startup.StartupNode) error {
+func (e *ServiceNodeExecutor) validateStartServicesConfig(node *model.StartupNode) error {
 	httpPort := getIntConfig(node.Config, "http_port", -1)
 	if httpPort != -1 && (httpPort < 1024 || httpPort > 65535) {
 		return fmt.Errorf("http_port must be between 1024 and 65535")
@@ -567,9 +567,9 @@ func (e *ServiceNodeExecutor) validateStartServicesConfig(node *startup.StartupN
 }
 
 // GetNodeInfo 获取节点信息
-func (e *ServiceNodeExecutor) GetNodeInfo() *startup.StartupNodeInfo {
-	return &startup.StartupNodeInfo{
-		Type:        startup.StartupNodeService,
+func (e *ServiceNodeExecutor) GetNodeInfo() *model.StartupNodeInfo {
+	return &model.StartupNodeInfo{
+		Type:        model.StartupNodeService,
 		Name:        "Service Node Executor",
 		Description: "Handles service-related initialization tasks including logging, components, MCP, observability, and system services",
 		Version:     "1.0.0",
@@ -631,3 +631,6 @@ func isValidEndpoint(endpoint string) bool {
 	// 在实际实现中可以使用更严格的验证
 	return len(endpoint) > 0 && (endpoint[0] == '/' || endpoint[0] == 'h' || endpoint[0] == 'w')
 }
+
+
+

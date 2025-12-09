@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-server-go/internal/startup"
+	"xiaozhi-server-go/internal/startup/model"
 	"xiaozhi-server-go/internal/workflow"
 )
 
 // PluginNodeExecutor 插件节点执行器
 type PluginNodeExecutor struct {
-	logger startup.StartupLogger
+	logger model.StartupLogger
 }
 
 // NewPluginNodeExecutor 创建插件节点执行器
-func NewPluginNodeExecutor(logger startup.StartupLogger) *PluginNodeExecutor {
+func NewPluginNodeExecutor(logger model.StartupLogger) *PluginNodeExecutor {
 	return &PluginNodeExecutor{
 		logger: logger,
 	}
@@ -24,12 +24,12 @@ func NewPluginNodeExecutor(logger startup.StartupLogger) *PluginNodeExecutor {
 // Execute 执行插件节点
 func (e *PluginNodeExecutor) Execute(
 	ctx context.Context,
-	node *startup.StartupNode,
+	node *model.StartupNode,
 	inputs map[string]interface{},
 	context map[string]interface{},
-) (*startup.StartupNodeResult, error) {
+) (*model.StartupNodeResult, error) {
 	startTime := time.Now()
-	result := &startup.StartupNodeResult{
+	result := &model.StartupNodeResult{
 		NodeID:   node.ID,
 		NodeName: node.Name,
 		NodeType: node.Type,
@@ -37,7 +37,7 @@ func (e *PluginNodeExecutor) Execute(
 		Status:   workflow.NodeStatusRunning,
 		Inputs:   inputs,
 		Outputs:  make(map[string]interface{}),
-		Logs:     make([]startup.StartupNodeLog, 0),
+		Logs:     make([]model.StartupNodeLog, 0),
 	}
 
 	e.logger.Info("Executing plugin node", "node_id", node.ID, "node_name", node.Name)
@@ -74,12 +74,12 @@ func (e *PluginNodeExecutor) Execute(
 // executeInitPluginManager 执行初始化插件管理器
 func (e *PluginNodeExecutor) executeInitPluginManager(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 	inputs map[string]interface{},
 	context map[string]interface{},
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting plugin manager initialization",
@@ -103,7 +103,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 		"registry_type", registryType,
 		"registry_ttl", registryTTL)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Plugin config: discovery=%v, paths=%v, scan=%s", enableDiscovery, discoveryPaths, scanInterval),
@@ -114,7 +114,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 	if !loggingReady {
 		err := fmt.Errorf("required dependency not completed: logging=%v", loggingReady)
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   err.Error(),
@@ -123,7 +123,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 	}
 
 	// 初始化插件注册表
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Initializing %s plugin registry", registryType),
@@ -131,7 +131,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 	err := e.initializePluginRegistry(ctx, registryType, registryTTL, result)
 	if err != nil {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   fmt.Sprintf("Failed to initialize plugin registry: %s", err.Error()),
@@ -141,7 +141,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 	// 初始化插件发现系统
 	if enableDiscovery {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Initializing plugin discovery system",
@@ -149,7 +149,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 		err := e.initializePluginDiscovery(ctx, discoveryPaths, scanInterval, result)
 		if err != nil {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "error",
 				Message:   fmt.Sprintf("Failed to initialize plugin discovery: %s", err.Error()),
@@ -160,7 +160,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 	// 初始化健康检查系统
 	if enableHealthCheck {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Initializing plugin health check system",
@@ -168,7 +168,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 		err := e.initializeHealthCheckSystem(ctx, healthCheckInterval, result)
 		if err != nil {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "error",
 				Message:   fmt.Sprintf("Failed to initialize health check: %s", err.Error()),
@@ -179,7 +179,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 	// 执行初始插件扫描
 	if enableDiscovery {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Performing initial plugin discovery scan",
@@ -187,14 +187,14 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 
 		discoveredPlugins, err := e.performPluginDiscovery(ctx, discoveryPaths, result)
 		if err != nil {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "warn",
 				Message:   fmt.Sprintf("Initial plugin discovery failed: %s", err.Error()),
 			})
 			// 发现失败不阻止插件管理器初始化
 		} else {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("Discovered %d plugins", len(discoveredPlugins)),
@@ -205,7 +205,7 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 	// 启动后台任务
 	go e.startBackgroundTasks(ctx, enableDiscovery, enableHealthCheck, scanInterval, healthCheckInterval, discoveryPaths, result)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Plugin manager initialized successfully",
@@ -233,22 +233,22 @@ func (e *PluginNodeExecutor) executeInitPluginManager(
 }
 
 // initializePluginRegistry 初始化插件注册表
-func (e *PluginNodeExecutor) initializePluginRegistry(ctx context.Context, registryType, registryTTL string, result *startup.StartupNodeResult) error {
+func (e *PluginNodeExecutor) initializePluginRegistry(ctx context.Context, registryType, registryTTL string, result *model.StartupNodeResult) error {
 	switch registryType {
 	case "memory":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Memory-based plugin registry initialized",
 		})
 	case "redis":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Redis-based plugin registry initialized",
 		})
 	case "database":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Database-based plugin registry initialized",
@@ -263,7 +263,7 @@ func (e *PluginNodeExecutor) initializePluginRegistry(ctx context.Context, regis
 		if err != nil {
 			return fmt.Errorf("invalid registry_ttl format: %s", registryTTL)
 		}
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Registry TTL set to: %s", registryTTL),
@@ -282,7 +282,7 @@ func (e *PluginNodeExecutor) initializePluginRegistry(ctx context.Context, regis
 }
 
 // initializePluginDiscovery 初始化插件发现系统
-func (e *PluginNodeExecutor) initializePluginDiscovery(ctx context.Context, paths []string, scanInterval string, result *startup.StartupNodeResult) error {
+func (e *PluginNodeExecutor) initializePluginDiscovery(ctx context.Context, paths []string, scanInterval string, result *model.StartupNodeResult) error {
 	// 解析扫描间隔
 	if scanInterval != "" {
 		_, err := time.ParseDuration(scanInterval)
@@ -291,7 +291,7 @@ func (e *PluginNodeExecutor) initializePluginDiscovery(ctx context.Context, path
 		}
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Plugin discovery initialized with paths: %v", paths),
@@ -299,7 +299,7 @@ func (e *PluginNodeExecutor) initializePluginDiscovery(ctx context.Context, path
 
 	// 验证发现路径
 	for _, path := range paths {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Plugin discovery path: %s", path),
@@ -318,7 +318,7 @@ func (e *PluginNodeExecutor) initializePluginDiscovery(ctx context.Context, path
 }
 
 // initializeHealthCheckSystem 初始化健康检查系统
-func (e *PluginNodeExecutor) initializeHealthCheckSystem(ctx context.Context, healthCheckInterval string, result *startup.StartupNodeResult) error {
+func (e *PluginNodeExecutor) initializeHealthCheckSystem(ctx context.Context, healthCheckInterval string, result *model.StartupNodeResult) error {
 	// 解析健康检查间隔
 	if healthCheckInterval != "" {
 		_, err := time.ParseDuration(healthCheckInterval)
@@ -327,7 +327,7 @@ func (e *PluginNodeExecutor) initializeHealthCheckSystem(ctx context.Context, he
 		}
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Health check system initialized with interval: %s", healthCheckInterval),
@@ -345,7 +345,7 @@ func (e *PluginNodeExecutor) initializeHealthCheckSystem(ctx context.Context, he
 }
 
 // performPluginDiscovery 执行插件发现
-func (e *PluginNodeExecutor) performPluginDiscovery(ctx context.Context, paths []string, result *startup.StartupNodeResult) ([]map[string]interface{}, error) {
+func (e *PluginNodeExecutor) performPluginDiscovery(ctx context.Context, paths []string, result *model.StartupNodeResult) ([]map[string]interface{}, error) {
 	var discoveredPlugins []map[string]interface{}
 
 	// 模拟插件发现过程
@@ -368,7 +368,7 @@ func (e *PluginNodeExecutor) performPluginDiscovery(ctx context.Context, paths [
 			}
 			discoveredPlugins = append(discoveredPlugins, plugin)
 
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "info",
 				Message:   fmt.Sprintf("Discovered plugin: %s", plugin["name"]),
@@ -388,7 +388,7 @@ func (e *PluginNodeExecutor) performPluginDiscovery(ctx context.Context, paths [
 }
 
 // startBackgroundTasks 启动后台任务
-func (e *PluginNodeExecutor) startBackgroundTasks(ctx context.Context, enableDiscovery, enableHealthCheck bool, scanInterval, healthCheckInterval string, discoveryPaths []string, result *startup.StartupNodeResult) {
+func (e *PluginNodeExecutor) startBackgroundTasks(ctx context.Context, enableDiscovery, enableHealthCheck bool, scanInterval, healthCheckInterval string, discoveryPaths []string, result *model.StartupNodeResult) {
 	// 启动插件扫描任务
 	if enableDiscovery && scanInterval != "" {
 		interval, _ := time.ParseDuration(scanInterval)
@@ -403,7 +403,7 @@ func (e *PluginNodeExecutor) startBackgroundTasks(ctx context.Context, enableDis
 }
 
 // startPeriodicScan 启动定期扫描任务
-func (e *PluginNodeExecutor) startPeriodicScan(ctx context.Context, interval time.Duration, discoveryPaths []string, result *startup.StartupNodeResult) {
+func (e *PluginNodeExecutor) startPeriodicScan(ctx context.Context, interval time.Duration, discoveryPaths []string, result *model.StartupNodeResult) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -422,7 +422,7 @@ func (e *PluginNodeExecutor) startPeriodicScan(ctx context.Context, interval tim
 }
 
 // startPeriodicHealthCheck 启动定期健康检查任务
-func (e *PluginNodeExecutor) startPeriodicHealthCheck(ctx context.Context, interval time.Duration, result *startup.StartupNodeResult) {
+func (e *PluginNodeExecutor) startPeriodicHealthCheck(ctx context.Context, interval time.Duration, result *model.StartupNodeResult) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
@@ -468,13 +468,13 @@ func (e *PluginNodeExecutor) getSupportedPluginTypes() []string {
 }
 
 // Validate 验证节点配置
-func (e *PluginNodeExecutor) Validate(ctx context.Context, node *startup.StartupNode) error {
+func (e *PluginNodeExecutor) Validate(ctx context.Context, node *model.StartupNode) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID is required")
 	}
 
-	if node.Type != startup.StartupNodePlugin {
-		return fmt.Errorf("invalid node type: expected %s, got %s", startup.StartupNodePlugin, node.Type)
+	if node.Type != model.StartupNodePlugin {
+		return fmt.Errorf("invalid node type: expected %s, got %s", model.StartupNodePlugin, node.Type)
 	}
 
 	// 根据节点ID验证特定配置
@@ -487,7 +487,7 @@ func (e *PluginNodeExecutor) Validate(ctx context.Context, node *startup.Startup
 }
 
 // validateInitPluginManager 验证插件管理器配置
-func (e *PluginNodeExecutor) validateInitPluginManager(node *startup.StartupNode) error {
+func (e *PluginNodeExecutor) validateInitPluginManager(node *model.StartupNode) error {
 	registryType := getStringConfig(node.Config, "registry_type", "")
 	if registryType != "" && !contains([]string{"memory", "redis", "database"}, registryType) {
 		return fmt.Errorf("unsupported registry_type: %s", registryType)
@@ -517,9 +517,9 @@ func (e *PluginNodeExecutor) validateInitPluginManager(node *startup.StartupNode
 }
 
 // GetNodeInfo 获取节点信息
-func (e *PluginNodeExecutor) GetNodeInfo() *startup.StartupNodeInfo {
-	return &startup.StartupNodeInfo{
-		Type:        startup.StartupNodePlugin,
+func (e *PluginNodeExecutor) GetNodeInfo() *model.StartupNodeInfo {
+	return &model.StartupNodeInfo{
+		Type:        model.StartupNodePlugin,
 		Name:        "Plugin Node Executor",
 		Description: "Handles plugin management system initialization including discovery, registry, and health monitoring",
 		Version:     "1.0.0",
@@ -606,3 +606,6 @@ func getStringSliceConfig(config map[string]interface{}, key string, defaultValu
 
 	return defaultValue
 }
+
+
+

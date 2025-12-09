@@ -1,13 +1,13 @@
 package adapters
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 
 	"xiaozhi-server-go/internal/platform/config"
 	websockettransport "xiaozhi-server-go/internal/core/transport/websocket"
 	"xiaozhi-server-go/internal/core/transport"
-	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/core/pool"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
@@ -18,7 +18,7 @@ import (
 // 在过渡期间提供与旧传输系统的兼容性
 type TransportAdapter struct {
 	config       *config.Config
-	logger       *utils.Logger
+	logger       *logging.Logger
 	legacyAdapter *LegacyPoolManagerAdapter
 	registry      *capability.Registry
 
@@ -29,7 +29,7 @@ type TransportAdapter struct {
 }
 
 // NewTransportAdapter 创建传输层适配器
-func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository, registry *capability.Registry) *TransportAdapter {
+func NewTransportAdapter(cfg *config.Config, logger *logging.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository, registry *capability.Registry) *TransportAdapter {
 	adapter := &TransportAdapter{
 		config:        cfg,
 		logger:        logger,
@@ -168,11 +168,11 @@ type TransportManager interface {
 
 // MockTransportManager 模拟传输管理器
 type MockTransportManager struct {
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
 // NewMockTransportManager 创建模拟传输管理器
-func NewMockTransportManager(logger *utils.Logger) *MockTransportManager {
+func NewMockTransportManager(logger *logging.Logger) *MockTransportManager {
 	return &MockTransportManager{
 		logger: logger,
 	}
@@ -206,3 +206,5 @@ func (m *MockTransportManager) GetStats() map[string]interface{} {
 func (m *MockTransportManager) CloseDeviceConnection(deviceID string) error {
 	return nil
 }
+
+

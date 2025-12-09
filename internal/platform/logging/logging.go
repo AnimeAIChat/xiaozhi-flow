@@ -10,10 +10,12 @@ import (
 
 // Config captures logging configuration options.
 type Config struct {
-	Level    string
-	Dir      string
-	Filename string
+	Level    string `yaml:"log_level" json:"log_level"`
+	Dir      string `yaml:"log_dir" json:"log_dir"`
+	Filename string `yaml:"log_file" json:"log_file"`
 }
+
+var DefaultLogger *Logger
 
 // Logger provides access to slog logging APIs.
 type Logger struct {

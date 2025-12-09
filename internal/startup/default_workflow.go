@@ -1,12 +1,14 @@
 package startup
 
 import (
+	"xiaozhi-server-go/internal/workflow"
+	"xiaozhi-server-go/internal/startup/model"
 	"time"
 )
 
 // CreateDefaultStartupWorkflow 创建默认启动工作流
-func CreateDefaultStartupWorkflow() *StartupWorkflow {
-	return &StartupWorkflow{
+func CreateDefaultStartupWorkflow() *model.StartupWorkflow {
+	return &model.StartupWorkflow{
 		ID:          "xiaozhi-flow-default-startup",
 		Name:        "XiaoZhi Flow 默认启动工作流",
 		Description: "将现有的bootstrap启动步骤转换为可视化工作流",
@@ -14,20 +16,20 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Tags:        []string{"default", "system", "startup"},
-		Config: StartupWorkflowConfig{
-			Timeout:       DefaultTimeout,
-			MaxRetries:    DefaultMaxRetries,
-			ParallelLimit: DefaultParallelLimit,
+		Config: model.StartupWorkflowConfig{
+			Timeout:       model.DefaultTimeout,
+			MaxRetries:    model.DefaultMaxRetries,
+			ParallelLimit: model.DefaultParallelLimit,
 			EnableLog:     true,
 			Environment:   make(map[string]interface{}),
 			Variables:     make(map[string]interface{}),
-			OnFailure:     FailureActionStop,
+			OnFailure:     model.FailureActionStop,
 		},
-		Nodes: []StartupNode{
+		Nodes: []model.StartupNode{
 			{
 				ID:        "storage:init-config-store",
 				Name:      "初始化配置存储",
-				Type:      StartupNodeStorage,
+				Type:      model.StartupNodeStorage,
 				Description: "初始化配置存储系统，用于持久化应用配置",
 				DependsOn: []string{},
 				Config: map[string]interface{}{
@@ -47,7 +49,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "storage:init-database",
 				Name:      "初始化数据库",
-				Type:      StartupNodeStorage,
+				Type:      model.StartupNodeStorage,
 				Description: "初始化数据库连接，支持SQLite、MySQL、PostgreSQL",
 				DependsOn: []string{"storage:init-config-store"},
 				Config: map[string]interface{}{
@@ -69,7 +71,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "config:load-default",
 				Name:      "加载默认配置",
-				Type:      StartupNodeConfig,
+				Type:      model.StartupNodeConfig,
 				Description: "从数据库加载默认配置，如果没有则使用内置默认值",
 				DependsOn: []string{"storage:init-config-store", "storage:init-database"},
 				Config: map[string]interface{}{
@@ -89,7 +91,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "logging:init-provider",
 				Name:      "初始化日志系统",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化日志提供者，设置日志级别和输出格式",
 				DependsOn: []string{"config:load-default"},
 				Config: map[string]interface{}{
@@ -113,7 +115,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "components:init-container",
 				Name:      "初始化组件容器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化组件容器，管理所有依赖注入",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -133,7 +135,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "config:init-integrator",
 				Name:      "初始化配置集成器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化配置集成器，统一配置管理",
 				DependsOn: []string{"components:init-container", "logging:init-provider"},
 				Config: map[string]interface{}{
@@ -154,7 +156,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "auth:init-manager",
 				Name:      "初始化认证管理器",
-				Type:      StartupNodeAuth,
+				Type:      model.StartupNodeAuth,
 				Description: "初始化认证管理器，设置用户认证和会话管理",
 				DependsOn: []string{"components:init-container"},
 				Config: map[string]interface{}{
@@ -178,7 +180,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "mcp:init-manager",
 				Name:      "初始化MCP管理器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化MCP（Model Context Protocol）管理器",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -201,7 +203,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "observability:setup-hooks",
 				Name:      "设置可观测性钩子",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "设置可观测性钩子，包括指标收集和分布式追踪",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -224,7 +226,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "plugin:init-manager",
 				Name:      "初始化插件管理器",
-				Type:      StartupNodePlugin,
+				Type:      model.StartupNodePlugin,
 				Description: "初始化插件管理器，设置插件发现和管理功能",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -250,7 +252,7 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "start-services",
 				Name:      "启动系统服务",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "启动HTTP、WebSocket、OTA等系统服务",
 				DependsOn: []string{
 					"storage:init-database",
@@ -294,8 +296,8 @@ func CreateDefaultStartupWorkflow() *StartupWorkflow {
 }
 
 // CreateParallelStartupWorkflow 创建并行启动工作流（优化版本）
-func CreateParallelStartupWorkflow() *StartupWorkflow {
-	return &StartupWorkflow{
+func CreateParallelStartupWorkflow() *model.StartupWorkflow {
+	return &model.StartupWorkflow{
 		ID:          "xiaozhi-flow-parallel-startup",
 		Name:        "XiaoZhi Flow 并行启动工作流",
 		Description: "优化的并行启动工作流，支持并行执行无依赖的步骤",
@@ -303,21 +305,21 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 		Tags:        []string{"parallel", "optimized", "system", "startup"},
-		Config: StartupWorkflowConfig{
-			Timeout:       DefaultTimeout,
-			MaxRetries:    DefaultMaxRetries,
+		Config: model.StartupWorkflowConfig{
+			Timeout:       model.DefaultTimeout,
+			MaxRetries:    model.DefaultMaxRetries,
 			ParallelLimit: 8, // 提高并行度
 			EnableLog:     true,
 			Environment:   make(map[string]interface{}),
 			Variables:     make(map[string]interface{}),
-			OnFailure:     FailureActionStop,
+			OnFailure:     model.FailureActionStop,
 		},
-		Nodes: []StartupNode{
+		Nodes: []model.StartupNode{
 			// 层次1：存储层（顺序执行）
 			{
 				ID:        "storage:init-config-store",
 				Name:      "初始化配置存储",
-				Type:      StartupNodeStorage,
+				Type:      model.StartupNodeStorage,
 				Description: "初始化配置存储系统",
 				DependsOn: []string{},
 				Config: map[string]interface{}{
@@ -332,7 +334,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "storage:init-database",
 				Name:      "初始化数据库",
-				Type:      StartupNodeStorage,
+				Type:      model.StartupNodeStorage,
 				Description: "初始化数据库连接",
 				DependsOn: []string{"storage:init-config-store"},
 				Config: map[string]interface{}{
@@ -351,7 +353,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "config:load-default",
 				Name:      "加载默认配置",
-				Type:      StartupNodeConfig,
+				Type:      model.StartupNodeConfig,
 				Description: "从数据库加载默认配置",
 				DependsOn: []string{"storage:init-config-store", "storage:init-database"},
 				Config: map[string]interface{}{
@@ -368,7 +370,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "logging:init-provider",
 				Name:      "初始化日志系统",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化日志提供者",
 				DependsOn: []string{"config:load-default"},
 				Config: map[string]interface{}{
@@ -383,7 +385,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "components:init-container",
 				Name:      "初始化组件容器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化组件容器",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -397,7 +399,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "config:init-integrator",
 				Name:      "初始化配置集成器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化配置集成器",
 				DependsOn: []string{"components:init-container", "logging:init-provider"},
 				Config: map[string]interface{}{
@@ -411,7 +413,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "auth:init-manager",
 				Name:      "初始化认证管理器",
-				Type:      StartupNodeAuth,
+				Type:      model.StartupNodeAuth,
 				Description: "初始化认证管理器",
 				DependsOn: []string{"components:init-container"},
 				Config: map[string]interface{}{
@@ -428,7 +430,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "mcp:init-manager",
 				Name:      "初始化MCP管理器",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化MCP管理器",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -443,7 +445,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "observability:setup-hooks",
 				Name:      "设置可观测性钩子",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "设置可观测性钩子",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -457,7 +459,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "plugin:init-manager",
 				Name:      "初始化插件管理器",
-				Type:      StartupNodePlugin,
+				Type:      model.StartupNodePlugin,
 				Description: "初始化插件管理器",
 				DependsOn: []string{"logging:init-provider"},
 				Config: map[string]interface{}{
@@ -475,7 +477,7 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "start-services",
 				Name:      "启动系统服务",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "启动HTTP、WebSocket、OTA等系统服务",
 				DependsOn: []string{
 					"storage:init-database",
@@ -534,28 +536,28 @@ func CreateParallelStartupWorkflow() *StartupWorkflow {
 }
 
 // CreateMinimalStartupWorkflow 创建最小启动工作流
-func CreateMinimalStartupWorkflow() *StartupWorkflow {
-	return &StartupWorkflow{
+func CreateMinimalStartupWorkflow() *model.StartupWorkflow {
+	return &model.StartupWorkflow{
 		ID:          "xiaozhi-flow-minimal-startup",
 		Name:        "XiaoZhi Flow 最小启动工作流",
 		Description: "仅包含必要组件的最小化启动工作流",
 		Version:     "1.0.0",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
-		Config: StartupWorkflowConfig{
+		Config: model.StartupWorkflowConfig{
 			Timeout:       5 * time.Minute,
 			MaxRetries:    1,
 			ParallelLimit: 2,
 			EnableLog:     true,
 			Environment:   make(map[string]interface{}),
 			Variables:     make(map[string]interface{}),
-			OnFailure:     FailureActionStop,
+			OnFailure:     model.FailureActionStop,
 		},
-		Nodes: []StartupNode{
+		Nodes: []model.StartupNode{
 			{
 				ID:        "storage:init-database",
 				Name:      "初始化数据库",
-				Type:      StartupNodeStorage,
+				Type:      model.StartupNodeStorage,
 				Description: "初始化SQLite数据库",
 				DependsOn: []string{},
 				Config: map[string]interface{}{
@@ -572,7 +574,7 @@ func CreateMinimalStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "config:load-default",
 				Name:      "加载默认配置",
-				Type:      StartupNodeConfig,
+				Type:      model.StartupNodeConfig,
 				Description: "加载内置默认配置",
 				DependsOn: []string{"storage:init-database"},
 				Config: map[string]interface{}{
@@ -586,7 +588,7 @@ func CreateMinimalStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "logging:init-provider",
 				Name:      "初始化日志系统",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "初始化基本日志功能",
 				DependsOn: []string{"config:load-default"},
 				Config: map[string]interface{}{
@@ -602,7 +604,7 @@ func CreateMinimalStartupWorkflow() *StartupWorkflow {
 			{
 				ID:        "start-basic-services",
 				Name:      "启动基础服务",
-				Type:      StartupNodeService,
+				Type:      model.StartupNodeService,
 				Description: "启动HTTP和WebSocket基础服务",
 				DependsOn: []string{"storage:init-database", "logging:init-provider"},
 				Config: map[string]interface{}{
@@ -624,3 +626,5 @@ func CreateMinimalStartupWorkflow() *StartupWorkflow {
 		},
 	}
 }
+
+

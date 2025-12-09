@@ -1,12 +1,12 @@
 package adapters
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // LegacyPoolManagerAdapter 旧版资源池管理器适配器
@@ -14,18 +14,18 @@ import (
 type LegacyPoolManagerAdapter struct {
 	// 使用接口而不是具体实现，避免循环依赖
 	providerFactory ProviderFactoryInterface
-	logger          *utils.Logger
+	logger          *logging.Logger
 }
 
 // ProviderFactoryInterface 提供者工厂接口（避免循环依赖）
 type ProviderFactoryInterface interface {
-	CreateASRProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.ASRProvider, error)
-	CreateLLMProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.LLMProvider, error)
-	CreateTTSProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.TTSProvider, error)
+	CreateASRProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.ASRProvider, error)
+	CreateLLMProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.LLMProvider, error)
+	CreateTTSProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.TTSProvider, error)
 }
 
 // NewLegacyPoolManagerAdapter 创建旧版资源池管理器适配器
-func NewLegacyPoolManagerAdapter(factory ProviderFactoryInterface, logger *utils.Logger) *LegacyPoolManagerAdapter {
+func NewLegacyPoolManagerAdapter(factory ProviderFactoryInterface, logger *logging.Logger) *LegacyPoolManagerAdapter {
 	return &LegacyPoolManagerAdapter{
 		providerFactory: factory,
 		logger:          logger,
@@ -81,11 +81,11 @@ func (a *LegacyPoolManagerAdapter) Close() {
 // BootstrapManager 引导管理器，负责在不产生循环依赖的情况下初始化组件
 type BootstrapManager struct {
 	config *config.Config
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
 // NewBootstrapManager 创建引导管理器
-func NewBootstrapManager(cfg *config.Config, logger *utils.Logger) *BootstrapManager {
+func NewBootstrapManager(cfg *config.Config, logger *logging.Logger) *BootstrapManager {
 	return &BootstrapManager{
 		config: cfg,
 		logger: logger,
@@ -117,7 +117,7 @@ func (bm *BootstrapManager) InitializeComponents() (*ComponentContainer, error) 
 // ComponentContainer 组件容器，持有所有初始化的组件
 type ComponentContainer struct {
 	config         *config.Config
-	logger         *utils.Logger
+	logger         *logging.Logger
 	legacyAdapter  *LegacyPoolManagerAdapter
 	providerFactory ProviderFactoryInterface
 }
@@ -135,11 +135,11 @@ func (c *ComponentContainer) GetProviderFactory() ProviderFactoryInterface {
 // SafeProviderFactory 安全的提供者工厂实现，避免循环依赖
 type SafeProviderFactory struct {
 	config *config.Config
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
 // NewSafeProviderFactory 创建安全的提供者工厂
-func NewSafeProviderFactory(cfg *config.Config, logger *utils.Logger) *SafeProviderFactory {
+func NewSafeProviderFactory(cfg *config.Config, logger *logging.Logger) *SafeProviderFactory {
 	return &SafeProviderFactory{
 		config: cfg,
 		logger: logger,
@@ -147,7 +147,7 @@ func NewSafeProviderFactory(cfg *config.Config, logger *utils.Logger) *SafeProvi
 }
 
 // CreateASRProvider 创建ASR提供者
-func (f *SafeProviderFactory) CreateASRProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.ASRProvider, error) {
+func (f *SafeProviderFactory) CreateASRProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.ASRProvider, error) {
 	if logger != nil {
 		logger.InfoTag("安全工厂", "创建ASR提供者: %s", providerType)
 	}
@@ -157,7 +157,7 @@ func (f *SafeProviderFactory) CreateASRProvider(providerType string, cfg *config
 }
 
 // CreateLLMProvider 创建LLM提供者
-func (f *SafeProviderFactory) CreateLLMProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.LLMProvider, error) {
+func (f *SafeProviderFactory) CreateLLMProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.LLMProvider, error) {
 	if logger != nil {
 		logger.InfoTag("安全工厂", "创建LLM提供者: %s", providerType)
 	}
@@ -167,7 +167,7 @@ func (f *SafeProviderFactory) CreateLLMProvider(providerType string, cfg *config
 }
 
 // CreateTTSProvider 创建TTS提供者
-func (f *SafeProviderFactory) CreateTTSProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.TTSProvider, error) {
+func (f *SafeProviderFactory) CreateTTSProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.TTSProvider, error) {
 	if logger != nil {
 		logger.InfoTag("安全工厂", "创建TTS提供者: %s", providerType)
 	}
@@ -178,3 +178,5 @@ func (f *SafeProviderFactory) CreateTTSProvider(providerType string, cfg *config
 
 // Provider适配器将在后续版本中实现
 // 目前使用简化实现避免接口复杂性
+
+

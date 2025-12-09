@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"time"
 
@@ -8,18 +9,17 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/transport/http/types/v1"
 	httpUtils "xiaozhi-server-go/internal/transport/http/utils"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // AuthServiceV1 V1版本认证服务
 type AuthServiceV1 struct {
-	logger *utils.Logger
+	logger *logging.Logger
 	config *config.Config
 	// TODO: 添加实际的业务逻辑依赖
 }
 
 // NewAuthServiceV1 创建认证服务V1实例
-func NewAuthServiceV1(config *config.Config, logger *utils.Logger) (*AuthServiceV1, error) {
+func NewAuthServiceV1(config *config.Config, logger *logging.Logger) (*AuthServiceV1, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -742,3 +742,4 @@ func getRequestID(c *gin.Context) string {
 	}
 	return ""
 }
+

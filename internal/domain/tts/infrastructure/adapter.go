@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -8,8 +9,7 @@ import (
 
 	"xiaozhi-server-go/internal/domain/tts/inter"
 	"xiaozhi-server-go/internal/domain/tts/repository"
-	"xiaozhi-server-go/internal/domain/providers"
-	"xiaozhi-server-go/internal/utils"
+	providers "xiaozhi-server-go/internal/contracts/providers"
 	"xiaozhi-server-go/internal/platform/errors"
 )
 
@@ -17,11 +17,11 @@ import (
 type ttsAdapter struct {
 	mu       sync.RWMutex
 	provider providers.TTSProvider
-	logger   *utils.Logger
+	logger   *logging.Logger
 }
 
 // NewTTSAdapter 创建TTS适配器
-func NewTTSAdapter(providerType string, config inter.TTSConfig, logger *utils.Logger) (repository.TTSRepository, error) {
+func NewTTSAdapter(providerType string, config inter.TTSConfig, logger *logging.Logger) (repository.TTSRepository, error) {
 	// 注意：这里需要一个工厂方法来创建TTSProvider
 	// 暂时返回nil，后面需要实现
 	return &ttsAdapter{
@@ -35,12 +35,12 @@ func (t *ttsAdapter) SynthesizeText(ctx context.Context, req repository.Synthesi
 	}
 
 	// 设置语音
-	if err, _ := t.provider.SetVoice(req.Config.Voice); err != nil {
+	if err := t.provider.SetVoice(req.Config.Voice); err != nil {
 		return nil, errors.Wrap(errors.KindDomain, "tts.adapter.voice", "failed to set voice", err)
 	}
 
 	// 合成语音
-	filePath, err := t.provider.ToTTS(req.Text)
+	filePath, err := t.provider.SynthesizeToFile(req.Text)
 	if err != nil {
 		return nil, errors.Wrap(errors.KindDomain, "tts.adapter.synthesize", "failed to synthesize text", err)
 	}
@@ -153,3 +153,5 @@ func (t *ttsAdapter) Close() error {
 	}
 	return nil
 }
+
+

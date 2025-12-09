@@ -8,15 +8,16 @@ import (
 	"time"
 
 	"xiaozhi-server-go/internal/workflow"
+	"xiaozhi-server-go/internal/startup/model"
 )
 
 // StartupWorkflowExecutor 启动工作流执行器
 type StartupWorkflowExecutor struct {
-	manager         StartupWorkflowManager
-	pluginManager   StartupPluginManager
-	eventHandler    StartupEventHandler
+	manager         model.StartupWorkflowManager
+	pluginManager   model.StartupPluginManager
+	eventHandler    model.StartupEventHandler
 	workflowEngine  *workflow.WorkflowExecutor
-	logger          StartupLogger
+	logger          model.StartupLogger
 
 	// 执行状态
 	executions      map[string]*StartupWorkflowExecution
@@ -38,12 +39,12 @@ type ExecutorConfig struct {
 // StartupWorkflowExecution 启动工作流执行实例
 type StartupWorkflowExecution struct {
 	ID             string                        `json:"id"`
-	Workflow       *StartupWorkflow              `json:"workflow"`
+	Workflow       *model.StartupWorkflow              `json:"workflow"`
 	Execution      *workflow.Execution           `json:"execution"`
 	Context        map[string]interface{}        `json:"context"`
 	StartTime      time.Time                     `json:"start_time"`
 	EndTime        *time.Time                    `json:"end_time,omitempty"`
-	Status         WorkflowExecutionStatus       `json:"status"`
+	Status         workflow.ExecutionStatus       `json:"status"`
 	Error          string                        `json:"error,omitempty"`
 	Progress       float64                       `json:"progress"`
 	CompletedNodes int                           `json:"completed_nodes"`
@@ -56,7 +57,7 @@ type StartupWorkflowExecution struct {
 type NodeExecution struct {
 	NodeID      string                    `json:"node_id"`
 	NodeName    string                    `json:"node_name"`
-	NodeType    StartupNodeType           `json:"node_type"`
+	NodeType    model.StartupNodeType           `json:"node_type"`
 	Status      workflow.NodeStatus       `json:"status"`
 	StartTime   time.Time                 `json:"start_time"`
 	EndTime     *time.Time                `json:"end_time,omitempty"`
@@ -78,35 +79,17 @@ type NodeLog struct {
 	Data      map[string]interface{} `json:"data,omitempty"`
 }
 
-// WorkflowExecutionStatus 工作流执行状态
-type WorkflowExecutionStatus string
 
-const (
-	WorkflowStatusPending    WorkflowExecutionStatus = "pending"
-	WorkflowStatusRunning    WorkflowExecutionStatus = "running"
-	WorkflowStatusPaused     WorkflowExecutionStatus = "paused"
-	WorkflowStatusCompleted  WorkflowExecutionStatus = "completed"
-	WorkflowStatusFailed     WorkflowExecutionStatus = "failed"
-	WorkflowStatusCancelled  WorkflowExecutionStatus = "cancelled"
-)
-
-// StartupLogger 启动日志接口
-type StartupLogger interface {
-	Debug(msg string, fields ...interface{})
-	Info(msg string, fields ...interface{})
-	Warn(msg string, fields ...interface{})
-	Error(msg string, fields ...interface{})
-}
 
 // NewStartupWorkflowExecutor 创建启动工作流执行器
 func NewStartupWorkflowExecutor(
-	manager StartupWorkflowManager,
-	pluginManager StartupPluginManager,
-	eventHandler StartupEventHandler,
-	logger StartupLogger,
+	manager model.StartupWorkflowManager,
+	pluginManager model.StartupPluginManager,
+	eventHandler model.StartupEventHandler,
+	logger model.StartupLogger,
 ) *StartupWorkflowExecutor {
 	config := ExecutorConfig{
-		DefaultTimeout:            DefaultTimeout,
+		DefaultTimeout:            model.DefaultTimeout,
 		MaxConcurrentExecutions:   5,
 		EnableEventLogging:        true,
 		EnableMetrics:            true,
@@ -139,7 +122,7 @@ func (s *StartupWorkflowExecutor) ExecuteWorkflow(
 	s.executionsMutex.RLock()
 	if len(s.executions) >= s.config.MaxConcurrentExecutions {
 		s.executionsMutex.RUnlock()
-		return nil, NewStartupError("MAX_CONCURRENT_EXECUTIONS",
+		return nil, model.NewStartupError("MAX_CONCURRENT_EXECUTIONS",
 			fmt.Sprintf("maximum concurrent executions (%d) reached", s.config.MaxConcurrentExecutions))
 	}
 	s.executionsMutex.RUnlock()
@@ -150,7 +133,7 @@ func (s *StartupWorkflowExecutor) ExecuteWorkflow(
 		Workflow:       workflowDef,
 		Context:        make(map[string]interface{}),
 		StartTime:      time.Now(),
-		Status:         WorkflowStatusPending,
+		Status:         workflow.ExecutionStatusPending,
 		Progress:       0.0,
 		CompletedNodes: 0,
 		TotalNodes:     len(workflowDef.Nodes),
@@ -171,7 +154,7 @@ func (s *StartupWorkflowExecutor) ExecuteWorkflow(
 
 	// 发送执行开始事件
 	if s.eventHandler != nil {
-		s.eventHandler.OnExecutionStart(ctx, execution)
+		s.eventHandler.OnExecutionStart(ctx, execution.toModel())
 	}
 
 	// 启动执行
@@ -193,7 +176,7 @@ func (s *StartupWorkflowExecutor) executeWorkflowAsync(
 	}()
 
 	// 更新状态为运行中
-	s.updateExecutionStatus(execution, WorkflowStatusRunning, "")
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusRunning, "")
 
 	// 获取执行超时配置
 	timeout := execution.Workflow.Config.Timeout
@@ -223,7 +206,7 @@ func (s *StartupWorkflowExecutor) executeWorkflowAsync(
 
 	// 发送执行结束事件
 	if s.eventHandler != nil {
-		s.eventHandler.OnExecutionEnd(ctx, execution)
+		s.eventHandler.OnExecutionEnd(ctx, execution.toModel())
 	}
 
 	// 清理执行实例（延迟一段时间以支持状态查询）
@@ -268,10 +251,10 @@ func (s *StartupWorkflowExecutor) executeNodes(
 
 // topologicalSort 拓扑排序获取执行层次
 func (s *StartupWorkflowExecutor) topologicalSort(
-	workflow *StartupWorkflow,
+	workflow *model.StartupWorkflow,
 ) ([][]string, error) {
 	// 构建节点映射和依赖图
-	nodeMap := make(map[string]*StartupNode)
+	nodeMap := make(map[string]*model.StartupNode)
 	for _, node := range workflow.Nodes {
 		nodeMap[node.ID] = &node
 	}
@@ -300,7 +283,6 @@ func (s *StartupWorkflowExecutor) topologicalSort(
 			currentLevel = append(currentLevel, nodeID)
 
 			// 更新依赖此节点的其他节点的入度
-			node := nodeMap[nodeID]
 			for _, edge := range workflow.Edges {
 				if edge.From == nodeID {
 					inDegree[edge.To]--
@@ -324,7 +306,7 @@ func (s *StartupWorkflowExecutor) topologicalSort(
 	}
 
 	if unprocessed > 0 {
-		return nil, ErrCircularDependency
+		return nil, model.ErrCircularDependency
 	}
 
 	return levels, nil
@@ -382,7 +364,7 @@ func (s *StartupWorkflowExecutor) executeNode(
 	// 获取节点定义
 	node := execution.Workflow.GetNodeByID(nodeID)
 	if node == nil {
-		return NewStartupError("NODE_NOT_FOUND", fmt.Sprintf("node %s not found", nodeID))
+		return model.NewStartupError("NODE_NOT_FOUND", fmt.Sprintf("node %s not found", nodeID))
 	}
 
 	// 创建节点执行记录
@@ -401,16 +383,16 @@ func (s *StartupWorkflowExecutor) executeNode(
 
 	// 发送节点开始事件
 	if s.eventHandler != nil {
-		s.eventHandler.OnNodeStart(ctx, execution, node)
+		s.eventHandler.OnNodeStart(ctx, execution.toModel(), node)
 	}
 
 	// 更新节点状态
 	s.updateNodeStatus(nodeExec, workflow.NodeStatusRunning, "")
 
 	// 获取节点执行器
-	executor, exists := s.pluginManager.GetExecutor(node.Type)
-	if !exists {
-		return NewStartupError("EXECUTOR_NOT_FOUND",
+	executor, err := s.pluginManager.GetExecutor(node.Type)
+	if err != nil {
+		return model.NewStartupError("EXECUTOR_NOT_FOUND",
 			fmt.Sprintf("no executor found for node type %s", node.Type))
 	}
 
@@ -430,7 +412,7 @@ func (s *StartupWorkflowExecutor) executeNode(
 
 		// 发送节点错误事件
 		if s.eventHandler != nil {
-			s.eventHandler.OnNodeError(ctx, execution, node, err)
+			s.eventHandler.OnNodeError(ctx, execution.toModel(), node, err)
 		}
 
 		// 检查是否需要重试
@@ -458,7 +440,7 @@ func (s *StartupWorkflowExecutor) executeNode(
 
 	// 发送节点完成事件
 	if s.eventHandler != nil {
-		s.eventHandler.OnNodeComplete(ctx, execution, node, result)
+		s.eventHandler.OnNodeComplete(ctx, execution.toModel(), node, result)
 	}
 
 	return nil
@@ -468,7 +450,7 @@ func (s *StartupWorkflowExecutor) executeNode(
 func (s *StartupWorkflowExecutor) prepareNodeInputs(
 	ctx context.Context,
 	execution *StartupWorkflowExecution,
-	node *StartupNode,
+	node *model.StartupNode,
 ) map[string]interface{} {
 	inputs := make(map[string]interface{})
 
@@ -496,7 +478,7 @@ func (s *StartupWorkflowExecutor) prepareNodeInputs(
 func (s *StartupWorkflowExecutor) retryNode(
 	ctx context.Context,
 	execution *StartupWorkflowExecution,
-	node *StartupNode,
+	node *model.StartupNode,
 	nodeExec *NodeExecution,
 ) error {
 	if node.Retry == nil {
@@ -524,7 +506,7 @@ func (s *StartupWorkflowExecutor) retryNode(
 
 	// 发送重试事件
 	if s.eventHandler != nil {
-		s.eventHandler.OnNodeRetry(ctx, execution, node)
+		s.eventHandler.OnNodeRetry(ctx, execution.toModel(), node)
 	}
 
 	// 重新执行节点
@@ -534,7 +516,7 @@ func (s *StartupWorkflowExecutor) retryNode(
 // updateExecutionStatus 更新执行状态
 func (s *StartupWorkflowExecutor) updateExecutionStatus(
 	execution *StartupWorkflowExecution,
-	status WorkflowExecutionStatus,
+	status workflow.ExecutionStatus,
 	errorMsg string,
 ) {
 	execution.Mutex.Lock()
@@ -588,13 +570,13 @@ func (s *StartupWorkflowExecutor) updateExecutionProgress(execution *StartupWork
 
 // markExecutionFailed 标记执行失败
 func (s *StartupWorkflowExecutor) markExecutionFailed(execution *StartupWorkflowExecution, errorMsg string) {
-	s.updateExecutionStatus(execution, WorkflowStatusFailed, errorMsg)
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusFailed, errorMsg)
 	s.logger.Error("Workflow execution failed", "execution_id", execution.ID, "error", errorMsg)
 }
 
 // markExecutionCompleted 标记执行完成
 func (s *StartupWorkflowExecutor) markExecutionCompleted(execution *StartupWorkflowExecution) {
-	s.updateExecutionStatus(execution, WorkflowStatusCompleted, "")
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusCompleted, "")
 	execution.Progress = 100.0
 	s.logger.Info("Workflow execution completed", "execution_id", execution.ID)
 }
@@ -615,14 +597,14 @@ func (s *StartupWorkflowExecutor) CancelExecution(executionID string) error {
 
 	execution, exists := s.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
-	if execution.Status == WorkflowStatusCompleted || execution.Status == WorkflowStatusFailed {
-		return NewStartupError("EXECUTION_ALREADY_FINISHED", "execution already finished")
+	if execution.Status == workflow.ExecutionStatusCompleted || execution.Status == workflow.ExecutionStatusFailed {
+		return model.NewStartupError("EXECUTION_ALREADY_FINISHED", "execution already finished")
 	}
 
-	s.updateExecutionStatus(execution, WorkflowStatusCancelled, "cancelled by user")
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusCancelled, "cancelled by user")
 	return nil
 }
 
@@ -633,14 +615,14 @@ func (s *StartupWorkflowExecutor) PauseExecution(executionID string) error {
 
 	execution, exists := s.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
-	if execution.Status != WorkflowStatusRunning {
-		return NewStartupError("EXECUTION_NOT_RUNNING", "execution is not running")
+	if execution.Status != workflow.ExecutionStatusRunning {
+		return model.NewStartupError("EXECUTION_NOT_RUNNING", "execution is not running")
 	}
 
-	s.updateExecutionStatus(execution, WorkflowStatusPaused, "paused by user")
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusPaused, "paused by user")
 	return nil
 }
 
@@ -651,14 +633,14 @@ func (s *StartupWorkflowExecutor) ResumeExecution(executionID string) error {
 
 	execution, exists := s.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
-	if execution.Status != WorkflowStatusPaused {
-		return NewStartupError("EXECUTION_NOT_PAUSED", "execution is not paused")
+	if execution.Status != workflow.ExecutionStatusPaused {
+		return model.NewStartupError("EXECUTION_NOT_PAUSED", "execution is not paused")
 	}
 
-	s.updateExecutionStatus(execution, WorkflowStatusRunning, "")
+	s.updateExecutionStatus(execution, workflow.ExecutionStatusRunning, "")
 
 	// 恢复执行
 	go s.executeWorkflowAsync(context.Background(), execution)
@@ -691,3 +673,36 @@ func extractNodeIDFromError(errMsg string) string {
 
 	return errMsg[startIndex : startIndex+endIndex]
 }
+
+// toModel converts StartupWorkflowExecution to model.StartupExecution
+func (e *StartupWorkflowExecution) toModel() *model.StartupExecution {
+    var duration time.Duration
+    if e.EndTime != nil {
+        duration = e.EndTime.Sub(e.StartTime)
+    } else {
+        duration = time.Since(e.StartTime)
+    }
+    
+    var startupError *model.StartupError
+    if e.Error != "" {
+        startupError = &model.StartupError{Message: e.Error}
+    }
+
+return &model.StartupExecution{
+ID:            e.ID,
+WorkflowID:    e.Workflow.ID,
+WorkflowName:  e.Workflow.Name,
+WorkflowVersion: e.Workflow.Version,
+Status:        e.Status,
+StartTime:     e.StartTime,
+EndTime:       e.EndTime,
+Duration:      duration,
+Results:       nil,
+Logs:          nil,
+Context:       e.Context,
+Error:         startupError,
+}
+}
+
+
+

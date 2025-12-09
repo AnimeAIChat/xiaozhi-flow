@@ -1,6 +1,9 @@
 package startup
 
-import "context"
+import (
+	"context"
+	"xiaozhi-server-go/internal/startup/model"
+)
 
 // ExecutionController 执行控制器接口
 type ExecutionController interface {
@@ -37,7 +40,7 @@ func (a *ExecutionControllerAdapter) ExecuteWorkflow(ctx context.Context, workfl
 	if a.executor != nil {
 		return a.executor.ExecuteWorkflow(ctx, workflowID, inputs)
 	}
-	return nil, NewStartupError("EXECUTOR_NOT_AVAILABLE", "execution controller is not available")
+	return nil, model.NewStartupError("EXECUTOR_NOT_AVAILABLE", "execution controller is not available")
 }
 
 // GetExecution 获取执行实例
@@ -53,7 +56,7 @@ func (a *ExecutionControllerAdapter) CancelExecution(executionID string) error {
 	if a.executor != nil {
 		return a.executor.CancelExecution(executionID)
 	}
-	return ErrExecutionNotFound
+	return model.ErrExecutionNotFound
 }
 
 // PauseExecution 暂停执行
@@ -61,7 +64,7 @@ func (a *ExecutionControllerAdapter) PauseExecution(executionID string) error {
 	if a.executor != nil {
 		return a.executor.PauseExecution(executionID)
 	}
-	return ErrExecutionNotFound
+	return model.ErrExecutionNotFound
 }
 
 // ResumeExecution 恢复执行
@@ -69,5 +72,6 @@ func (a *ExecutionControllerAdapter) ResumeExecution(executionID string) error {
 	if a.executor != nil {
 		return a.executor.ResumeExecution(executionID)
 	}
-	return ErrExecutionNotFound
+	return model.ErrExecutionNotFound
 }
+

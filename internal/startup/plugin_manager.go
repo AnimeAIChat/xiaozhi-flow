@@ -1,6 +1,7 @@
 package startup
 
 import (
+	"xiaozhi-server-go/internal/startup/model"
 	"context"
 	"fmt"
 	"sync"
@@ -10,21 +11,21 @@ import (
 
 // DefaultPluginManager 默认启动插件管理器
 type DefaultPluginManager struct {
-	executors map[StartupNodeType]StartupNodeExecutor
-	logger    StartupLogger
+	executors map[model.StartupNodeType]model.StartupNodeExecutor
+	logger    model.StartupLogger
 	mutex     sync.RWMutex
 }
 
 // NewDefaultPluginManager 创建默认插件管理器
-func NewDefaultPluginManager(logger StartupLogger) *DefaultPluginManager {
+func NewDefaultPluginManager(logger model.StartupLogger) *DefaultPluginManager {
 	return &DefaultPluginManager{
-		executors: make(map[StartupNodeType]StartupNodeExecutor),
+		executors: make(map[model.StartupNodeType]model.StartupNodeExecutor),
 		logger:    logger,
 	}
 }
 
 // RegisterExecutor 注册节点执行器
-func (p *DefaultPluginManager) RegisterExecutor(nodeType StartupNodeType, executor StartupNodeExecutor) error {
+func (p *DefaultPluginManager) RegisterExecutor(nodeType model.StartupNodeType, executor model.StartupNodeExecutor) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -39,7 +40,7 @@ func (p *DefaultPluginManager) RegisterExecutor(nodeType StartupNodeType, execut
 }
 
 // GetExecutor 获取节点执行器
-func (p *DefaultPluginManager) GetExecutor(nodeType StartupNodeType) (StartupNodeExecutor, bool) {
+func (p *DefaultPluginManager) GetExecutor(nodeType model.StartupNodeType) (model.StartupNodeExecutor, bool) {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
@@ -48,11 +49,11 @@ func (p *DefaultPluginManager) GetExecutor(nodeType StartupNodeType) (StartupNod
 }
 
 // ListExecutors 列出所有执行器
-func (p *DefaultPluginManager) ListExecutors() map[StartupNodeType]StartupNodeInfo {
+func (p *DefaultPluginManager) ListExecutors() map[model.StartupNodeType]model.StartupNodeInfo {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	result := make(map[StartupNodeType]StartupNodeInfo)
+	result := make(map[model.StartupNodeType]model.StartupNodeInfo)
 	for nodeType, executor := range p.executors {
 		result[nodeType] = *executor.GetNodeInfo()
 	}
@@ -61,7 +62,7 @@ func (p *DefaultPluginManager) ListExecutors() map[StartupNodeType]StartupNodeIn
 }
 
 // UnregisterExecutor 注销节点执行器
-func (p *DefaultPluginManager) UnregisterExecutor(nodeType StartupNodeType) error {
+func (p *DefaultPluginManager) UnregisterExecutor(nodeType model.StartupNodeType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -87,31 +88,31 @@ func (p *DefaultPluginManager) InitializeDefaults() error {
 
 	// 注册存储节点执行器
 	storageExecutor := nodes.NewStorageNodeExecutor(p.logger)
-	if err := p.RegisterExecutor(StartupNodeStorage, storageExecutor); err != nil {
+	if err := p.RegisterExecutor(model.StartupNodeStorage, storageExecutor); err != nil {
 		return fmt.Errorf("failed to register storage executor: %w", err)
 	}
 
 	// 注册服务节点执行器
 	serviceExecutor := nodes.NewServiceNodeExecutor(p.logger)
-	if err := p.RegisterExecutor(StartupNodeService, serviceExecutor); err != nil {
+	if err := p.RegisterExecutor(model.StartupNodeService, serviceExecutor); err != nil {
 		return fmt.Errorf("failed to register service executor: %w", err)
 	}
 
 	// 注册配置节点执行器
 	configExecutor := nodes.NewConfigNodeExecutor(p.logger)
-	if err := p.RegisterExecutor(StartupNodeConfig, configExecutor); err != nil {
+	if err := p.RegisterExecutor(model.StartupNodeConfig, configExecutor); err != nil {
 		return fmt.Errorf("failed to register config executor: %w", err)
 	}
 
 	// 注册认证节点执行器
 	authExecutor := nodes.NewAuthNodeExecutor(p.logger)
-	if err := p.RegisterExecutor(StartupNodeAuth, authExecutor); err != nil {
+	if err := p.RegisterExecutor(model.StartupNodeAuth, authExecutor); err != nil {
 		return fmt.Errorf("failed to register auth executor: %w", err)
 	}
 
 	// 注册插件节点执行器
 	pluginExecutor := nodes.NewPluginNodeExecutor(p.logger)
-	if err := p.RegisterExecutor(StartupNodePlugin, pluginExecutor); err != nil {
+	if err := p.RegisterExecutor(model.StartupNodePlugin, pluginExecutor); err != nil {
 		return fmt.Errorf("failed to register plugin executor: %w", err)
 	}
 
@@ -171,7 +172,7 @@ func (p *DefaultPluginManager) GetExecutorStats() map[string]interface{} {
 }
 
 // ValidateExecutor 验证执行器
-func (p *DefaultPluginManager) ValidateExecutor(nodeType StartupNodeType, node *StartupNode) error {
+func (p *DefaultPluginManager) ValidateExecutor(nodeType model.StartupNodeType, node *model.StartupNode) error {
 	executor, exists := p.GetExecutor(nodeType)
 	if !exists {
 		return fmt.Errorf("no executor found for node type: %s", nodeType)
@@ -182,7 +183,7 @@ func (p *DefaultPluginManager) ValidateExecutor(nodeType StartupNodeType, node *
 
 // ExecutorInfo 执行器信息
 type ExecutorInfo struct {
-	Type         StartupNodeType        `json:"type"`
+	Type         model.StartupNodeType        `json:"type"`
 	Name         string                 `json:"name"`
 	Description  string                 `json:"description"`
 	Version      string                 `json:"version"`
@@ -233,7 +234,7 @@ func (p *DefaultPluginManager) HealthCheck(ctx context.Context) map[string]inter
 		}
 
 		// 尝试验证执行器（简单的健康检查）
-		testNode := &StartupNode{
+		testNode := &model.StartupNode{
 			ID:   "health-check",
 			Name: "Health Check Node",
 			Type: nodeType,
@@ -262,11 +263,11 @@ func (p *DefaultPluginManager) HealthCheck(ctx context.Context) map[string]inter
 }
 
 // GetExecutorByCapability 根据能力获取执行器
-func (p *DefaultPluginManager) GetExecutorByCapability(capability string) []StartupNodeExecutor {
+func (p *DefaultPluginManager) GetExecutorByCapability(capability string) []model.StartupNodeExecutor {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
-	var matchingExecutors []StartupNodeExecutor
+	var matchingExecutors []model.StartupNodeExecutor
 	for _, executor := range p.executors {
 		info := executor.GetNodeInfo()
 		for _, cap := range info.Capabilities {
@@ -281,7 +282,7 @@ func (p *DefaultPluginManager) GetExecutorByCapability(capability string) []Star
 }
 
 // ReloadExecutor 重新加载执行器
-func (p *DefaultPluginManager) ReloadExecutor(nodeType StartupNodeType) error {
+func (p *DefaultPluginManager) ReloadExecutor(nodeType model.StartupNodeType) error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
@@ -296,19 +297,19 @@ func (p *DefaultPluginManager) ReloadExecutor(nodeType StartupNodeType) error {
 	}
 
 	// 根据类型创建新的执行器
-	var newExecutor StartupNodeExecutor
+	var newExecutor model.StartupNodeExecutor
 	var err error
 
 	switch nodeType {
-	case StartupNodeStorage:
+	case model.StartupNodeStorage:
 		newExecutor = nodes.NewStorageNodeExecutor(p.logger)
-	case StartupNodeService:
+	case model.StartupNodeService:
 		newExecutor = nodes.NewServiceNodeExecutor(p.logger)
-	case StartupNodeConfig:
+	case model.StartupNodeConfig:
 		newExecutor = nodes.NewConfigNodeExecutor(p.logger)
-	case StartupNodeAuth:
+	case model.StartupNodeAuth:
 		newExecutor = nodes.NewAuthNodeExecutor(p.logger)
-	case StartupNodePlugin:
+	case model.StartupNodePlugin:
 		newExecutor = nodes.NewPluginNodeExecutor(p.logger)
 	default:
 		return fmt.Errorf("unknown node type for reload: %s", nodeType)
@@ -323,3 +324,4 @@ func (p *DefaultPluginManager) ReloadExecutor(nodeType StartupNodeType) error {
 
 	return nil
 }
+

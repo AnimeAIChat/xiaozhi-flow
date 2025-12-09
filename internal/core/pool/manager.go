@@ -1,13 +1,13 @@
 package pool
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
 	domainproviders "xiaozhi-server-go/internal/domain/providers"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ProviderSet is kept for backwards compatibility with legacy callers under src/core.
@@ -16,17 +16,17 @@ type ProviderSet = domainproviders.Set
 // PoolManager bridges historical pool APIs to the refactored domain provider manager.
 type PoolManager struct {
 	manager *domainproviders.Manager
-	logger  *utils.Logger
+	logger  *logging.Logger
 }
 
 // NewPoolManager builds a shim over the new provider manager while keeping the
 // existing constructor signature intact.
-func NewPoolManager(cfg *config.Config, logger *utils.Logger) (*PoolManager, error) {
+func NewPoolManager(cfg *config.Config, logger *logging.Logger) (*PoolManager, error) {
 	return NewPoolManagerWithMCP(cfg, logger, nil)
 }
 
 // NewPoolManagerWithMCP builds a shim over the new provider manager with an optional pre-initialised MCP manager.
-func NewPoolManagerWithMCP(cfg *config.Config, logger *utils.Logger, mcpManager interface{}) (*PoolManager, error) {
+func NewPoolManagerWithMCP(cfg *config.Config, logger *logging.Logger, mcpManager interface{}) (*PoolManager, error) {
 	manager, err := domainproviders.NewManagerWithMCP(cfg, logger, mcpManager)
 	if err != nil {
 		return nil, err
@@ -109,3 +109,6 @@ func (pm *PoolManager) Warmup(ctx context.Context) error {
 	}
 	return pm.manager.Warmup(ctx)
 }
+
+
+

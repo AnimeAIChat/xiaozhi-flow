@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,14 +13,13 @@ import (
 
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/observability"
-	"xiaozhi-server-go/internal/utils"
 	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
 )
 
 // Options configures the HTTP router builder.
 type Options struct {
 	Config         *config.Config
-	Logger         *utils.Logger
+	Logger         *logging.Logger
 	AuthMiddleware gin.HandlerFunc
 	StaticRoot     string
 }
@@ -40,7 +40,7 @@ func Build(opts Options) (*Router, error) {
 	}
 	logger := opts.Logger
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	if opts.Config.Log.Level == "debug" {
@@ -123,7 +123,7 @@ func Build(opts Options) (*Router, error) {
 	}, nil
 }
 
-func loggingMiddleware(logger *utils.Logger) gin.HandlerFunc {
+func loggingMiddleware(logger *logging.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
@@ -187,3 +187,6 @@ func observabilityMiddleware() gin.HandlerFunc {
 		)
 	}
 }
+
+
+

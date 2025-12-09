@@ -1,24 +1,24 @@
 package transport
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"sync"
 	"time"
 	"xiaozhi-server-go/internal/platform/config"
 	internalutils "xiaozhi-server-go/internal/utils"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // TransportManager 传输管理器
 type TransportManager struct {
 	transports map[string]Transport
-	logger     *utils.Logger
+	logger     *logging.Logger
 	config     *config.Config
 	mu         sync.RWMutex
 }
 
 // NewTransportManager 创建新的传输管理器
-func NewTransportManager(config *config.Config, logger *utils.Logger) *TransportManager {
+func NewTransportManager(config *config.Config, logger *logging.Logger) *TransportManager {
 	return &TransportManager{
 		transports: make(map[string]Transport),
 		logger:     logger,
@@ -151,3 +151,5 @@ func (m *TransportManager) GetTransport(name string) Transport {
 	defer m.mu.RUnlock()
 	return m.transports[name]
 }
+
+

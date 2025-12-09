@@ -27,7 +27,8 @@ import (
 	"xiaozhi-server-go/internal/plugin/providers/edge"
 	"xiaozhi-server-go/internal/plugin/providers/gosherpa"
 	"xiaozhi-server-go/internal/plugin/providers/ollama"
-	"xiaozhi-server-go/internal/plugin/providers/openai"
+		"xiaozhi-server-go/internal/plugin/providers/openai"
+	"xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/plugin/providers/stepfun"
 	"xiaozhi-server-go/internal/plugin/providers/webrtc"
 	llmadapters "xiaozhi-server-go/internal/core/adapters"
@@ -455,7 +456,7 @@ func initLoggingStep(_ context.Context, state *appState) error {
 	state.logProvider = logProvider
 	state.logger = logProvider.Legacy()
 	state.slogger = logProvider.Slog()
-	utils.DefaultLogger = state.logger
+	logging.DefaultLogger = state.logger
 
 	if state.logger != nil {
 		state.logger.InfoTag(
@@ -617,7 +618,7 @@ func initMCPManagerStep(_ context.Context, state *appState) error {
 
 
 
-func initAuthManager(config *platformconfig.Config, logger *utils.Logger) (*domainauth.AuthManager, error) {
+func initAuthManager(config *platformconfig.Config, logger *logging.Logger) (*domainauth.AuthManager, error) {
 	storeType := strings.ToLower(strings.TrimSpace(config.Server.Auth.Store.Type))
 	storeCfg := authstore.Config{
 		Driver: storeType,
@@ -692,7 +693,7 @@ func initAuthManager(config *platformconfig.Config, logger *utils.Logger) (*doma
 	return authManager, nil
 }
 
-func parseDurationOrWarn(logger *utils.Logger, value string, field string) time.Duration {
+func parseDurationOrWarn(logger *logging.Logger, value string, field string) time.Duration {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0
@@ -711,7 +712,7 @@ func parseDurationOrWarn(logger *utils.Logger, value string, field string) time.
 
 func startTransportServer(
 	config *platformconfig.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	authManager *domainauth.AuthManager,
 	domainMCPManager *domainmcp.Manager,
 	componentContainer *adapters.ComponentContainer,
@@ -778,7 +779,7 @@ func startTransportServer(
 
 func startHTTPServer(
 	config *platformconfig.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	configRepo types.Repository,
 	transportManager adapters.TransportManager,
 	deviceRepo repository.DeviceRepository,
@@ -957,7 +958,7 @@ func startHTTPServer(
 func waitForShutdown(
 	ctx context.Context,
 	cancel context.CancelFunc,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	g *errgroup.Group,
 ) error {
 	<-ctx.Done()
@@ -987,7 +988,7 @@ func waitForShutdown(
 
 func startServices(
 	config *platformconfig.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	authManager *domainauth.AuthManager,
 	configRepo types.Repository,
 	domainMCPManager *domainmcp.Manager,
@@ -1013,7 +1014,7 @@ func startServices(
 }
 
 // loadConfigAndLogger 加载配置和日志记录器（用于测试）
-func loadConfigAndLogger() (*platformconfig.Config, *utils.Logger, error) {
+func loadConfigAndLogger() (*platformconfig.Config, *logging.Logger, error) {
 	state := &appState{}
 
 	// 执行必要的初始化步骤
@@ -1086,3 +1087,4 @@ func setupStaticFiles(router *gin.Engine, config *platformconfig.Config) {
 		}
 	})
 }
+

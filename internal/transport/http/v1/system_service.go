@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"time"
 
@@ -8,18 +9,17 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/transport/http/types/v1"
 	httpUtils "xiaozhi-server-go/internal/transport/http/utils"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // SystemServiceV1 V1版本系统服务
 type SystemServiceV1 struct {
-	logger *utils.Logger
+	logger *logging.Logger
 	config *config.Config
 	// TODO: 添加实际的业务逻辑依赖
 }
 
 // NewSystemServiceV1 创建系统服务V1实例
-func NewSystemServiceV1(config *config.Config, logger *utils.Logger) (*SystemServiceV1, error) {
+func NewSystemServiceV1(config *config.Config, logger *logging.Logger) (*SystemServiceV1, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -764,3 +764,4 @@ func (s *SystemServiceV1) providerExists(providerType, providerName string) bool
 	}
 	return false
 }
+

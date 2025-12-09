@@ -1,30 +1,30 @@
 package startup
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
 
 	"xiaozhi-server-go/internal/platform/storage"
-	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/workflow"
+	"xiaozhi-server-go/internal/startup/model"
 )
 
 // StartupWorkflowManagerImpl 启动工作流管理器实现
 type StartupWorkflowManagerImpl struct {
 	// 存储
-	workflowStorage WorkflowStorage
-	executionStorage ExecutionStorage
-	templateStorage TemplateStorage
+	workflowStorage model.WorkflowStorage
+	executionStorage model.ExecutionStorage
+	templateStorage model.TemplateStorage
 
 	// 状态管理
-	workflows     map[string]*StartupWorkflow
-	executions    map[string]*StartupExecution
-	templates     map[string]*StartupWorkflowTemplate
-	pluginManager StartupPluginManager
-	eventHandlers []StartupEventHandler
+	workflows     map[string]*model.StartupWorkflow
+	executions    map[string]*model.StartupExecution
+	templates     map[string]*model.StartupWorkflowTemplate
+	pluginManager model.StartupPluginManager
+	eventHandlers []model.StartupEventHandler
 
 	// 同步锁
 	workflowMu sync.RWMutex
@@ -35,8 +35,8 @@ type StartupWorkflowManagerImpl struct {
 	config *ManagerConfig
 
 	// 日志和监控
-	logger *utils.Logger
-	metrics *StartupMetrics
+	logger *logging.Logger
+	metrics *model.StartupMetrics
 }
 
 // ManagerConfig 管理器配置
@@ -55,44 +55,23 @@ type StorageConfig struct {
 	Database *storage.DatabaseConfig `json:"database"`
 }
 
-// WorkflowStorage 工作流存储接口
-type WorkflowStorage interface {
-	Save(ctx context.Context, workflow *StartupWorkflow) error
-	Get(ctx context.Context, id string) (*StartupWorkflow, error)
-	List(ctx context.Context) ([]*StartupWorkflow, error)
-	Delete(ctx context.Context, id string) error
-	Update(ctx context.Context, workflow *StartupWorkflow) error
-}
 
-// ExecutionStorage 执行存储接口
-type ExecutionStorage interface {
-	Save(ctx context.Context, execution *StartupExecution) error
-	Get(ctx context.Context, id string) (*StartupExecution, error)
-	List(ctx context.Context, workflowID string) ([]*StartupExecution, error)
-	Delete(ctx context.Context, id string) error
-	Cleanup(ctx context.Context, olderThan time.Time) error
-}
 
-// TemplateStorage 模板存储接口
-type TemplateStorage interface {
-	Save(ctx context.Context, template *StartupWorkflowTemplate) error
-	Get(ctx context.Context, id string) (*StartupWorkflowTemplate, error)
-	List(ctx context.Context) ([]*StartupWorkflowTemplate, error)
-	Delete(ctx context.Context, id string) error
-	Update(ctx context.Context, template *StartupWorkflowTemplate) error
-}
+
+
+
 
 // NewStartupWorkflowManager 创建启动工作流管理器
-func NewStartupWorkflowManager(config *ManagerConfig, logger *utils.Logger, pluginManager StartupPluginManager) *StartupWorkflowManagerImpl {
+func NewStartupWorkflowManager(config *ManagerConfig, logger *logging.Logger, pluginManager model.StartupPluginManager) *StartupWorkflowManagerImpl {
 	mgr := &StartupWorkflowManagerImpl{
-		workflows:     make(map[string]*StartupWorkflow),
-		executions:    make(map[string]*StartupExecution),
-		templates:     make(map[string]*StartupWorkflowTemplate),
+		workflows:     make(map[string]*model.StartupWorkflow),
+		executions:    make(map[string]*model.StartupExecution),
+		templates:     make(map[string]*model.StartupWorkflowTemplate),
 		pluginManager: pluginManager,
-		eventHandlers: make([]StartupEventHandler, 0),
+		eventHandlers: make([]model.StartupEventHandler, 0),
 		config:        config,
 		logger:        logger,
-		metrics:       &StartupMetrics{},
+		metrics:       &model.StartupMetrics{},
 	}
 
 	// 设置默认配置
@@ -200,7 +179,7 @@ func (m *StartupWorkflowManagerImpl) cleanupOldExecutions() {
 
 // 创建工作流相关方法
 
-func (m *StartupWorkflowManagerImpl) CreateWorkflow(ctx context.Context, workflow *StartupWorkflow) (*StartupWorkflow, error) {
+func (m *StartupWorkflowManagerImpl) CreateWorkflow(ctx context.Context, workflow *model.StartupWorkflow) (*model.StartupWorkflow, error) {
 	// 验证工作流
 	if err := m.ValidateWorkflow(ctx, workflow); err != nil {
 		return nil, fmt.Errorf("workflow validation failed: %w", err)
@@ -230,19 +209,19 @@ func (m *StartupWorkflowManagerImpl) CreateWorkflow(ctx context.Context, workflo
 	return workflow, nil
 }
 
-func (m *StartupWorkflowManagerImpl) GetWorkflow(ctx context.Context, id string) (*StartupWorkflow, error) {
+func (m *StartupWorkflowManagerImpl) GetWorkflow(ctx context.Context, id string) (*model.StartupWorkflow, error) {
 	m.workflowMu.RLock()
 	defer m.workflowMu.RUnlock()
 
 	workflow, exists := m.workflows[id]
 	if !exists {
-		return nil, ErrWorkflowNotFound
+		return nil, model.ErrWorkflowNotFound
 	}
 
 	return workflow, nil
 }
 
-func (m *StartupWorkflowManagerImpl) UpdateWorkflow(ctx context.Context, workflow *StartupWorkflow) (*StartupWorkflow, error) {
+func (m *StartupWorkflowManagerImpl) UpdateWorkflow(ctx context.Context, workflow *model.StartupWorkflow) (*model.StartupWorkflow, error) {
 	// 验证工作流
 	if err := m.ValidateWorkflow(ctx, workflow); err != nil {
 		return nil, fmt.Errorf("workflow validation failed: %w", err)
@@ -294,11 +273,11 @@ func (m *StartupWorkflowManagerImpl) DeleteWorkflow(ctx context.Context, id stri
 	return nil
 }
 
-func (m *StartupWorkflowManagerImpl) ListWorkflows(ctx context.Context) ([]*StartupWorkflow, error) {
+func (m *StartupWorkflowManagerImpl) ListWorkflows(ctx context.Context) ([]*model.StartupWorkflow, error) {
 	m.workflowMu.RLock()
 	defer m.workflowMu.RUnlock()
 
-	workflows := make([]*StartupWorkflow, 0, len(m.workflows))
+	workflows := make([]*model.StartupWorkflow, 0, len(m.workflows))
 	for _, workflow := range m.workflows {
 		workflows = append(workflows, workflow)
 	}
@@ -306,7 +285,7 @@ func (m *StartupWorkflowManagerImpl) ListWorkflows(ctx context.Context) ([]*Star
 	return workflows, nil
 }
 
-func (m *StartupWorkflowManagerImpl) ValidateWorkflow(ctx context.Context, workflow *StartupWorkflow) error {
+func (m *StartupWorkflowManagerImpl) ValidateWorkflow(ctx context.Context, workflow *model.StartupWorkflow) error {
 	// 基本验证
 	if workflow.ID == "" {
 		return fmt.Errorf("workflow ID is required")
@@ -345,12 +324,12 @@ func (m *StartupWorkflowManagerImpl) ValidateWorkflow(ctx context.Context, workf
 
 	// 循环依赖检测
 	if m.hasCircularDependency(workflow.Nodes, workflow.Edges) {
-		return ErrCircularDependency
+		return model.ErrCircularDependency
 	}
 
 	// 节点验证
 	for _, node := range workflow.Nodes {
-		if err := m.validateNode(ctx, node); err != nil {
+		if err := m.validateNode(ctx, &node); err != nil {
 			return fmt.Errorf("node validation failed for %s: %w", node.ID, err)
 		}
 	}
@@ -358,7 +337,7 @@ func (m *StartupWorkflowManagerImpl) ValidateWorkflow(ctx context.Context, workf
 	return nil
 }
 
-func (m *StartupWorkflowManagerImpl) hasCircularDependency(nodes []StartupNode, edges []workflow.Edge) bool {
+func (m *StartupWorkflowManagerImpl) hasCircularDependency(nodes []model.StartupNode, edges []workflow.Edge) bool {
 	// 构建邻接表
 	adjacency := make(map[string][]string)
 	nodeSet := make(map[string]bool)
@@ -407,9 +386,9 @@ func (m *StartupWorkflowManagerImpl) hasCircularDependencyDFS(nodeID string, adj
 	return false
 }
 
-func (m *StartupWorkflowManagerImpl) validateNode(ctx context.Context, node *StartupNode) error {
+func (m *StartupWorkflowManagerImpl) validateNode(ctx context.Context, node *model.StartupNode) error {
 	// 检查节点类型是否支持
-	if _, exists := m.pluginManager.GetExecutor(node.Type); !exists {
+	if _, err := m.pluginManager.GetExecutor(node.Type); err != nil {
 		return fmt.Errorf("unsupported node type: %s", node.Type)
 	}
 
@@ -448,38 +427,38 @@ func (m *StartupWorkflowManagerImpl) isWorkflowInUse(ctx context.Context, workfl
 }
 
 // 添加事件处理器
-func (m *StartupWorkflowManagerImpl) AddEventHandler(handler StartupEventHandler) {
+func (m *StartupWorkflowManagerImpl) AddEventHandler(handler model.StartupEventHandler) {
 	m.eventHandlers = append(m.eventHandlers, handler)
 }
 
 // 触发事件
-func (m *StartupWorkflowManagerImpl) triggerEvent(ctx context.Context, event *StartupEvent) error {
+func (m *StartupWorkflowManagerImpl) triggerEvent(ctx context.Context, event *model.StartupEvent) error {
 	for _, handler := range m.eventHandlers {
 		var err error
 		switch event.EventType {
-		case EventTypeExecutionStart:
-			err = handler.OnExecutionStart(ctx, event.Data["execution"].(*StartupExecution))
-		case EventTypeNodeStart:
+		case model.EventTypeExecutionStart:
+			err = handler.OnExecutionStart(ctx, event.Data["execution"].(*model.StartupExecution))
+		case model.EventTypeNodeStart:
 			err = handler.OnNodeStart(ctx,
-				event.Data["execution"].(*StartupExecution),
-				event.Data["node"].(*StartupNode))
-		case EventTypeNodeProgress:
+				event.Data["execution"].(*model.StartupExecution),
+				event.Data["node"].(*model.StartupNode))
+		case model.EventTypeNodeProgress:
 			err = handler.OnNodeProgress(ctx,
-				event.Data["execution"].(*StartupExecution),
-				event.Data["node"].(*StartupNode),
+				event.Data["execution"].(*model.StartupExecution),
+				event.Data["node"].(*model.StartupNode),
 				event.Data["progress"].(float64))
-		case EventTypeNodeComplete:
+		case model.EventTypeNodeComplete:
 			err = handler.OnNodeComplete(ctx,
-				event.Data["execution"].(*StartupExecution),
-				event.Data["node"].(*StartupNode),
-				event.Data["result"].(*StartupNodeResult))
-		case EventTypeNodeError:
+				event.Data["execution"].(*model.StartupExecution),
+				event.Data["node"].(*model.StartupNode),
+				event.Data["result"].(*model.StartupNodeResult))
+		case model.EventTypeNodeError:
 			err = handler.OnNodeError(ctx,
-				event.Data["execution"].(*StartupExecution),
-				event.Data["node"].(*StartupNode),
+				event.Data["execution"].(*model.StartupExecution),
+				event.Data["node"].(*model.StartupNode),
 				fmt.Errorf(event.Data["error"].(string)))
-		case EventTypeExecutionEnd:
-			err = handler.OnExecutionEnd(ctx, event.Data["execution"].(*StartupExecution))
+		case model.EventTypeExecutionEnd:
+			err = handler.OnExecutionEnd(ctx, event.Data["execution"].(*model.StartupExecution))
 		}
 
 		if err != nil {
@@ -491,15 +470,15 @@ func (m *StartupWorkflowManagerImpl) triggerEvent(ctx context.Context, event *St
 }
 
 // GetSystemStatus 获取系统状态
-func (m *StartupWorkflowManagerImpl) GetSystemStatus(ctx context.Context) (*StartupSystemStatus, error) {
+func (m *StartupWorkflowManagerImpl) GetSystemStatus(ctx context.Context) (*model.StartupSystemStatus, error) {
 	m.executionMu.RLock()
 	defer m.executionMu.RUnlock()
 
-	status := &StartupSystemStatus{
+	status := &model.StartupSystemStatus{
 		IsRunning:     true,
 		StartTime:     time.Now(), // TODO: 获取实际启动时间
 		Version:       "1.0.0",      // TODO: 获取版本信息
-		Components:    make(map[string]ComponentStatus),
+		Components:    make(map[string]model.ComponentStatus),
 		TotalExecutions: m.metrics.TotalExecutions,
 		SuccessfulRuns: m.metrics.SuccessfulExecutions,
 		FailedRuns:     m.metrics.FailedExecutions,
@@ -515,7 +494,7 @@ func (m *StartupWorkflowManagerImpl) GetSystemStatus(ctx context.Context) (*Star
 
 	// 查找最近的执行
 	if len(m.executions) > 0 {
-		var latest *StartupExecution
+		var latest *model.StartupExecution
 		for _, execution := range m.executions {
 			if latest == nil || execution.StartTime.After(latest.StartTime) {
 				latest = execution
@@ -526,7 +505,7 @@ func (m *StartupWorkflowManagerImpl) GetSystemStatus(ctx context.Context) (*Star
 
 	// 组件状态
 	// TODO: 实现组件健康检查
-	status.Components["workflow_manager"] = ComponentStatus{
+	status.Components["workflow_manager"] = model.ComponentStatus{
 		Status:    "healthy",
 		LastCheck: time.Now(),
 		Message:   "Running normally",
@@ -536,7 +515,7 @@ func (m *StartupWorkflowManagerImpl) GetSystemStatus(ctx context.Context) (*Star
 }
 
 // GetMetrics 获取指标
-func (m *StartupWorkflowManagerImpl) GetMetrics(ctx context.Context) (*StartupMetrics, error) {
+func (m *StartupWorkflowManagerImpl) GetMetrics(ctx context.Context) (*model.StartupMetrics, error) {
 	// 更新指标
 	m.updateMetrics()
 
@@ -599,7 +578,7 @@ func (m *StartupWorkflowManagerImpl) updateMetrics() {
 	m.metrics.CalculatedAt = time.Now()
 
 	// 统计最近执行
-	recent := make([]*StartupExecution, 0, 10)
+	recent := make([]*model.StartupExecution, 0, 10)
 	for _, execution := range m.executions {
 		if len(recent) >= 10 {
 			break
@@ -615,13 +594,13 @@ func (m *StartupWorkflowManagerImpl) updateMetrics() {
 
 // 执行管理相关方法
 
-func (m *StartupWorkflowManagerImpl) ExecuteWorkflow(ctx context.Context, workflowID string, inputs map[string]interface{}) (*StartupExecution, error) {
+func (m *StartupWorkflowManagerImpl) ExecuteWorkflow(ctx context.Context, workflowID string, inputs map[string]interface{}) (*model.StartupExecution, error) {
 	return m.ExecuteWorkflowWithConfig(ctx, workflowID, inputs, nil)
 }
 
-func (m *StartupWorkflowManagerImpl) ExecuteWorkflowWithConfig(ctx context.Context, workflowID string, inputs map[string]interface{}, config *StartupWorkflowConfig) (*StartupExecution, error) {
+func (m *StartupWorkflowManagerImpl) ExecuteWorkflowWithConfig(ctx context.Context, workflowID string, inputs map[string]interface{}, config *model.StartupWorkflowConfig) (*model.StartupExecution, error) {
 	// 获取工作流
-	workflow, err := m.GetWorkflow(ctx, workflowID)
+	wf, err := m.GetWorkflow(ctx, workflowID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get workflow: %w", err)
 	}
@@ -632,17 +611,17 @@ func (m *StartupWorkflowManagerImpl) ExecuteWorkflowWithConfig(ctx context.Conte
 	}
 
 	// 创建执行实例
-	execution := &StartupExecution{
+	execution := &model.StartupExecution{
 		ID:             fmt.Sprintf("exec_%d", time.Now().UnixNano()),
 		WorkflowID:     workflowID,
-		WorkflowName:   workflow.Name,
+		WorkflowName:   wf.Name,
 		Status:         workflow.ExecutionStatusPending,
 		StartTime:      time.Now(),
-		NodeResults:    make(map[string]*StartupNodeResult),
+		NodeResults:    make(map[string]*model.StartupNodeResult),
 		Context:        make(map[string]interface{}),
 		Inputs:         inputs,
 		Outputs:        make(map[string]interface{}),
-		TotalNodes:     len(workflow.Nodes),
+		TotalNodes:     len(wf.Nodes),
 		Environment:    make(map[string]interface{}),
 		TriggeredBy:    "user",
 	}
@@ -651,7 +630,7 @@ func (m *StartupWorkflowManagerImpl) ExecuteWorkflowWithConfig(ctx context.Conte
 	if config != nil {
 		execution.Context["config"] = config
 	} else {
-		execution.Context["config"] = workflow.Config
+		execution.Context["config"] = wf.Config
 	}
 
 	// 保存执行实例
@@ -660,32 +639,37 @@ func (m *StartupWorkflowManagerImpl) ExecuteWorkflowWithConfig(ctx context.Conte
 	m.executionMu.Unlock()
 
 	// 触发执行开始事件
-	event := &StartupEvent{
-		ID:          fmt.Sprintf("event_%d", time.Now().UnixNano()),
-		EventType:   EventTypeExecutionStart,
-		ExecutionID: execution.ID,
-		WorkflowID:  workflowID,
-		Timestamp:   time.Now(),
-		Data:        map[string]interface{}{"execution": execution},
-		Source:      "workflow_manager",
+	event := &model.StartupEvent{
+		ID:        fmt.Sprintf("event_%d", time.Now().UnixNano()),
+		EventType: model.EventTypeExecutionStart,
+		Timestamp: time.Now(),
+		Data: map[string]interface{}{
+			"execution":   execution,
+			"execution_id": execution.ID,
+			"workflow_id":  workflowID,
+			"source":       "workflow_manager",
+		},
 	}
 	if err := m.triggerEvent(ctx, event); err != nil {
 		m.logger.Warn("Failed to trigger execution start event", "error", err)
 	}
 
 	// 异步执行工作流
-	go m.executeWorkflowAsync(ctx, workflow, execution)
+	go m.executeWorkflowAsync(ctx, wf, execution)
 
 	m.logger.Info("Workflow execution started", "execution_id", execution.ID, "workflow_id", workflowID)
 	return execution, nil
 }
 
-func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, workflow *StartupWorkflow, execution *StartupExecution) {
+func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, wf *model.StartupWorkflow, execution *model.StartupExecution) {
 	defer func() {
 		if r := recover(); r != nil {
 			m.logger.Error("Workflow execution panic recovered", "execution_id", execution.ID, "panic", r)
 			execution.Status = workflow.ExecutionStatusFailed
-			execution.Error = fmt.Sprintf("Execution panic: %v", r)
+			execution.Error = &model.StartupError{
+				Code:    "PANIC",
+				Message: fmt.Sprintf("Execution panic: %v", r),
+			}
 			m.markExecutionCompleted(ctx, execution)
 		}
 	}()
@@ -694,7 +678,7 @@ func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, w
 	execution.Status = workflow.ExecutionStatusRunning
 
 	// 转换为工作流格式并执行
-	workflowNodes, workflowEdges := m.convertToWorkflowFormat(workflow.Nodes, workflow.Edges)
+	workflowNodes, workflowEdges := m.convertToWorkflowFormat(wf.Nodes, wf.Edges)
 
 	// 创建工作流执行器
 	workflowExecutor := workflow.NewWorkflowExecutor(
@@ -707,17 +691,17 @@ func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, w
 
 	// 执行工作流
 	workflowExecution, err := workflowExecutor.Execute(ctx, &workflow.Workflow{
-		ID:       workflow.ID,
-		Name:     workflow.Name,
-		Nodes:    workflowNodes,
-		Edges:    workflowEdges,
-		Config:   workflow.Config.Config,
+		ID:    wf.ID,
+		Name:  wf.Name,
+		Nodes: workflowNodes,
+		Edges: workflowEdges,
+		// Config:   wf.Config, // TODO: Convert config
 	}, execution.Inputs)
 
 	if err != nil {
 		m.logger.Error("Workflow execution failed", "execution_id", execution.ID, "error", err)
 		execution.Status = workflow.ExecutionStatusFailed
-		execution.Error = err.Error()
+		execution.Error = &model.StartupError{Message: err.Error()}
 	} else {
 		// 映射执行结果
 		m.mapExecutionResults(execution, workflowExecution)
@@ -725,18 +709,21 @@ func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, w
 	}
 
 	// 计算执行时间
-	execution.EndTime = &[]time.Time{time.Now()}[0]
+	now := time.Now()
+	execution.EndTime = &now
 	execution.Duration = execution.EndTime.Sub(execution.StartTime)
 
 	// 触发执行结束事件
-	event := &StartupEvent{
-		ID:          fmt.Sprintf("event_%d", time.Now().UnixNano()),
-		EventType:   EventTypeExecutionEnd,
-		ExecutionID: execution.ID,
-		WorkflowID:  workflow.WorkflowID,
-		Timestamp:   time.Now(),
-		Data:        map[string]interface{}{"execution": execution},
-		Source:      "workflow_manager",
+	event := &model.StartupEvent{
+		ID:        fmt.Sprintf("event_%d", time.Now().UnixNano()),
+		EventType: model.EventTypeExecutionEnd,
+		Timestamp: time.Now(),
+		Data: map[string]interface{}{
+			"execution":    execution,
+			"execution_id": execution.ID,
+			"workflow_id":  wf.ID,
+			"source":       "workflow_manager",
+		},
 	}
 	if err := m.triggerEvent(ctx, event); err != nil {
 		m.logger.Warn("Failed to trigger execution end event", "error", err)
@@ -745,7 +732,7 @@ func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, w
 	m.markExecutionCompleted(ctx, execution)
 }
 
-func (m *StartupWorkflowManagerImpl) convertToWorkflowFormat(nodes []StartupNode, edges []workflow.Edge) ([]workflow.Node, []workflow.Edge) {
+func (m *StartupWorkflowManagerImpl) convertToWorkflowFormat(nodes []model.StartupNode, edges []workflow.Edge) ([]workflow.Node, []workflow.Edge) {
 	workflowNodes := make([]workflow.Node, len(nodes))
 	for i, node := range nodes {
 		// 转换输入Schema
@@ -773,21 +760,21 @@ func (m *StartupWorkflowManagerImpl) convertToWorkflowFormat(nodes []StartupNode
 	return workflowNodes, edges
 }
 
-func (m *StartupWorkflowManagerImpl) mapStartupNodeType(nodeType StartupNodeType) workflow.NodeType {
+func (m *StartupWorkflowManagerImpl) mapStartupNodeType(nodeType model.StartupNodeType) workflow.NodeType {
 	switch nodeType {
-	case StartupNodeStorage:
+	case model.StartupNodeStorage:
 		return workflow.NodeTypeTask
-	case StartupNodeConfig:
+	case model.StartupNodeConfig:
 		return workflow.NodeTypeTask
-	case StartupNodeService:
+	case model.StartupNodeService:
 		return workflow.NodeTypeTask
-	case StartupNodeAuth:
+	case model.StartupNodeAuth:
 		return workflow.NodeTypeTask
-	case StartupNodePlugin:
+	case model.StartupNodePlugin:
 		return workflow.NodeTypeTask
-	case StartupNodeParallel:
+	case model.StartupNodeParallel:
 		return workflow.NodeTypeParallel
-	case StartupNodeMerge:
+	case model.StartupNodeMerge:
 		return workflow.NodeTypeMerge
 	default:
 		return workflow.NodeTypeTask
@@ -809,10 +796,10 @@ func inferType(value interface{}) string {
 	}
 }
 
-func (m *StartupWorkflowManagerImpl) mapExecutionResults(execution *StartupExecution, workflowExecution *workflow.Execution) {
+func (m *StartupWorkflowManagerImpl) mapExecutionResults(execution *model.StartupExecution, workflowExecution *workflow.Execution) {
 	// 映射节点结果
 	for nodeID, nodeResult := range workflowExecution.NodeResults {
-		execution.NodeResults[nodeID] = &StartupNodeResult{
+		execution.NodeResults[nodeID] = &model.StartupNodeResult{
 			NodeID:    nodeID,
 			Status:    nodeResult.Status,
 			StartTime: nodeResult.StartTime,
@@ -826,19 +813,23 @@ func (m *StartupWorkflowManagerImpl) mapExecutionResults(execution *StartupExecu
 
 	// 计算进度
 	completedNodes := 0
+	var failedNodes []string
 	for _, result := range execution.NodeResults {
 		if result.Status == workflow.NodeStatusCompleted {
 			completedNodes++
+		}
+		if result.Status == workflow.NodeStatusFailed {
+			failedNodes = append(failedNodes, result.NodeID)
 		}
 	}
 	if execution.TotalNodes > 0 {
 		execution.Progress = float64(completedNodes) / float64(execution.TotalNodes) * 100
 	}
 	execution.CompletedNodes = completedNodes
-	execution.FailedNodes = execution.TotalNodes - completedNodes
+	execution.FailedNodes = failedNodes
 }
 
-func (m *StartupWorkflowManagerImpl) markExecutionCompleted(ctx context.Context, execution *StartupExecution) {
+func (m *StartupWorkflowManagerImpl) markExecutionCompleted(ctx context.Context, execution *model.StartupExecution) {
 	m.executionMu.Lock()
 	defer m.executionMu.Unlock()
 
@@ -851,23 +842,23 @@ func (m *StartupWorkflowManagerImpl) markExecutionCompleted(ctx context.Context,
 	m.updateMetrics()
 }
 
-func (m *StartupWorkflowManagerImpl) GetExecution(ctx context.Context, executionID string) (*StartupExecution, error) {
+func (m *StartupWorkflowManagerImpl) GetExecution(ctx context.Context, executionID string) (*model.StartupExecution, error) {
 	m.executionMu.RLock()
 	defer m.executionMu.RUnlock()
 
 	execution, exists := m.executions[executionID]
 	if !exists {
-		return nil, ErrExecutionNotFound
+		return nil, model.ErrExecutionNotFound
 	}
 
 	return execution, nil
 }
 
-func (m *StartupWorkflowManagerImpl) ListExecutions(ctx context.Context, workflowID string) ([]*StartupExecution, error) {
+func (m *StartupWorkflowManagerImpl) ListExecutions(ctx context.Context, workflowID string) ([]*model.StartupExecution, error) {
 	m.executionMu.RLock()
 	defer m.executionMu.RUnlock()
 
-	executions := make([]*StartupExecution, 0)
+	executions := make([]*model.StartupExecution, 0)
 	for _, execution := range m.executions {
 		if workflowID == "" || execution.WorkflowID == workflowID {
 			executions = append(executions, execution)
@@ -883,7 +874,7 @@ func (m *StartupWorkflowManagerImpl) CancelExecution(ctx context.Context, execut
 
 	execution, exists := m.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
 	if execution.Status != workflow.ExecutionStatusRunning {
@@ -892,8 +883,9 @@ func (m *StartupWorkflowManagerImpl) CancelExecution(ctx context.Context, execut
 
 	// TODO: 实现执行取消逻辑
 	execution.Status = workflow.ExecutionStatusCancelled
-	execution.EndTime = &[]time.Time{time.Now()}[0]
-	execution.Error = "Execution cancelled by user"
+	now := time.Now()
+	execution.EndTime = &now
+	execution.Error = &model.StartupError{Message: "Execution cancelled by user"}
 
 	// 持久化更改
 	if err := m.executionStorage.Save(ctx, execution); err != nil {
@@ -910,7 +902,7 @@ func (m *StartupWorkflowManagerImpl) PauseExecution(ctx context.Context, executi
 
 	execution, exists := m.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
 	if execution.Status != workflow.ExecutionStatusRunning {
@@ -930,7 +922,7 @@ func (m *StartupWorkflowManagerImpl) ResumeExecution(ctx context.Context, execut
 
 	execution, exists := m.executions[executionID]
 	if !exists {
-		return ErrExecutionNotFound
+		return model.ErrExecutionNotFound
 	}
 
 	if execution.Status != workflow.ExecutionStatusPaused {
@@ -960,7 +952,7 @@ func (m *StartupWorkflowManagerImpl) getRunningExecutionCount() int {
 
 // 模板管理相关方法
 
-func (m *StartupWorkflowManagerImpl) CreateTemplate(ctx context.Context, template *StartupWorkflowTemplate) (*StartupWorkflowTemplate, error) {
+func (m *StartupWorkflowManagerImpl) CreateTemplate(ctx context.Context, template *model.StartupWorkflowTemplate) (*model.StartupWorkflowTemplate, error) {
 	// 验证模板
 	if template.ID == "" {
 		template.ID = fmt.Sprintf("template_%d", time.Now().UnixNano())
@@ -998,7 +990,7 @@ func (m *StartupWorkflowManagerImpl) CreateTemplate(ctx context.Context, templat
 	return template, nil
 }
 
-func (m *StartupWorkflowManagerImpl) GetTemplate(ctx context.Context, id string) (*StartupWorkflowTemplate, error) {
+func (m *StartupWorkflowManagerImpl) GetTemplate(ctx context.Context, id string) (*model.StartupWorkflowTemplate, error) {
 	m.templateMu.RLock()
 	defer m.templateMu.RUnlock()
 
@@ -1010,7 +1002,7 @@ func (m *StartupWorkflowManagerImpl) GetTemplate(ctx context.Context, id string)
 	return template, nil
 }
 
-func (m *StartupWorkflowManagerImpl) UpdateTemplate(ctx context.Context, template *StartupWorkflowTemplate) (*StartupWorkflowTemplate, error) {
+func (m *StartupWorkflowManagerImpl) UpdateTemplate(ctx context.Context, template *model.StartupWorkflowTemplate) (*model.StartupWorkflowTemplate, error) {
 	// 验证模板
 	if template.Workflow != nil {
 		if err := m.ValidateWorkflow(ctx, template.Workflow); err != nil {
@@ -1058,11 +1050,11 @@ func (m *StartupWorkflowManagerImpl) DeleteTemplate(ctx context.Context, id stri
 	return nil
 }
 
-func (m *StartupWorkflowManagerImpl) ListTemplates(ctx context.Context) ([]*StartupWorkflowTemplate, error) {
+func (m *StartupWorkflowManagerImpl) ListTemplates(ctx context.Context) ([]*model.StartupWorkflowTemplate, error) {
 	m.templateMu.RLock()
 	defer m.templateMu.RUnlock()
 
-	templates := make([]*StartupWorkflowTemplate, 0, len(m.templates))
+	templates := make([]*model.StartupWorkflowTemplate, 0, len(m.templates))
 	for _, template := range m.templates {
 		templates = append(templates, template)
 	}
@@ -1070,7 +1062,7 @@ func (m *StartupWorkflowManagerImpl) ListTemplates(ctx context.Context) ([]*Star
 	return templates, nil
 }
 
-func (m *StartupWorkflowManagerImpl) DeployFromTemplate(ctx context.Context, templateID string, name string) (*StartupWorkflow, error) {
+func (m *StartupWorkflowManagerImpl) DeployFromTemplate(ctx context.Context, templateID string, name string) (*model.StartupWorkflow, error) {
 	// 获取模板
 	template, err := m.GetTemplate(ctx, templateID)
 	if err != nil {
@@ -1078,7 +1070,7 @@ func (m *StartupWorkflowManagerImpl) DeployFromTemplate(ctx context.Context, tem
 	}
 
 	// 创建工作流副本
-	workflow := &StartupWorkflow{
+	workflow := &model.StartupWorkflow{
 		ID:          fmt.Sprintf("workflow_%d", time.Now().UnixNano()),
 		Name:        name,
 		Description: fmt.Sprintf("Deployed from template: %s", template.Name),
@@ -1097,3 +1089,11 @@ func (m *StartupWorkflowManagerImpl) DeployFromTemplate(ctx context.Context, tem
 	// 保存工作流
 	return m.CreateWorkflow(ctx, workflow)
 }
+
+
+
+
+
+
+
+

@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
@@ -9,7 +10,6 @@ import (
 	"xiaozhi-server-go/internal/domain/providers/asr"
 	"xiaozhi-server-go/internal/domain/providers/llm"
 	"xiaozhi-server-go/internal/domain/providers/tts"
-	"xiaozhi-server-go/internal/utils"
 
 	// 导入ASR提供者实现以触发注册
 	// _ "xiaozhi-server-go/internal/domain/providers/asr/deepgram"
@@ -44,7 +44,7 @@ type ProviderFactory struct {
 	Name         string // 提供者名称
 	providerType string
 	config       interface{}
-	logger       *utils.Logger
+	logger       *logging.Logger
 	params       map[string]interface{} // 可选参数
 }
 
@@ -97,7 +97,7 @@ func (f *ProviderFactory) createProvider() (interface{}, error) {
 }
 
 // 创建各类型工厂的便利函数
-func NewASRFactory(asrType string, config *config.Config, logger *utils.Logger) ResourceFactory {
+func NewASRFactory(asrType string, config *config.Config, logger *logging.Logger) ResourceFactory {
 	if asrCfg, ok := config.ASR[asrType]; ok {
 		asrCfgMap, ok := asrCfg.(map[string]interface{})
 		if !ok {
@@ -120,7 +120,7 @@ func NewASRFactory(asrType string, config *config.Config, logger *utils.Logger) 
 	return nil
 }
 
-func NewLLMFactory(llmType string, config *config.Config, logger *utils.Logger) ResourceFactory {
+func NewLLMFactory(llmType string, config *config.Config, logger *logging.Logger) ResourceFactory {
 	if llmCfg, ok := config.LLM[llmType]; ok {
 		return &ProviderFactory{
 			providerType: "llm",
@@ -141,7 +141,7 @@ func NewLLMFactory(llmType string, config *config.Config, logger *utils.Logger) 
 	return nil
 }
 
-func NewTTSFactory(ttsType string, config *config.Config, logger *utils.Logger) ResourceFactory {
+func NewTTSFactory(ttsType string, config *config.Config, logger *logging.Logger) ResourceFactory {
 	if ttsCfg, ok := config.TTS[ttsType]; ok {
 		return &ProviderFactory{
 			providerType: "tts",
@@ -166,7 +166,7 @@ func NewTTSFactory(ttsType string, config *config.Config, logger *utils.Logger) 
 	return nil
 }
 
-func NewMCPFactory(config *config.Config, logger *utils.Logger) ResourceFactory {
+func NewMCPFactory(config *config.Config, logger *logging.Logger) ResourceFactory {
 	return &ProviderFactory{
 		providerType: "mcp",
 		config:       config,
@@ -174,3 +174,6 @@ func NewMCPFactory(config *config.Config, logger *utils.Logger) ResourceFactory 
 		params:       map[string]interface{}{},
 	}
 }
+
+
+

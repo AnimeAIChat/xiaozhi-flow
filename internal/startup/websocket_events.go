@@ -1,14 +1,16 @@
 package startup
 
-import "context"
+import (
+	"xiaozhi-server-go/internal/startup/model"
+)
 
 // WebSocketEventBroadcaster WebSocket事件广播器接口
 type WebSocketEventBroadcaster interface {
 	// BroadcastExecutionEvent 广播执行事件
-	BroadcastExecutionEvent(eventType string, execution *StartupWorkflowExecution, data map[string]interface{})
+	BroadcastExecutionEvent(eventType model.EventType, execution *model.StartupExecution, data map[string]interface{})
 
 	// BroadcastNodeEvent 广播节点事件
-	BroadcastNodeEvent(eventType string, execution *StartupWorkflowExecution, node *StartupNode, data map[string]interface{})
+	BroadcastNodeEvent(eventType model.EventType, execution *model.StartupExecution, node *model.StartupNode, data map[string]interface{})
 
 	// GetConnectionStats 获取连接统计信息
 	GetConnectionStats() map[string]interface{}
@@ -17,11 +19,11 @@ type WebSocketEventBroadcaster interface {
 // WebSocketBroadcasterAdapter WebSocket广播器适配器
 type WebSocketBroadcasterAdapter struct {
 	broadcaster WebSocketEventBroadcaster
-	logger      StartupLogger
+	logger      model.StartupLogger
 }
 
 // NewWebSocketBroadcasterAdapter 创建WebSocket广播器适配器
-func NewWebSocketBroadcasterAdapter(broadcaster WebSocketEventBroadcaster, logger StartupLogger) *WebSocketBroadcasterAdapter {
+func NewWebSocketBroadcasterAdapter(broadcaster WebSocketEventBroadcaster, logger model.StartupLogger) *WebSocketBroadcasterAdapter {
 	return &WebSocketBroadcasterAdapter{
 		broadcaster: broadcaster,
 		logger:      logger,
@@ -29,14 +31,14 @@ func NewWebSocketBroadcasterAdapter(broadcaster WebSocketEventBroadcaster, logge
 }
 
 // BroadcastExecutionEvent 广播执行事件
-func (a *WebSocketBroadcasterAdapter) BroadcastExecutionEvent(eventType string, execution *StartupWorkflowExecution, data map[string]interface{}) {
+func (a *WebSocketBroadcasterAdapter) BroadcastExecutionEvent(eventType model.EventType, execution *model.StartupExecution, data map[string]interface{}) {
 	if a.broadcaster != nil {
 		a.broadcaster.BroadcastExecutionEvent(eventType, execution, data)
 	}
 }
 
 // BroadcastNodeEvent 广播节点事件
-func (a *WebSocketBroadcasterAdapter) BroadcastNodeEvent(eventType string, execution *StartupWorkflowExecution, node *StartupNode, data map[string]interface{}) {
+func (a *WebSocketBroadcasterAdapter) BroadcastNodeEvent(eventType model.EventType, execution *model.StartupExecution, node *model.StartupNode, data map[string]interface{}) {
 	if a.broadcaster != nil {
 		a.broadcaster.BroadcastNodeEvent(eventType, execution, node, data)
 	}
@@ -62,12 +64,12 @@ func NewNoOpWebSocketBroadcaster() *NoOpWebSocketBroadcaster {
 }
 
 // BroadcastExecutionEvent 广播执行事件（空操作）
-func (n *NoOpWebSocketBroadcaster) BroadcastExecutionEvent(eventType string, execution *StartupWorkflowExecution, data map[string]interface{}) {
+func (n *NoOpWebSocketBroadcaster) BroadcastExecutionEvent(eventType model.EventType, execution *model.StartupExecution, data map[string]interface{}) {
 	// 空操作 - 不执行任何广播
 }
 
 // BroadcastNodeEvent 广播节点事件（空操作）
-func (n *NoOpWebSocketBroadcaster) BroadcastNodeEvent(eventType string, execution *StartupWorkflowExecution, node *StartupNode, data map[string]interface{}) {
+func (n *NoOpWebSocketBroadcaster) BroadcastNodeEvent(eventType model.EventType, execution *model.StartupExecution, node *model.StartupNode, data map[string]interface{}) {
 	// 空操作 - 不执行任何广播
 }
 
@@ -79,3 +81,5 @@ func (n *NoOpWebSocketBroadcaster) GetConnectionStats() map[string]interface{} {
 		"type":              "noop",
 	}
 }
+
+

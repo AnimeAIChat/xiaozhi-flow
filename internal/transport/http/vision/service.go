@@ -1,6 +1,7 @@
 package vision
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"xiaozhi-server-go/internal/platform/errors"
 	providers "xiaozhi-server-go/internal/domain/providers/types"
 	"xiaozhi-server-go/internal/domain/providers/vlllm"
-	"xiaozhi-server-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ const (
 
 // Service Vision服务的HTTP传输层实现
 type Service struct {
-	logger       *utils.Logger
+	logger       *logging.Logger
 	config       *config.Config
 	imagePipeline *domainimage.Pipeline
 	vlllmMap     map[string]*vlllm.Provider
@@ -36,7 +36,7 @@ type Service struct {
 // NewService 创建新的Vision服务实例
 func NewService(
 	config *config.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	imagePipeline *domainimage.Pipeline,
 ) (*Service, error) {
 	if config == nil {
@@ -433,3 +433,5 @@ func (s *Service) Cleanup() error {
 	s.logger.InfoTag("Vision", "服务清理完成")
 	return nil
 }
+
+

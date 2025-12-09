@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-server-go/internal/startup"
+	"xiaozhi-server-go/internal/startup/model"
 	"xiaozhi-server-go/internal/workflow"
 )
 
 // ConfigNodeExecutor 配置节点执行器
 type ConfigNodeExecutor struct {
-	logger startup.StartupLogger
+	logger model.StartupLogger
 }
 
 // NewConfigNodeExecutor 创建配置节点执行器
-func NewConfigNodeExecutor(logger startup.StartupLogger) *ConfigNodeExecutor {
+func NewConfigNodeExecutor(logger model.StartupLogger) *ConfigNodeExecutor {
 	return &ConfigNodeExecutor{
 		logger: logger,
 	}
@@ -24,12 +24,12 @@ func NewConfigNodeExecutor(logger startup.StartupLogger) *ConfigNodeExecutor {
 // Execute 执行配置节点
 func (e *ConfigNodeExecutor) Execute(
 	ctx context.Context,
-	node *startup.StartupNode,
+	node *model.StartupNode,
 	inputs map[string]interface{},
 	context map[string]interface{},
-) (*startup.StartupNodeResult, error) {
+) (*model.StartupNodeResult, error) {
 	startTime := time.Now()
-	result := &startup.StartupNodeResult{
+	result := &model.StartupNodeResult{
 		NodeID:   node.ID,
 		NodeName: node.Name,
 		NodeType: node.Type,
@@ -37,7 +37,7 @@ func (e *ConfigNodeExecutor) Execute(
 		Status:   workflow.NodeStatusRunning,
 		Inputs:   inputs,
 		Outputs:  make(map[string]interface{}),
-		Logs:     make([]startup.StartupNodeLog, 0),
+		Logs:     make([]model.StartupNodeLog, 0),
 	}
 
 	e.logger.Info("Executing config node", "node_id", node.ID, "node_name", node.Name)
@@ -81,12 +81,12 @@ func (e *ConfigNodeExecutor) Execute(
 // executeLoadDefaultConfig 执行加载默认配置
 func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 	inputs map[string]interface{},
 	context map[string]interface{},
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting default configuration loading",
@@ -102,7 +102,7 @@ func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 		"fallback_to_defaults", fallbackToDefaults,
 		"use_builtin_defaults", useBuiltinDefaults)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Config loading: file=%s, fallback=%v, builtin=%v", configFile, fallbackToDefaults, useBuiltinDefaults),
@@ -114,7 +114,7 @@ func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 
 	if !configStoreReady || !databaseReady {
 		err := fmt.Errorf("required dependencies not completed: config_store=%v, database=%v", configStoreReady, databaseReady)
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   err.Error(),
@@ -130,7 +130,7 @@ func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 	// 4. 验证配置完整性
 	// 5. 存储配置到上下文中供后续节点使用
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Attempting to load configuration from database",
@@ -147,13 +147,13 @@ func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 	// 创建默认配置对象
 	defaultConfig := e.createDefaultConfiguration()
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Configuration loaded successfully",
 	})
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Configuration sections loaded: %d", len(defaultConfig)),
@@ -176,12 +176,12 @@ func (e *ConfigNodeExecutor) executeLoadDefaultConfig(
 // executeInitConfigIntegrator 执行初始化配置集成器
 func (e *ConfigNodeExecutor) executeInitConfigIntegrator(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 	inputs map[string]interface{},
 	context map[string]interface{},
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting configuration integrator initialization",
@@ -197,7 +197,7 @@ func (e *ConfigNodeExecutor) executeInitConfigIntegrator(
 		"enable_file_config", enableFileConfig,
 		"config_watch_interval", configWatchInterval)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Config integrator: env=%v, file=%v, watch=%s", enableEnvConfig, enableFileConfig, configWatchInterval),
@@ -209,7 +209,7 @@ func (e *ConfigNodeExecutor) executeInitConfigIntegrator(
 
 	if !componentsReady || !loggingReady {
 		err := fmt.Errorf("required dependencies not completed: components=%v, logging=%v", componentsReady, loggingReady)
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   err.Error(),
@@ -226,14 +226,14 @@ func (e *ConfigNodeExecutor) executeInitConfigIntegrator(
 	// 5. 建立配置更新通知机制
 
 	if enableEnvConfig {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Environment variable configuration enabled",
 		})
 
 		// 模拟环境变量加载
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Environment variables loaded successfully",
@@ -241,21 +241,21 @@ func (e *ConfigNodeExecutor) executeInitConfigIntegrator(
 	}
 
 	if enableFileConfig {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "File-based configuration enabled",
 		})
 
 		// 模拟文件配置监控设置
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   fmt.Sprintf("Configuration file monitoring started with interval: %s", configWatchInterval),
 		})
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Configuration integrator initialized successfully",
@@ -348,13 +348,13 @@ func (e *ConfigNodeExecutor) getConfigSources(envConfig, fileConfig bool) []stri
 }
 
 // Validate 验证节点配置
-func (e *ConfigNodeExecutor) Validate(ctx context.Context, node *startup.StartupNode) error {
+func (e *ConfigNodeExecutor) Validate(ctx context.Context, node *model.StartupNode) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID is required")
 	}
 
-	if node.Type != startup.StartupNodeConfig {
-		return fmt.Errorf("invalid node type: expected %s, got %s", startup.StartupNodeConfig, node.Type)
+	if node.Type != model.StartupNodeConfig {
+		return fmt.Errorf("invalid node type: expected %s, got %s", model.StartupNodeConfig, node.Type)
 	}
 
 	// 根据节点ID验证特定配置
@@ -369,7 +369,7 @@ func (e *ConfigNodeExecutor) Validate(ctx context.Context, node *startup.Startup
 }
 
 // validateLoadDefaultConfig 验证加载默认配置节点
-func (e *ConfigNodeExecutor) validateLoadDefaultConfig(node *startup.StartupNode) error {
+func (e *ConfigNodeExecutor) validateLoadDefaultConfig(node *model.StartupNode) error {
 	configFile := getStringConfig(node.Config, "config_file", "")
 	if configFile != "" && !isValidConfigFile(configFile) {
 		return fmt.Errorf("invalid config_file format: %s", configFile)
@@ -379,7 +379,7 @@ func (e *ConfigNodeExecutor) validateLoadDefaultConfig(node *startup.StartupNode
 }
 
 // validateInitConfigIntegrator 验证配置集成器节点
-func (e *ConfigNodeExecutor) validateInitConfigIntegrator(node *startup.StartupNode) error {
+func (e *ConfigNodeExecutor) validateInitConfigIntegrator(node *model.StartupNode) error {
 	configWatchInterval := getStringConfig(node.Config, "config_watch_interval", "")
 	if configWatchInterval != "" && !isValidDuration(configWatchInterval) {
 		return fmt.Errorf("invalid config_watch_interval format: %s", configWatchInterval)
@@ -389,9 +389,9 @@ func (e *ConfigNodeExecutor) validateInitConfigIntegrator(node *startup.StartupN
 }
 
 // GetNodeInfo 获取节点信息
-func (e *ConfigNodeExecutor) GetNodeInfo() *startup.StartupNodeInfo {
-	return &startup.StartupNodeInfo{
-		Type:        startup.StartupNodeConfig,
+func (e *ConfigNodeExecutor) GetNodeInfo() *model.StartupNodeInfo {
+	return &model.StartupNodeInfo{
+		Type:        model.StartupNodeConfig,
 		Name:        "Config Node Executor",
 		Description: "Handles configuration-related tasks including loading default config and integrating multiple config sources",
 		Version:     "1.0.0",
@@ -478,3 +478,6 @@ func isValidDuration(duration string) bool {
 
 	return false
 }
+
+
+

@@ -10,6 +10,8 @@ import (
 	"xiaozhi-server-go/internal/plugin/capability"
 )
 
+var logger = &SimpleLogger{}
+
 // SimpleLogger 简单日志实现
 type SimpleLogger struct{}
 
@@ -470,7 +472,7 @@ func RunExample() {
 
 // monitorExecution 监控执行状态
 func monitorExecution(executor WorkflowExecutor, executionID string) {
-	ctx := context.Background()
+	// ctx := context.Background() // Unused
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 

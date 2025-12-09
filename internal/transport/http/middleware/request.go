@@ -1,16 +1,16 @@
 package middleware
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"bytes"
 	"io"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // LoggingMiddleware 请求日志中间件
-func LoggingMiddleware(logger *utils.Logger) gin.HandlerFunc {
+func LoggingMiddleware(logger *logging.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 
@@ -139,3 +139,5 @@ func isSensitiveContentType(contentType string) bool {
 	}
 	return false
 }
+
+

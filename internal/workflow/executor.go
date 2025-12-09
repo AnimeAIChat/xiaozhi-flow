@@ -23,6 +23,8 @@ type WorkflowExecutorImpl struct {
 	executionMu   sync.RWMutex
 	cancelFuncs   map[string]context.CancelFunc
 	cancelFuncsMu sync.RWMutex
+}
+
 // NewWorkflowExecutor 创建工作流执行器
 func NewWorkflowExecutor(config *config.Config, registry *capability.Registry, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
 	return &WorkflowExecutorImpl{
@@ -33,8 +35,6 @@ func NewWorkflowExecutor(config *config.Config, registry *capability.Registry, d
 		logger:        logger,
 		executions:    make(map[string]*Execution),
 		cancelFuncs:   make(map[string]context.CancelFunc),
-	}
-}	cancelFuncs:   make(map[string]context.CancelFunc),
 	}
 }
 
@@ -99,7 +99,7 @@ func (e *WorkflowExecutorImpl) executeWorkflow(ctx context.Context, workflow *Wo
 	}
 
 	// 拓扑排序获取执行顺序
-	sortedNodes, err := e.dagEngine.TopologicalSort(workflow.Nodes, workflow.Edges)
+	_, err := e.dagEngine.TopologicalSort(workflow.Nodes, workflow.Edges)
 	if err != nil {
 		e.markExecutionFailed(execution, fmt.Sprintf("Topological sort failed: %w", err))
 		return
@@ -310,7 +310,6 @@ func (e *WorkflowExecutorImpl) executeTaskNode(ctx context.Context, workflow *Wo
 	if err != nil {
 		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin execution failed: %w", err))
 		return
-	}return
 	}
 
 	// 处理插件输出

@@ -1,13 +1,13 @@
 package openai
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
-	"xiaozhi-server-go/internal/utils"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -18,7 +18,7 @@ type OpenAILLMProvider struct {
 	sessionID      string
 	providerType   string
 	isInitialized  bool
-	logger         *utils.Logger
+	logger         *logging.Logger
 	identityType   string
 	identityFlag   string
 
@@ -97,9 +97,9 @@ type RateLimiter struct {
 }
 
 // NewOpenAILLMProvider 创建新的OpenAI LLM提供者
-func NewOpenAILLMProvider(config Config, logger *utils.Logger) *OpenAILLMProvider {
+func NewOpenAILLMProvider(config Config, logger *logging.Logger) *OpenAILLMProvider {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	provider := &OpenAILLMProvider{
@@ -224,7 +224,12 @@ func (p *OpenAILLMProvider) GetSessionID() string {
 }
 
 // Response 生成回复（基础模式）
-func (p *OpenAILLMProvider) Response(ctx context.Context, sessionID string, messages []contractProviders.Message, tools []contractProviders.Tool) (<-chan contractProviders.ResponseChunk, error) {
+func (p *OpenAILLMProvider) Response(ctx context.Context, sessionID string, messages []contractProviders.Message) (<-chan contractProviders.ResponseChunk, error) {
+	return p.responseInternal(ctx, sessionID, messages, nil)
+}
+
+// responseInternal 内部实现
+func (p *OpenAILLMProvider) responseInternal(ctx context.Context, sessionID string, messages []contractProviders.Message, tools []contractProviders.Tool) (<-chan contractProviders.ResponseChunk, error) {
 	if !p.isInitialized {
 		return nil, fmt.Errorf("provider not initialized")
 	}
@@ -261,12 +266,12 @@ func (p *OpenAILLMProvider) Response(ctx context.Context, sessionID string, mess
 
 // ResponseWithFunctions 生成带函数调用的回复
 func (p *OpenAILLMProvider) ResponseWithFunctions(ctx context.Context, sessionID string, messages []contractProviders.Message, tools []contractProviders.Tool) (<-chan contractProviders.ResponseChunk, error) {
-	return p.Response(ctx, sessionID, messages, tools)
+	return p.responseInternal(ctx, sessionID, messages, tools)
 }
 
 // ResponseWithTools 生成带工具的回复
 func (p *OpenAILLMProvider) ResponseWithTools(ctx context.Context, sessionID string, messages []contractProviders.Message, tools []contractProviders.Tool) (<-chan contractProviders.ResponseChunk, error) {
-	return p.Response(ctx, sessionID, messages, tools)
+	return p.responseInternal(ctx, sessionID, messages, tools)
 }
 
 // GetCapabilities 获取提供者能力
@@ -400,8 +405,8 @@ func (p *OpenAILLMProvider) convertTools(tools []contractProviders.Tool) []opena
 	openaiTools := make([]openai.Tool, len(tools))
 	for i, tool := range tools {
 		openaiTools[i] = openai.Tool{
-			Type: tool.Type,
-			Function: openai.FunctionDefinition{
+			Type: openai.ToolType(tool.Type),
+			Function: &openai.FunctionDefinition{
 				Name:        tool.Function.Name,
 				Description: tool.Function.Description,
 				Parameters:  tool.Function.Parameters,
@@ -585,3 +590,5 @@ func (rl *RateLimiter) AllowRequest() bool {
 	rl.requests = append(rl.requests, now)
 	return true
 }
+
+

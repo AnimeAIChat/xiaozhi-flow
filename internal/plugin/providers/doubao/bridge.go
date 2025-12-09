@@ -1,9 +1,9 @@
 package doubao
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/domain/providers/asr"
 	"xiaozhi-server-go/internal/domain/providers/tts"
-	"xiaozhi-server-go/internal/utils"
 )
 
 func init() {
@@ -11,7 +11,7 @@ func init() {
 	tts.Register("doubao", NewCoreTTSProvider)
 }
 
-func NewCoreASRProvider(config *asr.Config, deleteFile bool, logger *utils.Logger) (asr.Provider, error) {
+func NewCoreASRProvider(config *asr.Config, deleteFile bool, logger *logging.Logger) (asr.Provider, error) {
 	localConfig := &ASRConfig{
 		Name: config.Name,
 		Type: config.Type,
@@ -45,3 +45,6 @@ func NewCoreTTSProvider(config *tts.Config, deleteFile bool) (tts.Provider, erro
 	
 	return provider, nil
 }
+
+
+

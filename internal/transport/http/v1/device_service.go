@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"xiaozhi-server-go/internal/platform/storage"
 	"xiaozhi-server-go/internal/transport/http/types/v1"
 	httpUtils "xiaozhi-server-go/internal/transport/http/utils"
-	"xiaozhi-server-go/internal/utils"
 	"gorm.io/gorm"
 )
 
@@ -23,7 +23,7 @@ type DeviceConnectionManager interface {
 
 // DeviceServiceV1 V1版本设备服务
 type DeviceServiceV1 struct {
-	logger            *utils.Logger
+	logger            *logging.Logger
 	config            *config.Config
 	db                *gorm.DB
 	deviceRepo        repository.DeviceRepository
@@ -31,7 +31,7 @@ type DeviceServiceV1 struct {
 }
 
 // NewDeviceServiceV1 创建设备服务V1实例
-func NewDeviceServiceV1(config *config.Config, logger *utils.Logger, connManager DeviceConnectionManager) (*DeviceServiceV1, error) {
+func NewDeviceServiceV1(config *config.Config, logger *logging.Logger, connManager DeviceConnectionManager) (*DeviceServiceV1, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
@@ -795,4 +795,6 @@ func (s *DeviceServiceV1) getDeviceFromDB(deviceID string) (*v1.DeviceInfo, erro
 	deviceInfo := s.convertAggregateToAPI(deviceAggregate)
 	return deviceInfo, nil
 }
+
+
 

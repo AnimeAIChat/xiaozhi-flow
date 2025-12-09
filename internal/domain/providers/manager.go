@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"errors"
 	"fmt"
@@ -15,7 +16,6 @@ import (
 	"xiaozhi-server-go/internal/domain/providers/tts"
 	"xiaozhi-server-go/internal/domain/providers/types"
 	"xiaozhi-server-go/internal/domain/providers/vlllm"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // Set groups together the provider instances required to serve a single
@@ -64,7 +64,7 @@ func (s *Set) clear() {
 // relies on maps.Clone to ensure configuration maps are safely duplicated per
 // provider instance.
 type Manager struct {
-	logger  *utils.Logger
+	logger  *logging.Logger
 	modules map[string]string
 
 	asrPool   *providerPool[types.ASRProvider]
@@ -77,18 +77,18 @@ type Manager struct {
 }
 
 // NewManager initialises the provider pools declared in the supplied config.
-func NewManager(cfg *config.Config, logger *utils.Logger) (*Manager, error) {
+func NewManager(cfg *config.Config, logger *logging.Logger) (*Manager, error) {
 	return NewManagerWithMCP(cfg, logger, nil)
 }
 
 // NewManagerWithMCP initialises the provider pools with an optional pre-initialised MCP manager.
-func NewManagerWithMCP(cfg *config.Config, logger *utils.Logger, preInitMCPManager interface{}) (*Manager, error) {
+func NewManagerWithMCP(cfg *config.Config, logger *logging.Logger, preInitMCPManager interface{}) (*Manager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("providers manager requires config")
 	}
 
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	modules := map[string]string{}
@@ -287,7 +287,7 @@ func (m *Manager) doWarmup(ctx context.Context, pool interface{}, poolType strin
 }
 
 // warmupConcretePool is a generic function to warmup any concrete pool type
-func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolType string, logger *utils.Logger) {
+func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolType string, logger *logging.Logger) {
 	warmSize := pool.warmSize
 
 	for i := 0; i < warmSize; i++ {
@@ -337,7 +337,7 @@ func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolT
 }
 
 // warmupMCPManager attempts to pre-warm the XiaoZhiMCPClient within an MCP Manager
-func warmupMCPManager(ctx context.Context, manager *domainmcp.Manager, logger *utils.Logger) {
+func warmupMCPManager(ctx context.Context, manager *domainmcp.Manager, logger *logging.Logger) {
 	if manager == nil {
 		return
 	}
@@ -444,7 +444,7 @@ func (m *Manager) releasePartial(ctx context.Context, set *Set) {
 
 type providerPool[T any] struct {
 	name    string
-	logger  *utils.Logger
+	logger  *logging.Logger
 	create  func(context.Context) (T, error)
 	reset   func(context.Context, T) error
 	destroy func(T) error
@@ -459,7 +459,7 @@ type providerPool[T any] struct {
 
 func newProviderPool[T any](
 	name string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	create func(context.Context) (T, error),
 	reset func(context.Context, T) error,
 	destroy func(T) error,
@@ -585,7 +585,7 @@ func (p *providerPool[T]) stats() map[string]int64 {
 func newASRPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*providerPool[types.ASRProvider], error) {
 	name, ok := modules["ASR"]
 	if !ok || name == "" {
@@ -649,7 +649,7 @@ func newASRPool(
 func newLLMPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*providerPool[types.LLMProvider], error) {
 	name, ok := modules["LLM"]
 	if !ok || name == "" {
@@ -714,7 +714,7 @@ func newLLMPool(
 func newTTSPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*providerPool[types.TTSProvider], error) {
 	name, ok := modules["TTS"]
 	if !ok || name == "" {
@@ -768,7 +768,7 @@ func newTTSPool(
 func newVLLLMPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*providerPool[*vlllm.Provider], error) {
 	name, ok := modules["VLLLM"]
 	if !ok || name == "" {
@@ -805,7 +805,7 @@ func newVLLLMPool(
 
 func newMCPPool(
 	cfg *config.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	preInitMCPManager interface{},
 ) (*providerPool[*domainmcp.Manager], error) {
 	create := func(ctx context.Context) (*domainmcp.Manager, error) {
@@ -840,3 +840,6 @@ func newMCPPool(
 
 	return newProviderPool("mcp", logger, create, reset, destroy), nil
 }
+
+
+

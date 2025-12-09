@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -13,7 +14,6 @@ import (
 	"xiaozhi-server-go/internal/domain/auth/store"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/storage"
-	"xiaozhi-server-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -21,14 +21,14 @@ import (
 
 // AuthHandler handles authentication related HTTP requests
 type AuthHandler struct {
-	logger *utils.Logger
+	logger *logging.Logger
 	config *config.Config
 	authManager *auth.Manager
 	tokenManager *auth.AuthToken
 }
 
 // NewAuthHandler creates a new authentication handler
-func NewAuthHandler(logger *utils.Logger, config *config.Config) (*AuthHandler, error) {
+func NewAuthHandler(logger *logging.Logger, config *config.Config) (*AuthHandler, error) {
 	if logger == nil {
 		return nil, fmt.Errorf("logger is required")
 	}
@@ -562,3 +562,5 @@ func hashPassword(password string) string {
 	hash := sha256.Sum256([]byte(password))
 	return hex.EncodeToString(hash[:])
 }
+
+

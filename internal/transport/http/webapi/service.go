@@ -1,6 +1,7 @@
 package webapi
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -18,7 +19,6 @@ import (
 	"xiaozhi-server-go/internal/platform/errors"
 	"xiaozhi-server-go/internal/platform/storage"
 	"xiaozhi-server-go/internal/platform/storage/adapters"
-	"xiaozhi-server-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
@@ -29,13 +29,13 @@ import (
 
 // Service WebAPI服务的HTTP传输层实现
 type Service struct {
-	logger   *utils.Logger
+	logger   *logging.Logger
 	config   *config.Config
 	startTime time.Time
 }
 
 // NewService 创建新的WebAPI服务实例
-func NewService(config *config.Config, logger *utils.Logger) (*Service, error) {
+func NewService(config *config.Config, logger *logging.Logger) (*Service, error) {
 	if config == nil {
 		return nil, errors.Wrap(errors.KindConfig, "webapi.new", "config is required", nil)
 	}
@@ -2055,3 +2055,5 @@ type DatabaseTestStepRequest struct {
 	Step   int            `json:"step" binding:"omitempty"`
 	Config DatabaseConfig `json:"config" binding:"omitempty"`
 }
+
+

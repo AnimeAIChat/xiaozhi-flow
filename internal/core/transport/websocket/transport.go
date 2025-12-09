@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"net/http"
@@ -14,16 +15,16 @@ import (
 // WebSocketTransport is a compatibility wrapper exposing the legacy transport interface.
 type WebSocketTransport struct {
 	config      *config.Config
-	logger      *utils.Logger
+	logger      *logging.Logger
 	server      *ws.Server
 	hub         *ws.Hub
 	connFactory transport.ConnectionHandlerFactory
 }
 
 // NewWebSocketTransport creates a websocket transport backed by the refactored internal package.
-func NewWebSocketTransport(cfg *config.Config, logger *utils.Logger) *WebSocketTransport {
+func NewWebSocketTransport(cfg *config.Config, logger *logging.Logger) *WebSocketTransport {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	// 自动分配可用端口
@@ -102,3 +103,5 @@ func (t *WebSocketTransport) CloseDeviceConnection(deviceID string) error {
 	}
 	return nil
 }
+
+

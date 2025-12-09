@@ -1,10 +1,10 @@
 package pool
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"time"
 	"xiaozhi-server-go/internal/util"
-	"xiaozhi-server-go/internal/utils"
 )
 
 /*
@@ -84,7 +84,7 @@ func (w *legacyResourceWrapper) IsValid() bool {
 type ResourcePool struct {
 	poolName string
 	pool     *util.ResourcePool
-	logger   *utils.Logger
+	logger   *logging.Logger
 }
 
 // PoolConfig 资源池配置 - 适配旧配置格式
@@ -100,7 +100,7 @@ func NewResourcePool(
 	poolName string,
 	factory ResourceFactory,
 	config PoolConfig,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*ResourcePool, error) {
 	// 创建适配器
 	adapter := &legacyResourceAdapter{factory: factory}
@@ -211,3 +211,6 @@ func (p *ResourcePool) GetPoolStats() map[string]interface{} {
 func (p *ResourcePool) Resize(newMaxSize int) error {
 	return p.pool.Resize(newMaxSize)
 }
+
+
+

@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-server-go/internal/startup"
+	"xiaozhi-server-go/internal/startup/model"
 	"xiaozhi-server-go/internal/workflow"
 )
 
 // AuthNodeExecutor 认证节点执行器
 type AuthNodeExecutor struct {
-	logger startup.StartupLogger
+	logger model.StartupLogger
 }
 
 // NewAuthNodeExecutor 创建认证节点执行器
-func NewAuthNodeExecutor(logger startup.StartupLogger) *AuthNodeExecutor {
+func NewAuthNodeExecutor(logger model.StartupLogger) *AuthNodeExecutor {
 	return &AuthNodeExecutor{
 		logger: logger,
 	}
@@ -24,12 +24,12 @@ func NewAuthNodeExecutor(logger startup.StartupLogger) *AuthNodeExecutor {
 // Execute 执行认证节点
 func (e *AuthNodeExecutor) Execute(
 	ctx context.Context,
-	node *startup.StartupNode,
+	node *model.StartupNode,
 	inputs map[string]interface{},
 	context map[string]interface{},
-) (*startup.StartupNodeResult, error) {
+) (*model.StartupNodeResult, error) {
 	startTime := time.Now()
-	result := &startup.StartupNodeResult{
+	result := &model.StartupNodeResult{
 		NodeID:   node.ID,
 		NodeName: node.Name,
 		NodeType: node.Type,
@@ -37,7 +37,7 @@ func (e *AuthNodeExecutor) Execute(
 		Status:   workflow.NodeStatusRunning,
 		Inputs:   inputs,
 		Outputs:  make(map[string]interface{}),
-		Logs:     make([]startup.StartupNodeLog, 0),
+		Logs:     make([]model.StartupNodeLog, 0),
 	}
 
 	e.logger.Info("Executing auth node", "node_id", node.ID, "node_name", node.Name)
@@ -74,12 +74,12 @@ func (e *AuthNodeExecutor) Execute(
 // executeInitAuthManager 执行初始化认证管理器
 func (e *AuthNodeExecutor) executeInitAuthManager(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 	inputs map[string]interface{},
 	context map[string]interface{},
 ) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting authentication manager initialization",
@@ -100,7 +100,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 		"enable_oauth", enableOAuth,
 		"enable_jwt", enableJWT)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Auth configuration: store=%s, ttl=%s, oauth=%v, jwt=%v", authStore, sessionTTL, enableOAuth, enableJWT),
@@ -114,7 +114,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 	if !componentsReady || !observabilityReady || !databaseReady {
 		err := fmt.Errorf("required dependencies not completed: components=%v, observability=%v, database=%v",
 			componentsReady, observabilityReady, databaseReady)
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   err.Error(),
@@ -125,7 +125,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 	// 验证配置
 	if enableJWT && jwtSecret == "" {
 		err := fmt.Errorf("JWT secret is required when JWT is enabled")
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   err.Error(),
@@ -134,7 +134,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 	}
 
 	// 初始化认证存储后端
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Initializing %s authentication store", authStore),
@@ -142,7 +142,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 	err := e.initializeAuthStore(ctx, authStore, result)
 	if err != nil {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   fmt.Sprintf("Failed to initialize auth store: %s", err.Error()),
@@ -151,7 +151,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 	}
 
 	// 初始化会话管理
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Initializing session management",
@@ -159,7 +159,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 	err = e.initializeSessionManagement(ctx, sessionTTL, cleanupInterval, result)
 	if err != nil {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   fmt.Sprintf("Failed to initialize session management: %s", err.Error()),
@@ -168,7 +168,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 	}
 
 	// 初始化密码加密
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Initializing password encryption",
@@ -176,7 +176,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 	err = e.initializePasswordEncryption(result)
 	if err != nil {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "error",
 			Message:   fmt.Sprintf("Failed to initialize password encryption: %s", err.Error()),
@@ -186,7 +186,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 	// 初始化JWT支持（如果启用）
 	if enableJWT {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Initializing JWT token support",
@@ -194,7 +194,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 		err = e.initializeJWTSupport(jwtSecret, result)
 		if err != nil {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "error",
 				Message:   fmt.Sprintf("Failed to initialize JWT support: %s", err.Error()),
@@ -205,7 +205,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 	// 初始化OAuth支持（如果启用）
 	if enableOAuth {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Initializing OAuth support",
@@ -213,7 +213,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 
 		err = e.initializeOAuthSupport(result)
 		if err != nil {
-			result.Logs = append(result.Logs, startup.StartupNodeLog{
+			result.Logs = append(result.Logs, model.StartupNodeLog{
 				Timestamp: time.Now(),
 				Level:     "warn",
 				Message:   fmt.Sprintf("OAuth initialization failed: %s", err.Error()),
@@ -227,7 +227,7 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 		go e.startSessionCleanup(ctx, cleanupInterval, result)
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Authentication manager initialized successfully",
@@ -252,22 +252,22 @@ func (e *AuthNodeExecutor) executeInitAuthManager(
 }
 
 // initializeAuthStore 初始化认证存储后端
-func (e *AuthNodeExecutor) initializeAuthStore(ctx context.Context, storeType string, result *startup.StartupNodeResult) error {
+func (e *AuthNodeExecutor) initializeAuthStore(ctx context.Context, storeType string, result *model.StartupNodeResult) error {
 	switch storeType {
 	case "memory":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Memory-based auth store initialized (not persistent)",
 		})
 	case "sqlite":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "SQLite auth store initialized",
 		})
 	case "redis":
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Redis auth store initialized",
@@ -288,14 +288,14 @@ func (e *AuthNodeExecutor) initializeAuthStore(ctx context.Context, storeType st
 }
 
 // initializeSessionManagement 初始化会话管理
-func (e *AuthNodeExecutor) initializeSessionManagement(ctx context.Context, sessionTTL, cleanupInterval string, result *startup.StartupNodeResult) error {
+func (e *AuthNodeExecutor) initializeSessionManagement(ctx context.Context, sessionTTL, cleanupInterval string, result *model.StartupNodeResult) error {
 	// 解析会话TTL
 	ttl, err := time.ParseDuration(sessionTTL)
 	if err != nil {
 		return fmt.Errorf("invalid session_ttl format: %s", sessionTTL)
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Session management initialized with TTL: %v", ttl),
@@ -313,8 +313,8 @@ func (e *AuthNodeExecutor) initializeSessionManagement(ctx context.Context, sess
 }
 
 // initializePasswordEncryption 初始化密码加密
-func (e *AuthNodeExecutor) initializePasswordEncryption(result *startup.StartupNodeResult) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+func (e *AuthNodeExecutor) initializePasswordEncryption(result *model.StartupNodeResult) error {
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Password encryption initialized with bcrypt",
@@ -331,8 +331,8 @@ func (e *AuthNodeExecutor) initializePasswordEncryption(result *startup.StartupN
 }
 
 // initializeJWTSupport 初始化JWT支持
-func (e *AuthNodeExecutor) initializeJWTSupport(jwtSecret string, result *startup.StartupNodeResult) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+func (e *AuthNodeExecutor) initializeJWTSupport(jwtSecret string, result *model.StartupNodeResult) error {
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "JWT token support initialized",
@@ -349,8 +349,8 @@ func (e *AuthNodeExecutor) initializeJWTSupport(jwtSecret string, result *startu
 }
 
 // initializeOAuthSupport 初始化OAuth支持
-func (e *AuthNodeExecutor) initializeOAuthSupport(result *startup.StartupNodeResult) error {
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+func (e *AuthNodeExecutor) initializeOAuthSupport(result *model.StartupNodeResult) error {
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "OAuth support initialized",
@@ -367,7 +367,7 @@ func (e *AuthNodeExecutor) initializeOAuthSupport(result *startup.StartupNodeRes
 }
 
 // startSessionCleanup 启动会话清理协程
-func (e *AuthNodeExecutor) startSessionCleanup(ctx context.Context, cleanupInterval string, result *startup.StartupNodeResult) {
+func (e *AuthNodeExecutor) startSessionCleanup(ctx context.Context, cleanupInterval string, result *model.StartupNodeResult) {
 	interval, err := time.ParseDuration(cleanupInterval)
 	if err != nil {
 		e.logger.Error("Invalid cleanup interval format", "interval", cleanupInterval, "error", err)
@@ -436,13 +436,13 @@ func (e *AuthNodeExecutor) getSecurityFeatures() []string {
 }
 
 // Validate 验证节点配置
-func (e *AuthNodeExecutor) Validate(ctx context.Context, node *startup.StartupNode) error {
+func (e *AuthNodeExecutor) Validate(ctx context.Context, node *model.StartupNode) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID is required")
 	}
 
-	if node.Type != startup.StartupNodeAuth {
-		return fmt.Errorf("invalid node type: expected %s, got %s", startup.StartupNodeAuth, node.Type)
+	if node.Type != model.StartupNodeAuth {
+		return fmt.Errorf("invalid node type: expected %s, got %s", model.StartupNodeAuth, node.Type)
 	}
 
 	// 根据节点ID验证特定配置
@@ -455,7 +455,7 @@ func (e *AuthNodeExecutor) Validate(ctx context.Context, node *startup.StartupNo
 }
 
 // validateInitAuthManager 验证认证管理器配置
-func (e *AuthNodeExecutor) validateInitAuthManager(node *startup.StartupNode) error {
+func (e *AuthNodeExecutor) validateInitAuthManager(node *model.StartupNode) error {
 	authStore := getStringConfig(node.Config, "auth_store", "")
 	if authStore != "" && !contains([]string{"memory", "sqlite", "redis"}, authStore) {
 		return fmt.Errorf("unsupported auth_store: %s", authStore)
@@ -486,9 +486,9 @@ func (e *AuthNodeExecutor) validateInitAuthManager(node *startup.StartupNode) er
 }
 
 // GetNodeInfo 获取节点信息
-func (e *AuthNodeExecutor) GetNodeInfo() *startup.StartupNodeInfo {
-	return &startup.StartupNodeInfo{
-		Type:        startup.StartupNodeAuth,
+func (e *AuthNodeExecutor) GetNodeInfo() *model.StartupNodeInfo {
+	return &model.StartupNodeInfo{
+		Type:        model.StartupNodeAuth,
 		Name:        "Auth Node Executor",
 		Description: "Handles authentication and authorization system initialization including user management and session handling",
 		Version:     "1.0.0",
@@ -545,3 +545,6 @@ func (e *AuthNodeExecutor) Cleanup(ctx context.Context) error {
 	// 这里可以停止会话清理协程、关闭数据库连接等
 	return nil
 }
+
+
+

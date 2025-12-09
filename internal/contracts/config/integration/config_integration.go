@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"xiaozhi-server-go/internal/contracts/config/notifier"
 	"xiaozhi-server-go/internal/contracts/config/sources"
 	platformConfig "xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ConfigIntegrator 配置系统集成器
@@ -18,7 +18,7 @@ import (
 type ConfigIntegrator struct {
 	unifiedManager contractConfig.UnifiedConfigManager
 	platformConfig  *platformConfig.Config
-	logger          *utils.Logger
+	logger          *logging.Logger
 	isInitialized   bool
 }
 
@@ -26,13 +26,13 @@ type ConfigIntegrator struct {
 type ConfigIntegratorOption func(*ConfigIntegrator)
 
 // NewConfigIntegrator 创建配置系统集成器
-func NewConfigIntegrator(platformConfig *platformConfig.Config, logger *utils.Logger, options ...ConfigIntegratorOption) (*ConfigIntegrator, error) {
+func NewConfigIntegrator(platformConfig *platformConfig.Config, logger *logging.Logger, options ...ConfigIntegratorOption) (*ConfigIntegrator, error) {
 	if platformConfig == nil {
 		return nil, fmt.Errorf("platform config cannot be nil")
 	}
 
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	integrator := &ConfigIntegrator{
@@ -389,3 +389,5 @@ func (ci *ConfigIntegrator) SetConfigValue(key string, value interface{}) error 
 
 	return ci.unifiedManager.Set(key, value)
 }
+
+

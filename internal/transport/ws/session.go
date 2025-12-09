@@ -1,11 +1,10 @@
 package ws
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"sync/atomic"
 	"time"
-
-	"xiaozhi-server-go/internal/utils"
 )
 
 const defaultCloseTimeout = 3 * time.Second
@@ -23,7 +22,7 @@ type Session struct {
 	id      string
 	handler SessionHandler
 	conn    *Connection
-	logger  *utils.Logger
+	logger  *logging.Logger
 
 	ctx    context.Context
 	cancel context.CancelCauseFunc
@@ -43,7 +42,7 @@ func (s *Session) ResetLLMContext() {
 	}
 	s.llmCtx, s.llmCancel = context.WithCancel(context.Background())
 }
-func NewSession(parent context.Context, handler SessionHandler, conn *Connection, logger *utils.Logger) *Session {
+func NewSession(parent context.Context, handler SessionHandler, conn *Connection, logger *logging.Logger) *Session {
 	sessionCtx, cancel := context.WithCancelCause(parent)
 	llmCtx, llmCancel := context.WithCancel(context.Background())
 	return &Session{

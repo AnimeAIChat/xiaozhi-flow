@@ -1,6 +1,7 @@
 package startup
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"net/http"
@@ -9,22 +10,21 @@ import (
 	"github.com/gin-gonic/gin"
 	"xiaozhi-server-go/internal/platform/config"
 	httptransport "xiaozhi-server-go/internal/transport/http"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // Service 启动流程HTTP服务
 type Service struct {
 	config *config.Config
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
 // NewService 创建启动流程服务
-func NewService(config *config.Config, logger *utils.Logger) (*Service, error) {
+func NewService(config *config.Config, logger *logging.Logger) (*Service, error) {
 	if config == nil {
 		return nil, fmt.Errorf("config is required")
 	}
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	return &Service{
@@ -383,3 +383,5 @@ func (s *Service) getMinimalWorkflow() map[string]interface{} {
 
 	return workflow
 }
+
+

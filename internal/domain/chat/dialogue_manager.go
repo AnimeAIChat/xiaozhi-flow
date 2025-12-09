@@ -1,20 +1,19 @@
 package chat
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"encoding/json"
-
-	"xiaozhi-server-go/internal/utils"
 )
 
 // DialogueManager 管理对话上下文和历史
 type DialogueManager struct {
-	logger   *utils.Logger
+	logger   *logging.Logger
 	dialogue []Message
 	memory   MemoryInterface
 }
 
 // NewDialogueManager 创建对话管理器实例
-func NewDialogueManager(logger *utils.Logger, memory MemoryInterface) *DialogueManager {
+func NewDialogueManager(logger *logging.Logger, memory MemoryInterface) *DialogueManager {
 	return &DialogueManager{
 		logger:   logger,
 		dialogue: make([]Message, 0),
@@ -136,3 +135,6 @@ func (dm *DialogueManager) ToJSON(keepSystemPrompt bool) (string, error) {
 func (dm *DialogueManager) LoadFromJSON(jsonStr string) error {
 	return json.Unmarshal([]byte(jsonStr), &dm.dialogue)
 }
+
+
+

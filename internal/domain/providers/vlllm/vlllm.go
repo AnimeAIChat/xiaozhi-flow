@@ -1,20 +1,20 @@
 package vlllm
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	providers "xiaozhi-server-go/internal/domain/providers/types"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 type Provider struct {
 	config *config.VLLLMConfig
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
-func Create(providerType string, config *config.VLLLMConfig, logger *utils.Logger) (*Provider, error) {
+func Create(providerType string, config *config.VLLLMConfig, logger *logging.Logger) (*Provider, error) {
 	return &Provider{
 		config: config,
 		logger: logger,
@@ -36,3 +36,6 @@ func (p *Provider) ResponseWithImage(ctx context.Context, sessionID string, mess
 func (p *Provider) stats() map[string]int64 {
 	return map[string]int64{}
 }
+
+
+

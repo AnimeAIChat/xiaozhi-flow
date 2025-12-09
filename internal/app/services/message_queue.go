@@ -5,12 +5,10 @@ import (
 "sync"
 "time"
 
-"xiaozhi-server-go/internal/platform/logging"
-coreproviders "xiaozhi-server-go/internal/core/providers"
-"xiaozhi-server-go/internal/util"
-)
-
-// MessageQueueService 处理消息队列相关的业务逻辑
+	"xiaozhi-server-go/internal/platform/logging"
+	coreproviders "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/util"
+)// MessageQueueService 处理消息队列相关的业务逻辑
 type MessageQueueService struct {
 logger *logging.Logger
 

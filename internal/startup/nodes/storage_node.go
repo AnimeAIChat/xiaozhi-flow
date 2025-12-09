@@ -6,17 +6,17 @@ import (
 	"path/filepath"
 	"time"
 
-	"xiaozhi-server-go/internal/startup"
+	"xiaozhi-server-go/internal/startup/model"
 	"xiaozhi-server-go/internal/workflow"
 )
 
 // StorageNodeExecutor 存储节点执行器
 type StorageNodeExecutor struct {
-	logger startup.StartupLogger
+	logger model.StartupLogger
 }
 
 // NewStorageNodeExecutor 创建存储节点执行器
-func NewStorageNodeExecutor(logger startup.StartupLogger) *StorageNodeExecutor {
+func NewStorageNodeExecutor(logger model.StartupLogger) *StorageNodeExecutor {
 	return &StorageNodeExecutor{
 		logger: logger,
 	}
@@ -25,12 +25,12 @@ func NewStorageNodeExecutor(logger startup.StartupLogger) *StorageNodeExecutor {
 // Execute 执行存储节点
 func (e *StorageNodeExecutor) Execute(
 	ctx context.Context,
-	node *startup.StartupNode,
+	node *model.StartupNode,
 	inputs map[string]interface{},
 	context map[string]interface{},
-) (*startup.StartupNodeResult, error) {
+) (*model.StartupNodeResult, error) {
 	startTime := time.Now()
-	result := &startup.StartupNodeResult{
+	result := &model.StartupNodeResult{
 		NodeID:   node.ID,
 		NodeName: node.Name,
 		NodeType: node.Type,
@@ -38,7 +38,7 @@ func (e *StorageNodeExecutor) Execute(
 		Status:   workflow.NodeStatusRunning,
 		Inputs:   inputs,
 		Outputs:  make(map[string]interface{}),
-		Logs:     make([]startup.StartupNodeLog, 0),
+		Logs:     make([]model.StartupNodeLog, 0),
 	}
 
 	e.logger.Info("Executing storage node", "node_id", node.ID, "node_name", node.Name)
@@ -82,11 +82,11 @@ func (e *StorageNodeExecutor) Execute(
 // executeInitConfigStore 执行初始化配置存储
 func (e *StorageNodeExecutor) executeInitConfigStore(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
 	// 添加日志
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting config store initialization",
@@ -107,7 +107,7 @@ func (e *StorageNodeExecutor) executeInitConfigStore(
 	// 确保配置目录存在
 	absConfigPath := filepath.Clean(configPath)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Config store initialized with type: %s, path: %s", storageType, absConfigPath),
@@ -127,11 +127,11 @@ func (e *StorageNodeExecutor) executeInitConfigStore(
 // executeInitDatabase 执行初始化数据库
 func (e *StorageNodeExecutor) executeInitDatabase(
 	ctx context.Context,
-	node *startup.StartupNode,
-	result *startup.StartupNodeResult,
+	node *model.StartupNode,
+	result *model.StartupNodeResult,
 ) error {
 	// 添加日志
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Starting database initialization",
@@ -149,7 +149,7 @@ func (e *StorageNodeExecutor) executeInitDatabase(
 		"auto_migrate", autoMigrate,
 		"w_mode", wMode)
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   fmt.Sprintf("Database config: type=%s, connection=%s", databaseType, connectionString),
@@ -170,14 +170,14 @@ func (e *StorageNodeExecutor) executeInitDatabase(
 		return ctx.Err()
 	}
 
-	result.Logs = append(result.Logs, startup.StartupNodeLog{
+	result.Logs = append(result.Logs, model.StartupNodeLog{
 		Timestamp: time.Now(),
 		Level:     "info",
 		Message:   "Database connection established",
 	})
 
 	if autoMigrate {
-		result.Logs = append(result.Logs, startup.StartupNodeLog{
+		result.Logs = append(result.Logs, model.StartupNodeLog{
 			Timestamp: time.Now(),
 			Level:     "info",
 			Message:   "Database migrations completed",
@@ -199,13 +199,13 @@ func (e *StorageNodeExecutor) executeInitDatabase(
 }
 
 // Validate 验证节点配置
-func (e *StorageNodeExecutor) Validate(ctx context.Context, node *startup.StartupNode) error {
+func (e *StorageNodeExecutor) Validate(ctx context.Context, node *model.StartupNode) error {
 	if node.ID == "" {
 		return fmt.Errorf("node ID is required")
 	}
 
-	if node.Type != startup.StartupNodeStorage {
-		return fmt.Errorf("invalid node type: expected %s, got %s", startup.StartupNodeStorage, node.Type)
+	if node.Type != model.StartupNodeStorage {
+		return fmt.Errorf("invalid node type: expected %s, got %s", model.StartupNodeStorage, node.Type)
 	}
 
 	// 根据节点ID验证特定配置
@@ -220,7 +220,7 @@ func (e *StorageNodeExecutor) Validate(ctx context.Context, node *startup.Startu
 }
 
 // validateConfigStoreConfig 验证配置存储配置
-func (e *StorageNodeExecutor) validateConfigStoreConfig(node *startup.StartupNode) error {
+func (e *StorageNodeExecutor) validateConfigStoreConfig(node *model.StartupNode) error {
 	storageType := getStringConfig(node.Config, "storage_type", "")
 	if storageType == "" {
 		return fmt.Errorf("storage_type is required for config store node")
@@ -239,7 +239,7 @@ func (e *StorageNodeExecutor) validateConfigStoreConfig(node *startup.StartupNod
 }
 
 // validateDatabaseConfig 验证数据库配置
-func (e *StorageNodeExecutor) validateDatabaseConfig(node *startup.StartupNode) error {
+func (e *StorageNodeExecutor) validateDatabaseConfig(node *model.StartupNode) error {
 	databaseType := getStringConfig(node.Config, "database_type", "")
 	if databaseType == "" {
 		return fmt.Errorf("database_type is required for database node")
@@ -258,9 +258,9 @@ func (e *StorageNodeExecutor) validateDatabaseConfig(node *startup.StartupNode) 
 }
 
 // GetNodeInfo 获取节点信息
-func (e *StorageNodeExecutor) GetNodeInfo() *startup.StartupNodeInfo {
-	return &startup.StartupNodeInfo{
-		Type:        startup.StartupNodeStorage,
+func (e *StorageNodeExecutor) GetNodeInfo() *model.StartupNodeInfo {
+	return &model.StartupNodeInfo{
+		Type:        model.StartupNodeStorage,
 		Name:        "Storage Node Executor",
 		Description: "Handles storage-related initialization tasks including config store and database setup",
 		Version:     "1.0.0",
@@ -374,3 +374,6 @@ func getIntConfig(config map[string]interface{}, key string, defaultValue int) i
 
 	return defaultValue
 }
+
+
+

@@ -1,6 +1,8 @@
 package startup
 
 import (
+	"xiaozhi-server-go/internal/workflow"
+	"xiaozhi-server-go/internal/startup/model"
 	"context"
 	"fmt"
 	"sync"
@@ -10,11 +12,11 @@ import (
 // WebSocketEventHandler WebSocket事件处理器
 type WebSocketEventHandler struct {
 	broadcaster WebSocketEventBroadcaster
-	logger      StartupLogger
+	logger      model.StartupLogger
 }
 
 // NewWebSocketEventHandler 创建WebSocket事件处理器
-func NewWebSocketEventHandler(broadcaster WebSocketEventBroadcaster, logger StartupLogger) *WebSocketEventHandler {
+func NewWebSocketEventHandler(broadcaster WebSocketEventBroadcaster, logger model.StartupLogger) *WebSocketEventHandler {
 	return &WebSocketEventHandler{
 		broadcaster: broadcaster,
 		logger:      logger,
@@ -22,15 +24,15 @@ func NewWebSocketEventHandler(broadcaster WebSocketEventBroadcaster, logger Star
 }
 
 // OnExecutionStart 执行开始事件
-func (h *WebSocketEventHandler) OnExecutionStart(ctx context.Context, execution *StartupWorkflowExecution) error {
-	h.logger.Info("Workflow execution started", "execution_id", execution.ID, "workflow_id", execution.Workflow.ID)
+func (h *WebSocketEventHandler) OnExecutionStart(ctx context.Context, execution *model.StartupExecution) error {
+	h.logger.Info("Workflow execution started", "execution_id", execution.ID, "workflow_id", execution.WorkflowID)
 
 	if h.broadcaster != nil {
 		h.broadcaster.BroadcastExecutionEvent("execution_start", execution, map[string]interface{}{
 			"action":          "started",
 			"start_time":      execution.StartTime,
-			"workflow_name":   execution.Workflow.Name,
-			"workflow_version": execution.Workflow.Version,
+			"workflow_name":   execution.WorkflowName,
+			"workflow_version": execution.WorkflowVersion,
 		})
 	}
 
@@ -38,7 +40,7 @@ func (h *WebSocketEventHandler) OnExecutionStart(ctx context.Context, execution 
 }
 
 // OnExecutionEnd 执行结束事件
-func (h *WebSocketEventHandler) OnExecutionEnd(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *WebSocketEventHandler) OnExecutionEnd(ctx context.Context, execution *model.StartupExecution) error {
 	h.logger.Info("Workflow execution ended", "execution_id", execution.ID, "status", execution.Status, "duration", execution.Duration)
 
 	if h.broadcaster != nil {
@@ -49,9 +51,9 @@ func (h *WebSocketEventHandler) OnExecutionEnd(ctx context.Context, execution *S
 			"error":      execution.Error,
 		}
 
-		if execution.Status == WorkflowStatusFailed {
+		if execution.Status == workflow.ExecutionStatusFailed {
 			eventData["failure_reason"] = execution.Error
-		} else if execution.Status == WorkflowStatusCompleted {
+		} else if execution.Status == workflow.ExecutionStatusCompleted {
 			eventData["success"] = true
 		}
 
@@ -62,7 +64,7 @@ func (h *WebSocketEventHandler) OnExecutionEnd(ctx context.Context, execution *S
 }
 
 // OnNodeStart 节点开始事件
-func (h *WebSocketEventHandler) OnNodeStart(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode) error {
+func (h *WebSocketEventHandler) OnNodeStart(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode) error {
 	h.logger.Info("Node execution started", "execution_id", execution.ID, "node_id", node.ID, "node_name", node.Name)
 
 	if h.broadcaster != nil {
@@ -79,7 +81,7 @@ func (h *WebSocketEventHandler) OnNodeStart(ctx context.Context, execution *Star
 }
 
 // OnNodeProgress 节点进度事件
-func (h *WebSocketEventHandler) OnNodeProgress(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, progress float64) error {
+func (h *WebSocketEventHandler) OnNodeProgress(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, progress float64) error {
 	h.logger.Debug("Node execution progress", "execution_id", execution.ID, "node_id", node.ID, "progress", progress)
 
 	if h.broadcaster != nil {
@@ -93,7 +95,7 @@ func (h *WebSocketEventHandler) OnNodeProgress(ctx context.Context, execution *S
 }
 
 // OnNodeComplete 节点完成事件
-func (h *WebSocketEventHandler) OnNodeComplete(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, result *StartupNodeResult) error {
+func (h *WebSocketEventHandler) OnNodeComplete(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, result *model.StartupNodeResult) error {
 	h.logger.Info("Node execution completed", "execution_id", execution.ID, "node_id", node.ID, "duration", result.Duration)
 
 	if h.broadcaster != nil {
@@ -110,7 +112,7 @@ func (h *WebSocketEventHandler) OnNodeComplete(ctx context.Context, execution *S
 }
 
 // OnNodeError 节点错误事件
-func (h *WebSocketEventHandler) OnNodeError(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, err error) error {
+func (h *WebSocketEventHandler) OnNodeError(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, err error) error {
 	h.logger.Error("Node execution failed", "execution_id", execution.ID, "node_id", node.ID, "error", err)
 
 	if h.broadcaster != nil {
@@ -125,7 +127,7 @@ func (h *WebSocketEventHandler) OnNodeError(ctx context.Context, execution *Star
 }
 
 // OnNodeRetry 节点重试事件
-func (h *WebSocketEventHandler) OnNodeRetry(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode) error {
+func (h *WebSocketEventHandler) OnNodeRetry(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode) error {
 	h.logger.Info("Node execution retry", "execution_id", execution.ID, "node_id", node.ID)
 
 	if h.broadcaster != nil {
@@ -139,26 +141,26 @@ func (h *WebSocketEventHandler) OnNodeRetry(ctx context.Context, execution *Star
 
 // CompositeEventHandler 组合事件处理器，支持多个事件处理器
 type CompositeEventHandler struct {
-	handlers []StartupEventHandler
-	logger   StartupLogger
+	handlers []model.StartupEventHandler
+	logger   model.StartupLogger
 }
 
 // NewCompositeEventHandler 创建组合事件处理器
-func NewCompositeEventHandler(logger StartupLogger) *CompositeEventHandler {
+func NewCompositeEventHandler(logger model.StartupLogger) *CompositeEventHandler {
 	return &CompositeEventHandler{
-		handlers: make([]StartupEventHandler, 0),
+		handlers: make([]model.StartupEventHandler, 0),
 		logger:   logger,
 	}
 }
 
 // AddHandler 添加事件处理器
-func (h *CompositeEventHandler) AddHandler(handler StartupEventHandler) {
+func (h *CompositeEventHandler) AddHandler(handler model.StartupEventHandler) {
 	h.handlers = append(h.handlers, handler)
 	h.logger.Info("Added event handler", "handler_type", fmt.Sprintf("%T", handler))
 }
 
 // OnExecutionStart 执行开始事件
-func (h *CompositeEventHandler) OnExecutionStart(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *CompositeEventHandler) OnExecutionStart(ctx context.Context, execution *model.StartupExecution) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnExecutionStart(ctx, execution); err != nil {
 			h.logger.Error("Event handler error in OnExecutionStart", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -168,7 +170,7 @@ func (h *CompositeEventHandler) OnExecutionStart(ctx context.Context, execution 
 }
 
 // OnExecutionEnd 执行结束事件
-func (h *CompositeEventHandler) OnExecutionEnd(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *CompositeEventHandler) OnExecutionEnd(ctx context.Context, execution *model.StartupExecution) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnExecutionEnd(ctx, execution); err != nil {
 			h.logger.Error("Event handler error in OnExecutionEnd", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -178,7 +180,7 @@ func (h *CompositeEventHandler) OnExecutionEnd(ctx context.Context, execution *S
 }
 
 // OnNodeStart 节点开始事件
-func (h *CompositeEventHandler) OnNodeStart(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode) error {
+func (h *CompositeEventHandler) OnNodeStart(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnNodeStart(ctx, execution, node); err != nil {
 			h.logger.Error("Event handler error in OnNodeStart", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -188,7 +190,7 @@ func (h *CompositeEventHandler) OnNodeStart(ctx context.Context, execution *Star
 }
 
 // OnNodeProgress 节点进度事件
-func (h *CompositeEventHandler) OnNodeProgress(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, progress float64) error {
+func (h *CompositeEventHandler) OnNodeProgress(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, progress float64) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnNodeProgress(ctx, execution, node, progress); err != nil {
 			h.logger.Error("Event handler error in OnNodeProgress", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -198,7 +200,7 @@ func (h *CompositeEventHandler) OnNodeProgress(ctx context.Context, execution *S
 }
 
 // OnNodeComplete 节点完成事件
-func (h *CompositeEventHandler) OnNodeComplete(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, result *StartupNodeResult) error {
+func (h *CompositeEventHandler) OnNodeComplete(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, result *model.StartupNodeResult) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnNodeComplete(ctx, execution, node, result); err != nil {
 			h.logger.Error("Event handler error in OnNodeComplete", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -208,7 +210,7 @@ func (h *CompositeEventHandler) OnNodeComplete(ctx context.Context, execution *S
 }
 
 // OnNodeError 节点错误事件
-func (h *CompositeEventHandler) OnNodeError(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, err error) error {
+func (h *CompositeEventHandler) OnNodeError(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, err error) error {
 	for _, handler := range h.handlers {
 		if err := handler.OnNodeError(ctx, execution, node, err); err != nil {
 			h.logger.Error("Event handler error in OnNodeError", "handler", fmt.Sprintf("%T", handler), "error", err)
@@ -219,34 +221,34 @@ func (h *CompositeEventHandler) OnNodeError(ctx context.Context, execution *Star
 
 // LoggingEventHandler 纯日志事件处理器
 type LoggingEventHandler struct {
-	logger StartupLogger
+	logger model.StartupLogger
 }
 
 // NewLoggingEventHandler 创建日志事件处理器
-func NewLoggingEventHandler(logger StartupLogger) *LoggingEventHandler {
+func NewLoggingEventHandler(logger model.StartupLogger) *LoggingEventHandler {
 	return &LoggingEventHandler{
 		logger: logger,
 	}
 }
 
 // OnExecutionStart 执行开始事件
-func (h *LoggingEventHandler) OnExecutionStart(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *LoggingEventHandler) OnExecutionStart(ctx context.Context, execution *model.StartupExecution) error {
 	h.logger.Info("🚀 Workflow execution started",
 		"execution_id", execution.ID,
-		"workflow_id", execution.Workflow.ID,
-		"workflow_name", execution.Workflow.Name,
+		"workflow_id", execution.WorkflowID,
+		"workflow_name", execution.WorkflowName,
 		"total_nodes", execution.TotalNodes)
 	return nil
 }
 
 // OnExecutionEnd 执行结束事件
-func (h *LoggingEventHandler) OnExecutionEnd(ctx context.Context, execution *StartupWorkflowExecution) error {
-	if execution.Status == WorkflowStatusCompleted {
+func (h *LoggingEventHandler) OnExecutionEnd(ctx context.Context, execution *model.StartupExecution) error {
+	if execution.Status == workflow.ExecutionStatusCompleted {
 		h.logger.Info("✅ Workflow execution completed successfully",
 			"execution_id", execution.ID,
 			"duration", execution.Duration,
 			"completed_nodes", execution.CompletedNodes)
-	} else if execution.Status == WorkflowStatusFailed {
+	} else if execution.Status == workflow.ExecutionStatusFailed {
 		h.logger.Error("❌ Workflow execution failed",
 			"execution_id", execution.ID,
 			"duration", execution.Duration,
@@ -262,7 +264,7 @@ func (h *LoggingEventHandler) OnExecutionEnd(ctx context.Context, execution *Sta
 }
 
 // OnNodeStart 节点开始事件
-func (h *LoggingEventHandler) OnNodeStart(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode) error {
+func (h *LoggingEventHandler) OnNodeStart(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode) error {
 	h.logger.Info("▶️ Node started",
 		"execution_id", execution.ID,
 		"node_id", node.ID,
@@ -272,7 +274,7 @@ func (h *LoggingEventHandler) OnNodeStart(ctx context.Context, execution *Startu
 }
 
 // OnNodeProgress 节点进度事件
-func (h *LoggingEventHandler) OnNodeProgress(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, progress float64) error {
+func (h *LoggingEventHandler) OnNodeProgress(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, progress float64) error {
 	h.logger.Debug("📊 Node progress",
 		"execution_id", execution.ID,
 		"node_id", node.ID,
@@ -281,7 +283,7 @@ func (h *LoggingEventHandler) OnNodeProgress(ctx context.Context, execution *Sta
 }
 
 // OnNodeComplete 节点完成事件
-func (h *LoggingEventHandler) OnNodeComplete(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, result *StartupNodeResult) error {
+func (h *LoggingEventHandler) OnNodeComplete(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, result *model.StartupNodeResult) error {
 	h.logger.Info("✅ Node completed",
 		"execution_id", execution.ID,
 		"node_id", node.ID,
@@ -291,7 +293,7 @@ func (h *LoggingEventHandler) OnNodeComplete(ctx context.Context, execution *Sta
 }
 
 // OnNodeError 节点错误事件
-func (h *LoggingEventHandler) OnNodeError(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, err error) error {
+func (h *LoggingEventHandler) OnNodeError(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, err error) error {
 	h.logger.Error("❌ Node failed",
 		"execution_id", execution.ID,
 		"node_id", node.ID,
@@ -301,13 +303,13 @@ func (h *LoggingEventHandler) OnNodeError(ctx context.Context, execution *Startu
 
 // MetricsEventHandler 指标事件处理器
 type MetricsEventHandler struct {
-	logger  StartupLogger
+	logger  model.StartupLogger
 	metrics map[string]interface{}
 	mutex   sync.RWMutex
 }
 
 // NewMetricsEventHandler 创建指标事件处理器
-func NewMetricsEventHandler(logger StartupLogger) *MetricsEventHandler {
+func NewMetricsEventHandler(logger model.StartupLogger) *MetricsEventHandler {
 	return &MetricsEventHandler{
 		logger:  logger,
 		metrics: make(map[string]interface{}),
@@ -315,7 +317,7 @@ func NewMetricsEventHandler(logger StartupLogger) *MetricsEventHandler {
 }
 
 // OnExecutionStart 执行开始事件
-func (h *MetricsEventHandler) OnExecutionStart(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *MetricsEventHandler) OnExecutionStart(ctx context.Context, execution *model.StartupExecution) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -326,13 +328,13 @@ func (h *MetricsEventHandler) OnExecutionStart(ctx context.Context, execution *S
 }
 
 // OnExecutionEnd 执行结束事件
-func (h *MetricsEventHandler) OnExecutionEnd(ctx context.Context, execution *StartupWorkflowExecution) error {
+func (h *MetricsEventHandler) OnExecutionEnd(ctx context.Context, execution *model.StartupExecution) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
-	if execution.Status == WorkflowStatusCompleted {
+	if execution.Status == workflow.ExecutionStatusCompleted {
 		h.metrics["successful_executions"] = h.getIntMetric("successful_executions") + 1
-	} else if execution.Status == WorkflowStatusFailed {
+	} else if execution.Status == workflow.ExecutionStatusFailed {
 		h.metrics["failed_executions"] = h.getIntMetric("failed_executions") + 1
 	}
 
@@ -348,7 +350,7 @@ func (h *MetricsEventHandler) OnExecutionEnd(ctx context.Context, execution *Sta
 }
 
 // OnNodeStart 节点开始事件
-func (h *MetricsEventHandler) OnNodeStart(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode) error {
+func (h *MetricsEventHandler) OnNodeStart(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -359,18 +361,18 @@ func (h *MetricsEventHandler) OnNodeStart(ctx context.Context, execution *Startu
 }
 
 // OnNodeProgress 节点进度事件
-func (h *MetricsEventHandler) OnNodeProgress(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, progress float64) error {
+func (h *MetricsEventHandler) OnNodeProgress(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, progress float64) error {
 	// 进度事件通常不记录指标
 	return nil
 }
 
 // OnNodeComplete 节点完成事件
-func (h *MetricsEventHandler) OnNodeComplete(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, result *StartupNodeResult) error {
+func (h *MetricsEventHandler) OnNodeComplete(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, result *model.StartupNodeResult) error {
 	return nil
 }
 
 // OnNodeError 节点错误事件
-func (h *MetricsEventHandler) OnNodeError(ctx context.Context, execution *StartupWorkflowExecution, node *StartupNode, err error) error {
+func (h *MetricsEventHandler) OnNodeError(ctx context.Context, execution *model.StartupExecution, node *model.StartupNode, err error) error {
 	h.mutex.Lock()
 	defer h.mutex.Unlock()
 
@@ -421,3 +423,5 @@ func (h *MetricsEventHandler) getFloatMetric(key string) float64 {
 	}
 	return 0.0
 }
+
+

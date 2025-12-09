@@ -37,6 +37,7 @@ import (
 	"xiaozhi-server-go/internal/domain/providers/vlllm"
 	"xiaozhi-server-go/internal/plugin/capability"
 	internalutils "xiaozhi-server-go/internal/utils"
+	internallogging "xiaozhi-server-go/internal/platform/logging"
 )
 
 type Connection interface {
@@ -64,7 +65,7 @@ type ConnectionHandler struct {
 	// 确保实现 AsrEventListener 接口
 	_                providers.AsrEventListener
 	config           *config.Config
-	logger           *internalutils.Logger // TODO: 待logger.go迁移后更新
+	logger           *internallogging.Logger // TODO: 待logger.go迁移后更新
 	conn             Connection
 	closeOnce        sync.Once
 	taskMgr          *task.TaskManager
@@ -165,7 +166,7 @@ func NewConnectionHandler(
 	config *config.Config,
 	providerSet *pool.ProviderSet,
 	registry *capability.Registry,
-	logger *internalutils.Logger, // TODO: 待logger.go迁移后更新
+	logger *internallogging.Logger, // TODO: 待logger.go迁移后更新
 	req *http.Request,
 	ctx context.Context,
 ) *ConnectionHandler {
@@ -1872,3 +1873,5 @@ func (h *ConnectionHandler) initManagers(config *config.Config) {
 func (h *ConnectionHandler) GetDeviceID() string {
 	return h.deviceID
 }
+
+
