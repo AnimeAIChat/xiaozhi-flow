@@ -4,13 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-server-go/internal/core/providers/asr"
-	doubaoasr "xiaozhi-server-go/internal/core/providers/asr/doubao"
 	"xiaozhi-server-go/internal/core/providers/llm"
 	doubaollm "xiaozhi-server-go/internal/core/providers/llm/doubao"
 	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/tts"
-	doubaotts "xiaozhi-server-go/internal/core/providers/tts/doubao"
 	"xiaozhi-server-go/internal/domain/llm/inter"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/utils"
@@ -216,7 +212,7 @@ func (e *TTSExecutor) Execute(ctx context.Context, config map[string]interface{}
 		return nil, fmt.Errorf("text input is required")
 	}
 
-	ttsConfig := &tts.Config{
+	ttsConfig := &TTSConfig{
 		Type:      "doubao",
 		AppID:     getString(config, "app_id"),
 		Token:     getString(config, "token"),
@@ -225,7 +221,7 @@ func (e *TTSExecutor) Execute(ctx context.Context, config map[string]interface{}
 		OutputDir: "data/tmp",
 	}
 
-	provider, err := doubaotts.NewProvider(ttsConfig, false)
+	provider, err := NewTTSProvider(ttsConfig, false)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +247,7 @@ func (e *ASRExecutor) Execute(ctx context.Context, config map[string]interface{}
 // Listener adapter
 type asrListener struct {
 	outputChan chan<- map[string]interface{}
-	provider   *doubaoasr.Provider
+	provider   *ASRProvider
 }
 
 func (l *asrListener) OnAsrResult(result string, isFinalResult bool) bool {
@@ -282,7 +278,7 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		defer close(outputChan)
 
 		// Map config
-		asrConfig := &asr.Config{
+		asrConfig := &ASRConfig{
 			Type: "doubao",
 			Data: map[string]interface{}{
 				"appid":        getString(config, "appid"),
@@ -297,7 +293,7 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		})
 
 		// Create provider
-		provider, err := doubaoasr.NewProvider(asrConfig, false, logger, nil)
+		provider, err := NewASRProvider(asrConfig, false, logger, nil)
 		if err != nil {
 			outputChan <- map[string]interface{}{"error": err.Error()}
 			return
