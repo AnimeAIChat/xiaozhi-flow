@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/core/providers"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 	internalutils "xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/eventbus"
 )

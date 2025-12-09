@@ -1,8 +1,8 @@
 package doubao
 
 import (
-	"xiaozhi-server-go/internal/core/providers/asr"
-	"xiaozhi-server-go/internal/core/providers/tts"
+	"xiaozhi-server-go/internal/domain/providers/asr"
+	"xiaozhi-server-go/internal/domain/providers/tts"
 	"xiaozhi-server-go/internal/utils"
 )
 

@@ -5,31 +5,31 @@ import (
 
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/asr"
-	"xiaozhi-server-go/internal/core/providers/llm"
-	"xiaozhi-server-go/internal/core/providers/tts"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/asr"
+	"xiaozhi-server-go/internal/domain/providers/llm"
+	"xiaozhi-server-go/internal/domain/providers/tts"
 	"xiaozhi-server-go/internal/utils"
 
 	// 导入ASR提供者实现以触发注册
-	// _ "xiaozhi-server-go/internal/core/providers/asr/deepgram"
-	// _ "xiaozhi-server-go/internal/core/providers/asr/gosherpa"
-	// _ "xiaozhi-server-go/internal/core/providers/asr/stepfun"
+	// _ "xiaozhi-server-go/internal/domain/providers/asr/deepgram"
+	// _ "xiaozhi-server-go/internal/domain/providers/asr/gosherpa"
+	// _ "xiaozhi-server-go/internal/domain/providers/asr/stepfun"
 
 	// 导入LLM提供者实现以触发注册
-	// _ "xiaozhi-server-go/internal/core/providers/llm/coze"
-	// _ "xiaozhi-server-go/internal/core/providers/llm/doubao"
-	// _ "xiaozhi-server-go/internal/core/providers/llm/ollama"
-	// _ "xiaozhi-server-go/internal/core/providers/llm/openai"
+	// _ "xiaozhi-server-go/internal/domain/providers/llm/coze"
+	// _ "xiaozhi-server-go/internal/domain/providers/llm/doubao"
+	// _ "xiaozhi-server-go/internal/domain/providers/llm/ollama"
+	// _ "xiaozhi-server-go/internal/domain/providers/llm/openai"
 
 	// 导入TTS提供者实现以触发注册
-	// _ "xiaozhi-server-go/internal/core/providers/tts/deepgram"
-	// _ "xiaozhi-server-go/internal/core/providers/tts/edge"
-	// _ "xiaozhi-server-go/internal/core/providers/tts/gosherpa"
+	// _ "xiaozhi-server-go/internal/domain/providers/tts/deepgram"
+	// _ "xiaozhi-server-go/internal/domain/providers/tts/edge"
+	// _ "xiaozhi-server-go/internal/domain/providers/tts/gosherpa"
 
 	// 导入VLLM提供者实现以触发注册
-	// _ "xiaozhi-server-go/internal/core/providers/vlllm/openai"
-	// _ "xiaozhi-server-go/internal/core/providers/vlllm/ollama"
+	// _ "xiaozhi-server-go/internal/domain/providers/vlllm/openai"
+	// _ "xiaozhi-server-go/internal/domain/providers/vlllm/ollama"
 )
 
 /*

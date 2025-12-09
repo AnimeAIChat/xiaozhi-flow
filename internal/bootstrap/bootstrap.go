@@ -30,7 +30,7 @@ import (
 	"xiaozhi-server-go/internal/plugin/providers/openai"
 	"xiaozhi-server-go/internal/plugin/providers/stepfun"
 	"xiaozhi-server-go/internal/plugin/providers/webrtc"
-	llmadapters "xiaozhi-server-go/internal/core/providers/llm/adapters"
+	llmadapters "xiaozhi-server-go/internal/core/adapters"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"time"
-	"xiaozhi-server-go/internal/core/providers"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/eventbus"
 )

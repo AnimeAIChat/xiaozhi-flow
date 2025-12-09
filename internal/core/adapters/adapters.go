@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/llm"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/llm"
 	"xiaozhi-server-go/internal/domain/llm/inter"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/plugin/providers/coze"

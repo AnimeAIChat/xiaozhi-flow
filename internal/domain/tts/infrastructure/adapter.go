@@ -8,7 +8,7 @@ import (
 
 	"xiaozhi-server-go/internal/domain/tts/inter"
 	"xiaozhi-server-go/internal/domain/tts/repository"
-	"xiaozhi-server-go/internal/core/providers"
+	"xiaozhi-server-go/internal/domain/providers"
 	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/platform/errors"
 )

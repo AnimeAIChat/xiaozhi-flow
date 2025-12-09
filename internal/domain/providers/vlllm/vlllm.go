@@ -3,7 +3,7 @@ package vlllm
 import (
 	"context"
 	"fmt"
-	"xiaozhi-server-go/internal/core/providers"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/utils"

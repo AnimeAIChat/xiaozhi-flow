@@ -7,7 +7,7 @@ import (
 	"strings"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/domain/chat"
-	"xiaozhi-server-go/internal/core/providers"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 	internalutils "xiaozhi-server-go/internal/utils"
 )
 

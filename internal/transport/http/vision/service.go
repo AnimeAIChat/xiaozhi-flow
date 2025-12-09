@@ -12,8 +12,8 @@ import (
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/vlllm"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/vlllm"
 	"xiaozhi-server-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
