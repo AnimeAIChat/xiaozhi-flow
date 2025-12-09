@@ -11,6 +11,7 @@ import (
 	"xiaozhi-server-go/internal/core/pool"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
+	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 // TransportAdapter 传输层适配器
@@ -19,6 +20,7 @@ type TransportAdapter struct {
 	config       *config.Config
 	logger       *utils.Logger
 	legacyAdapter *LegacyPoolManagerAdapter
+	registry      *capability.Registry
 
 	// WebSocket 服务器组件
 	wsTransport  *websockettransport.WebSocketTransport
@@ -27,11 +29,12 @@ type TransportAdapter struct {
 }
 
 // NewTransportAdapter 创建传输层适配器
-func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository) *TransportAdapter {
+func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository, registry *capability.Registry) *TransportAdapter {
 	adapter := &TransportAdapter{
 		config:        cfg,
 		logger:        logger,
 		legacyAdapter: legacyAdapter,
+		registry:      registry,
 	}
 
 	// 初始化WebSocket传输
@@ -58,7 +61,7 @@ func NewTransportAdapter(cfg *config.Config, logger *utils.Logger, legacyAdapter
 		adapter.wsTransport = websockettransport.NewWebSocketTransport(cfg, logger)
 
 		// 设置连接处理器工厂
-		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, poolManager, taskMgr, logger, deviceRepo)
+		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, poolManager, taskMgr, logger, deviceRepo, registry)
 		adapter.wsTransport.SetConnectionHandler(connFactory)
 
 		if logger != nil {

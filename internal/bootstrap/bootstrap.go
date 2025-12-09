@@ -19,10 +19,18 @@ import (
 	domainllm "xiaozhi-server-go/internal/domain/llm"
 	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
-	"xiaozhi-server-go/internal/plugin/capability"
-	"xiaozhi-server-go/internal/plugin/builtin/openai"
 	"xiaozhi-server-go/internal/plugin/builtin/asr"
+	"xiaozhi-server-go/internal/plugin/builtin/openai"
 	"xiaozhi-server-go/internal/plugin/builtin/tts"
+	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/plugin/providers/chatglm"
+	"xiaozhi-server-go/internal/plugin/providers/coze"
+	"xiaozhi-server-go/internal/plugin/providers/deepgram"
+	"xiaozhi-server-go/internal/plugin/providers/doubao"
+	"xiaozhi-server-go/internal/plugin/providers/edge"
+	"xiaozhi-server-go/internal/plugin/providers/gosherpa"
+	"xiaozhi-server-go/internal/plugin/providers/ollama"
+	"xiaozhi-server-go/internal/plugin/providers/stepfun"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -97,6 +105,7 @@ type appState struct {
 	configIntegrator      *integration.ConfigIntegrator   // 新增：配置集成器
 	llmManager            llmrepo.LLMRepository // 新增：LLM管理器
 	llmService            domainllm.Service     // 新增：LLM服务
+	registry              *capability.Registry  // 新增：插件注册表
 }
 
 // Run 启动整个服务生命周期，负责加载配置、初始化依赖和优雅关停。
@@ -166,7 +175,7 @@ func Run(ctx context.Context) error {
 
 	group, groupCtx := errgroup.WithContext(rootCtx)
 
-	if err := startServices(state.config, logger, authManager, state.configRepo, state.domainMCPManager, state.componentContainer, group, groupCtx); err != nil {
+	if err := startServices(state.config, logger, authManager, state.configRepo, state.domainMCPManager, state.componentContainer, state.registry, group, groupCtx); err != nil {
 		cancel()
 		return err
 	}
@@ -347,6 +356,18 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 
 	ttsProvider := tts.NewProvider()
 	registry.Register("builtin_tts", ttsProvider)
+
+	// Register Vendor Plugins
+	registry.Register("chatglm", chatglm.NewProvider())
+	registry.Register("coze", coze.NewProvider())
+	registry.Register("deepgram", deepgram.NewProvider())
+	registry.Register("doubao", doubao.NewProvider())
+	registry.Register("edge", edge.NewProvider())
+	registry.Register("gosherpa", gosherpa.NewProvider())
+	registry.Register("ollama", ollama.NewProvider())
+	registry.Register("stepfun", stepfun.NewProvider())
+
+	state.registry = registry
 
 	manager, err := llminfra.NewLLMManager(state.config, registry)
 	if err != nil {
@@ -701,6 +722,7 @@ func startTransportServer(
 	domainMCPManager *domainmcp.Manager,
 	componentContainer *adapters.ComponentContainer,
 	deviceRepo repository.DeviceRepository,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (adapters.TransportManager, error) {
@@ -713,7 +735,7 @@ func startTransportServer(
 	legacyAdapter := componentContainer.GetLegacyAdapter()
 
 	// 创建传输适配器
-	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter, deviceRepo)
+	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter, deviceRepo, registry)
 
 	// 创建真正的传输管理器
 	transportManager := transport.NewTransportManager(config, logger)
@@ -976,6 +998,7 @@ func startServices(
 	configRepo types.Repository,
 	domainMCPManager *domainmcp.Manager,
 	componentContainer *adapters.ComponentContainer,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) error {
@@ -983,7 +1006,7 @@ func startServices(
 	db := platformstorage.GetDB()
 	deviceRepo := platformstorage.NewDeviceRepository(db)
 
-	transportManager, err := startTransportServer(config, logger, authManager, domainMCPManager, componentContainer, deviceRepo, g, groupCtx)
+	transportManager, err := startTransportServer(config, logger, authManager, domainMCPManager, componentContainer, deviceRepo, registry, g, groupCtx)
 	if err != nil {
 		return fmt.Errorf("启动 Transport 服务失败: %w", err)
 	}

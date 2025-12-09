@@ -1,11 +1,13 @@
-package asr
+package deepgram
 
 import (
 	"context"
 	"fmt"
 
 	"xiaozhi-server-go/internal/core/providers/asr"
-	"xiaozhi-server-go/internal/core/providers/asr/doubao"
+	deepgramasr "xiaozhi-server-go/internal/core/providers/asr/deepgram"
+	"xiaozhi-server-go/internal/core/providers/tts"
+	deepgramtts "xiaozhi-server-go/internal/core/providers/tts/deepgram"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/utils"
 )
@@ -19,24 +21,49 @@ func NewProvider() *Provider {
 func (p *Provider) GetCapabilities() []capability.Definition {
 	return []capability.Definition{
 		{
-			ID:          "builtin_asr",
-			Type:        capability.TypeASR,
-			Name:        "Builtin ASR",
-			Description: "Automatic Speech Recognition",
+			ID:          "deepgram_tts",
+			Type:        capability.TypeTTS,
+			Name:        "Deepgram TTS",
+			Description: "Deepgram Text to Speech",
 			ConfigSchema: capability.Schema{
 				Type: "object",
 				Properties: map[string]capability.Property{
-					"engine": {Type: "string", Default: "doubao", Description: "ASR Engine (doubao, openai, etc.)"},
-					"appid":  {Type: "string", Description: "App ID"},
-					"access_token": {Type: "string", Secret: true, Description: "Access Token"},
-					"cluster": {Type: "string", Description: "Cluster ID"},
+					"token":   {Type: "string", Secret: true, Description: "API Token"},
+					"voice":   {Type: "string", Default: "aura-asteria-en", Description: "Voice ID"},
+					"cluster": {Type: "string", Default: "wss://api.deepgram.com/v1/speak", Description: "API Endpoint"},
 				},
+				Required: []string{"token"},
 			},
 			InputSchema: capability.Schema{
 				Type: "object",
 				Properties: map[string]capability.Property{
-					"audio": {Type: "string", Description: "Base64 encoded audio data (for batch)"},
-					"audio_stream": {Type: "object", Description: "Channel for audio stream (<-chan []byte)"},
+					"text": {Type: "string"},
+				},
+			},
+			OutputSchema: capability.Schema{
+				Type: "object",
+				Properties: map[string]capability.Property{
+					"file_path": {Type: "string"},
+				},
+			},
+		},
+		{
+			ID:          "deepgram_asr",
+			Type:        capability.TypeASR,
+			Name:        "Deepgram ASR",
+			Description: "Deepgram Automatic Speech Recognition",
+			ConfigSchema: capability.Schema{
+				Type: "object",
+				Properties: map[string]capability.Property{
+					"api_key": {Type: "string", Secret: true, Description: "API Key"},
+					"lang":    {Type: "string", Default: "en", Description: "Language Code"},
+				},
+				Required: []string{"api_key"},
+			},
+			InputSchema: capability.Schema{
+				Type: "object",
+				Properties: map[string]capability.Property{
+					"audio_stream": {Type: "object"},
 				},
 			},
 			OutputSchema: capability.Schema{
@@ -51,25 +78,68 @@ func (p *Provider) GetCapabilities() []capability.Definition {
 
 func (p *Provider) CreateExecutor(capabilityID string) (capability.Executor, error) {
 	switch capabilityID {
-	case "builtin_asr":
+	case "deepgram_tts":
+		return &TTSExecutor{}, nil
+	case "deepgram_asr":
 		return &ASRExecutor{}, nil
 	default:
 		return nil, fmt.Errorf("unknown capability: %s", capabilityID)
 	}
 }
 
+// --- TTS Executor ---
+
+type TTSExecutor struct{}
+
+func (e *TTSExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
+	text, ok := inputs["text"].(string)
+	if !ok {
+		return nil, fmt.Errorf("text input is required")
+	}
+
+	ttsConfig := &tts.Config{
+		Type:    "deepgram",
+		Token:   getString(config, "token"),
+		Voice:   getString(config, "voice"),
+		Cluster: getString(config, "cluster"),
+		OutputDir: "data/tmp",
+	}
+	if ttsConfig.Cluster == "" {
+		ttsConfig.Cluster = "wss://api.deepgram.com/v1/speak"
+	}
+
+	provider, err := deepgramtts.NewProvider(ttsConfig, false)
+	if err != nil {
+		return nil, err
+	}
+
+	// The legacy provider's ToTTS method returns file path
+	filepath, err := provider.ToTTS(text)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"file_path": filepath,
+	}, nil
+}
+
+func (e *TTSExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
+	return nil, fmt.Errorf("deepgram_tts does not support streaming in this wrapper yet")
+}
+
+// --- ASR Executor ---
+
 type ASRExecutor struct{}
 
 func (e *ASRExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
-	// Batch execution not fully supported by Doubao streaming provider yet
-	// But we can simulate it if needed. For now, return error.
-	return nil, fmt.Errorf("batch execution not supported for builtin_asr yet")
+	return nil, fmt.Errorf("deepgram_asr only supports streaming via ExecuteStream")
 }
 
 // Listener adapter
 type asrListener struct {
 	outputChan chan<- map[string]interface{}
-	provider   *doubao.Provider
+	provider   *deepgramasr.Provider
 }
 
 func (l *asrListener) OnAsrResult(result string, isFinalResult bool) bool {
@@ -86,15 +156,6 @@ func (l *asrListener) OnAsrResult(result string, isFinalResult bool) bool {
 }
 
 func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
-	engine, _ := config["engine"].(string)
-	if engine == "" {
-		engine = "doubao"
-	}
-
-	if engine != "doubao" {
-		return nil, fmt.Errorf("unsupported engine: %s", engine)
-	}
-
 	// Get audio stream
 	audioStream, ok := inputs["audio_stream"].(<-chan []byte)
 	if !ok {
@@ -110,22 +171,20 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 
 		// Map config
 		asrConfig := &asr.Config{
-			Type: "doubao",
+			Type: "deepgram",
 			Data: map[string]interface{}{
-				"appid":        getString(config, "appid"),
-				"access_token": getString(config, "access_token"),
-				"cluster":      getString(config, "cluster"),
+				"api_key": getString(config, "api_key"),
+				"lang":    getString(config, "lang"),
 			},
 		}
 
-		// Create logger (using a simple one or from context if available)
+		// Create logger
 		logger, _ := utils.NewLogger(&utils.LogCfg{
 			LogLevel: "info",
 		})
 
 		// Create provider
-		// Note: Doubao provider expects a session, but we pass nil here as we are adapting it.
-		provider, err := doubao.NewProvider(asrConfig, false, logger, nil)
+		provider, err := deepgramasr.NewProvider(asrConfig, false, logger)
 		if err != nil {
 			outputChan <- map[string]interface{}{"error": err.Error()}
 			return
@@ -140,8 +199,6 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		provider.SetListener(listener)
 
 		// Start streaming
-		// Note: StartStreaming might need to be called before or after setting listener depending on implementation
-		// Doubao provider's StartStreaming initializes the connection.
 		if err := provider.StartStreaming(ctx); err != nil {
 			outputChan <- map[string]interface{}{"error": err.Error()}
 			return
@@ -153,7 +210,6 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 				return
 			case data, ok := <-audioStream:
 				if !ok {
-					// Stream closed
 					// provider.StopStreaming() // Not available
 					return
 				}

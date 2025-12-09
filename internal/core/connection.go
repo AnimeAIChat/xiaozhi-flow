@@ -35,6 +35,7 @@ import (
 	"xiaozhi-server-go/internal/core/providers/llm"
 	"xiaozhi-server-go/internal/core/providers/tts"
 	"xiaozhi-server-go/internal/core/providers/vlllm"
+	"xiaozhi-server-go/internal/plugin/capability"
 	internalutils "xiaozhi-server-go/internal/utils"
 )
 
@@ -80,6 +81,7 @@ type ConnectionHandler struct {
 	llmManager    *domainllm.Manager
 	ttsManager    *domaintts.Manager
 	configService *service.ConfigService // 配置服务
+	registry      *capability.Registry   // 插件注册表
 
 	initialVoice    string // 初始语音名称
 	ttsProviderName string // 默认TTS提供者名称
@@ -158,17 +160,18 @@ type ConnectionHandler struct {
 	mcpResultHandlers map[string]func(interface{}) // MCP处理器映射
 	ctx               context.Context
 }
-
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
 	config *config.Config,
 	providerSet *pool.ProviderSet,
+	registry *capability.Registry,
 	logger *internalutils.Logger, // TODO: 待logger.go迁移后更新
 	req *http.Request,
 	ctx context.Context,
 ) *ConnectionHandler {
 	handler := &ConnectionHandler{
 		config:           config,
+		registry:         registry,
 		logger:           logger,
 		clientListenMode: "auto",
 		stopChan:         make(chan struct{}),
@@ -582,6 +585,113 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动")
 	defer h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程退出")
 
+	// 插件相关变量
+	var (
+		pluginInputChan  chan []byte
+		pluginOutputChan <-chan map[string]interface{}
+		pluginCancel     context.CancelFunc
+		usePlugin        bool
+	)
+
+	// 启动插件流的辅助函数
+	startPluginStream := func() bool {
+		if h.registry == nil {
+			return false
+		}
+
+		asrProviderName := h.config.Selected.ASR
+		if asrProviderName == "" {
+			asrProviderName = "builtin_asr"
+		}
+
+		executor, err := h.registry.GetExecutor(asrProviderName)
+		if err != nil {
+			return false
+		}
+
+		streamExecutor, ok := executor.(capability.StreamExecutor)
+		if !ok {
+			h.LogError(fmt.Sprintf("[ASR] [插件] %s 不支持流式执行", asrProviderName))
+			return false
+		}
+
+		// 准备配置
+		config := map[string]interface{}{}
+		
+		// 如果是builtin_asr，需要指定engine
+		if asrProviderName == "builtin_asr" {
+			config["engine"] = "doubao"
+		}
+
+		// 注入全局配置
+		if h.config != nil && h.config.ASR != nil {
+			if asrConfig, ok := h.config.ASR[asrProviderName]; ok {
+				// 尝试解析配置
+				if configMap, ok := asrConfig.(map[string]interface{}); ok {
+					for k, v := range configMap {
+						config[k] = v
+					}
+				}
+			}
+		}
+
+		pluginInputChan = make(chan []byte, 100)
+		inputs := map[string]interface{}{
+			"audio_stream": (<-chan []byte)(pluginInputChan),
+		}
+
+		ctx, cancel := context.WithCancel(context.Background())
+		out, err := streamExecutor.ExecuteStream(ctx, config, inputs)
+		if err != nil {
+			h.LogError(fmt.Sprintf("[ASR] [插件] 启动失败: %v", err))
+			cancel()
+			return false
+		}
+
+		pluginOutputChan = out
+		pluginCancel = cancel
+		usePlugin = true
+
+		// 启动结果处理协程
+		go func() {
+			for res := range pluginOutputChan {
+				if text, ok := res["text"].(string); ok {
+					isFinal, _ := res["is_final"].(bool)
+					// 处理静音计数
+					if silenceCount, ok := res["silence_count"].(int); ok {
+						if silenceCount >= 2 {
+							h.LogInfo("[ASR] [插件] [静音检测] 连续两次，结束对话")
+							h.closeAfterChat = true
+							// 模拟静音结果
+							h.OnAsrResult("[SILENCE_TIMEOUT] 长时间未检测到用户说话，请礼貌的结束对话", true)
+							continue
+						}
+					}
+					h.OnAsrResult(text, isFinal)
+				}
+				if errStr, ok := res["error"].(string); ok {
+					h.LogError(fmt.Sprintf("[ASR] [插件] 错误: %s", errStr))
+				}
+			}
+		}()
+		h.LogInfo("[ASR] [插件] 已启动 builtin_asr 插件流")
+		return true
+	}
+
+	// 尝试启动插件
+	if !startPluginStream() {
+		h.LogInfo("[ASR] [插件] 无法启动插件，回退到旧版管理器")
+	}
+
+	defer func() {
+		if pluginCancel != nil {
+			pluginCancel()
+		}
+		if pluginInputChan != nil {
+			close(pluginInputChan)
+		}
+	}()
+
 	for {
 		select {
 		case <-h.stopChan:
@@ -597,17 +707,38 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 				h.LogInfo(fmt.Sprintf("[协程] [音频队列] 检测到新音频输入，重新开启对话模式，样本大小=%d", len(audioData)))
 				h.closeAfterChat = false
 				atomic.StoreInt32(&h.asrPause, 0)
-				if h.providers.asr != nil {
-					h.providers.asr.ResetSilenceCount()
-					if err := h.providers.asr.Reset(); err != nil {
-						h.LogError(fmt.Sprintf("重置ASR状态失败: %v", err))
-						continue
+				
+				if usePlugin {
+					// 重启插件流以重置状态
+					if pluginCancel != nil {
+						pluginCancel()
+					}
+					if pluginInputChan != nil {
+						close(pluginInputChan)
+					}
+					startPluginStream()
+				} else {
+					if h.providers.asr != nil {
+						h.providers.asr.ResetSilenceCount()
+						if err := h.providers.asr.Reset(); err != nil {
+							h.LogError(fmt.Sprintf("重置ASR状态失败: %v", err))
+							continue
+						}
 					}
 				}
 			}
 			h.LogDebug(fmt.Sprintf("[协程] [音频队列] 转发音频到ASR，样本大小=%d", len(audioData)))
-			if err := h.providers.asr.AddAudio(audioData); err != nil {
-				h.LogError(fmt.Sprintf("处理音频数据失败: %v", err))
+			
+			if usePlugin {
+				select {
+				case pluginInputChan <- audioData:
+				default:
+					h.LogWarn("[ASR] [插件] 输入缓冲区已满，丢弃音频帧")
+				}
+			} else {
+				if err := h.providers.asr.AddAudio(audioData); err != nil {
+					h.LogError(fmt.Sprintf("处理音频数据失败: %v", err))
+				}
 			}
 		}
 	}
@@ -1375,11 +1506,62 @@ func (h *ConnectionHandler) processTTSTask(text string, textIndex int, round int
 	text = cleanText
 	logText := internalutils.SanitizeForLog(text)
 
-	// 生成语音文件
-	generatedFile, err := h.ttsManager.ToTTS(text)
-	if err != nil {
-		h.LogError(fmt.Sprintf("TTS转换失败:text(%s) %v", logText, err))
-		return
+	// 尝试使用插件系统
+	var generatedFile string
+	var err error
+
+	if h.registry != nil {
+		// 获取配置的TTS提供者
+		ttsProviderName := h.config.Selected.TTS
+		if ttsProviderName == "" {
+			ttsProviderName = "builtin_tts"
+		}
+
+		// 尝试获取执行器
+		executor, err := h.registry.GetExecutor(ttsProviderName)
+		if err == nil {
+			// 准备配置
+			config := map[string]interface{}{}
+			
+			// 注入全局配置
+			if h.config != nil && h.config.TTS != nil {
+				if ttsConfig, ok := h.config.TTS[ttsProviderName]; ok {
+					config["app_id"] = ttsConfig.AppID
+					config["token"] = ttsConfig.Token
+					config["api_key"] = ttsConfig.Token // Map Token to api_key
+					config["cluster"] = ttsConfig.Cluster
+					config["voice"] = ttsConfig.Voice
+					// 如果需要更多字段，可能需要扩展TTSConfig或使用Extra字段
+				}
+			}
+			
+			// 如果是builtin_tts，需要指定engine
+			if ttsProviderName == "builtin_tts" {
+				config["engine"] = "doubao" // 默认
+			}
+
+			inputs := map[string]interface{}{
+				"text": text,
+			}
+
+			outputs, execErr := executor.Execute(context.Background(), config, inputs)
+			if execErr == nil {
+				if path, ok := outputs["file_path"].(string); ok {
+					generatedFile = path
+				}
+			} else {
+				h.LogError(fmt.Sprintf("插件TTS执行失败(%s): %v，回退到旧版管理器", ttsProviderName, execErr))
+			}
+		}
+	}
+
+	// 如果插件执行失败或未启用，回退到旧版管理器
+	if generatedFile == "" {
+		generatedFile, err = h.ttsManager.ToTTS(text)
+		if err != nil {
+			h.LogError(fmt.Sprintf("TTS转换失败:text(%s) %v", logText, err))
+			return
+		}
 	}
 
 	filepath = generatedFile

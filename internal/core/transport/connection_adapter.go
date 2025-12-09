@@ -10,6 +10,7 @@ import (
 	"xiaozhi-server-go/internal/transport/ws"
 	"xiaozhi-server-go/internal/core"
 	"xiaozhi-server-go/internal/core/pool"
+	"xiaozhi-server-go/internal/plugin/capability"
 	utils "xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
@@ -34,6 +35,7 @@ func NewConnectionContextAdapter(
 	conn Connection,
 	config *config.Config,
 	providerSet *pool.ProviderSet,
+	registry *capability.Registry,
 	poolManager *pool.PoolManager,
 	taskMgr *task.TaskManager,
 	logger *utils.Logger,
@@ -44,7 +46,7 @@ func NewConnectionContextAdapter(
 
 	// 创建ConnectionHandler
 	// 创建ConnectionHandler，直接使用internal utils Logger
-	handler := core.NewConnectionHandler(config, providerSet, logger, req, connCtx)
+	handler := core.NewConnectionHandler(config, providerSet, registry, logger, req, connCtx)
 
 	adapter := &ConnectionContextAdapter{
 		handler:     handler,
@@ -169,6 +171,7 @@ type DefaultConnectionHandlerFactory struct {
 	taskMgr     *task.TaskManager
 	logger      *utils.Logger
 	deviceRepo  repository.DeviceRepository
+	registry    *capability.Registry
 }
 
 // NewDefaultConnectionHandlerFactory 创建默认连接处理器工厂
@@ -178,6 +181,7 @@ func NewDefaultConnectionHandlerFactory(
 	taskMgr *task.TaskManager,
 	logger *utils.Logger,
 	deviceRepo repository.DeviceRepository,
+	registry *capability.Registry,
 ) *DefaultConnectionHandlerFactory {
 	return &DefaultConnectionHandlerFactory{
 		config:      config,
@@ -185,6 +189,7 @@ func NewDefaultConnectionHandlerFactory(
 		taskMgr:     taskMgr,
 		logger:      logger,
 		deviceRepo:  deviceRepo,
+		registry:    registry,
 	}
 }
 
@@ -240,12 +245,12 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	} else {
 		f.logger.InfoTag("连接", "此连接未实现 MCPManagerHolder 接口，将创建新的 MCPManager")
 	}
-
 	// 创建连接上下文适配器
 	adapter := NewConnectionContextAdapter(
 		conn,
 		f.config,
 		providerSet,
+		f.registry,
 		f.poolManager,
 		f.taskMgr,
 		f.logger,

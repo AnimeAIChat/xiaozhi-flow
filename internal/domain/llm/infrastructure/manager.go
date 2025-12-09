@@ -174,12 +174,12 @@ func convertMessagesToPlugin(msgs []repository.Message) []interface{} {
 }
 
 func (m *LLMManager) resolveCapabilityID(providerType string) string {
+	// Direct mapping for implemented plugins
 	switch providerType {
-	case "openai", "doubao", "ollama":
-		return "openai_chat"
-	// Future: case "coze": return "coze_chat"
+	case "openai", "doubao", "ollama", "chatglm", "coze":
+		return providerType
 	default:
-		// Fallback or return type as is if we assume 1:1 mapping
-		return "openai_chat"
+		// Fallback to openai for unknown types if they are compatible, or return type as is
+		return providerType
 	}
 }
