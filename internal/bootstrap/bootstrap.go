@@ -16,6 +16,9 @@ import (
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	domainauth "xiaozhi-server-go/internal/domain/auth"
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
+	domainllm "xiaozhi-server-go/internal/domain/llm"
+	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
+	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -97,6 +100,8 @@ type appState struct {
 	componentContainer    *adapters.ComponentContainer // 新增：组件容器
 	configIntegrator      *integration.ConfigIntegrator   // 新增：配置集成器
 	pluginManager         PluginManager // 新增：插件管理器
+	llmManager            llmrepo.LLMRepository // 新增：LLM管理器
+	llmService            domainllm.Service     // 新增：LLM服务
 }
 
 // Run 启动整个服务生命周期，负责加载配置、初始化依赖和优雅关停。
@@ -295,6 +300,13 @@ func InitGraph() []initStep {
 			Execute:   loadDefaultConfigStep,
 		},
 		{
+			ID:        "llm:init-manager",
+			Title:     "Initialise LLM manager",
+			DependsOn: []string{"config:load-default"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initLLMManagerStep,
+		},
+		{
 			ID:        "logging:init-provider",
 			Title:     "Initialise logging provider",
 			DependsOn: []string{"config:load-default"},
@@ -344,6 +356,30 @@ func InitGraph() []initStep {
 			Execute:   initPluginManagerStep,
 		},
 	}
+}
+
+func initLLMManagerStep(_ context.Context, state *appState) error {
+	if state == nil || state.config == nil {
+		return platformerrors.New(
+			platformerrors.KindBootstrap,
+			"llm:init-manager",
+			"config not loaded",
+		)
+	}
+
+	manager, err := llminfra.NewLLMManager(state.config)
+	if err != nil {
+		return platformerrors.Wrap(platformerrors.KindBootstrap, "llm:init-manager", "failed to create LLM manager", err)
+	}
+
+	state.llmManager = manager
+	state.llmService = domainllm.NewService(manager)
+	
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "LLM管理器初始化完成")
+	}
+
+	return nil
 }
 
 func initStorageStep(_ context.Context, _ *appState) error {
