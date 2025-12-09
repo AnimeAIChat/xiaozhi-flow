@@ -38,13 +38,7 @@ manager:
   discovery:
     enabled: true
     scan_interval: 30s
-    paths:
-      - "./plugins"
-      - "./plugins/examples"
-      - "./plugins/audio"
-      - "./plugins/llm"
-      - "./plugins/device"
-      - "./plugins/utility"
+    paths: []
 
   # 注册表配置
   registry:
