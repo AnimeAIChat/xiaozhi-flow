@@ -167,9 +167,10 @@ type ConnectionHandler struct {
 	ctx               context.Context
 
 	// Components
-	responseSender *components.ResponseSender
-	audioProcessor *components.AudioProcessor
-	mcpDispatcher  *components.MCPDispatcher
+	responseSender   *components.ResponseSender
+	audioProcessor   *components.AudioProcessor
+	mcpDispatcher    *components.MCPDispatcher
+	conversationLoop *components.ConversationLoop
 }
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
@@ -531,6 +532,24 @@ func (h *ConnectionHandler) Handle(conn Connection) {
 
 	h.conn = conn
 	h.responseSender = components.NewResponseSender(conn, h.logger, h.sessionID)
+
+	// Initialize ConversationLoop
+	h.conversationLoop = components.NewConversationLoop(
+		h.logger,
+		h.sessionID,
+		h.dialogueManager,
+		h.llmManager,
+		h.providers.llm,
+		h.ttsManager,
+		h.responseSender,
+		h.mcpDispatcher,
+		h.config,
+		h.functionRegister,
+		h,
+		h.config.Selected.TTS,
+	)
+	h.conversationLoop.Start()
+	defer h.conversationLoop.Stop()
 
 	// 启动消息处理协程
 	go h.processClientAudioMessagesCoroutine() // 添加客户端音频消息处理协程
@@ -1516,6 +1535,11 @@ func (h *ConnectionHandler) deleteAudioFileIfNeeded(filepath string, reason stri
 	} else {
 		h.LogDebug(fmt.Sprintf("%s 已删除音频文件: %s", reason, filepath))
 	}
+}
+
+// AddTTSPending 增加或减少TTS待处理任务计数
+func (h *ConnectionHandler) AddTTSPending(delta int32) {
+	atomic.AddInt32(&h.ttsPending, delta)
 }
 
 // processTTSTask 处理单个TTS任务

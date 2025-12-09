@@ -79,7 +79,10 @@ func (h *ConnectionHandler) SendAudioMessage(filepath string, text string, textI
 		return
 	}
 	// 检查轮次
-	if round != h.talkRound {
+	if round > h.talkRound {
+		h.LogInfo(fmt.Sprintf("SendAudioMessage: 更新轮次: 旧轮次=%d, 新轮次=%d", h.talkRound, round))
+		h.talkRound = round
+	} else if round < h.talkRound {
 		h.LogInfo(fmt.Sprintf("SendAudioMessage: 跳过过期轮次的音频: 任务轮次=%d, 当前轮次=%d, 文本=%s",
 			round, h.talkRound, logText))
 		// 即使跳过，也要根据配置删除音频文件

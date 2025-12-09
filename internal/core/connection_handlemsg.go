@@ -67,7 +67,7 @@ func (h *ConnectionHandler) processClientTextMessage(ctx context.Context, text s
 	case "iot":
 		return h.handleIotMessage(msgMap)
 	case "chat":
-		return h.handleChatMessage(ctx, text)
+		return h.conversationLoop.HandleChatMessage(ctx, text)
 	case "vision":
 		return h.handleVisionMessage(msgMap)
 	case "image":

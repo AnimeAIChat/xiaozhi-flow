@@ -54,6 +54,7 @@ type ConfigProvider interface {
 
 type AudioSender interface {
 	SendAudioMessage(filepath string, text string, textIndex int, round int)
+	AddTTSPending(delta int32)
 }
 
 type LLMGenerator interface {
