@@ -337,9 +337,15 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		}
 
 		// Create logger
-		logger, _ := logging.New(logging.Config{
-			Level: "info",
+		logger, err := logging.New(logging.Config{
+			Level:    "info",
+			Dir:      "data/logs",
+			Filename: "doubao_asr.log",
 		})
+		if err != nil {
+			outputChan <- map[string]interface{}{"error": fmt.Sprintf("failed to initialize logger: %v", err)}
+			return
+		}
 
 		// Create provider
 		provider, err := NewASRProvider(asrConfig, false, logger, nil)

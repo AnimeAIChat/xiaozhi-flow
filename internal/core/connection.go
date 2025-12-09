@@ -670,19 +670,35 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 			return false
 		}
 
-		asrProviderName := h.config.Selected.ASR
+		// 获取用户选择的ASR提供者
+		_, _, asrProviderName := h.getUserModelSelection()
 		if asrProviderName == "" {
 			asrProviderName = "builtin_asr"
 		}
 
-		executor, err := h.registry.GetExecutor(asrProviderName)
+		// 映射旧名称到 Capability ID 和 Config Key
+		capabilityID := asrProviderName
+		configKey := asrProviderName
+
+		switch asrProviderName {
+		case "DoubaoASR":
+			capabilityID = "doubao_asr"
+			configKey = "doubao"
+		}
+
+		executor, err := h.registry.GetExecutor(capabilityID)
 		if err != nil {
-			return false
+			// 尝试使用原始名称
+			executor, err = h.registry.GetExecutor(asrProviderName)
+			if err != nil {
+				return false
+			}
+			capabilityID = asrProviderName
 		}
 
 		streamExecutor, ok := executor.(capability.StreamExecutor)
 		if !ok {
-			h.LogError(fmt.Sprintf("[ASR] [插件] %s 不支持流式执行", asrProviderName))
+			h.LogError(fmt.Sprintf("[ASR] [插件] %s 不支持流式执行", capabilityID))
 			return false
 		}
 
@@ -690,14 +706,21 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 		config := map[string]interface{}{}
 		
 		// 如果是builtin_asr，需要指定engine
-		if asrProviderName == "builtin_asr" {
+		if capabilityID == "builtin_asr" {
 			config["engine"] = "doubao"
 		}
 
 		// 注入全局配置
 		if h.config != nil && h.config.ASR != nil {
-			if asrConfig, ok := h.config.ASR[asrProviderName]; ok {
-				// 尝试解析配置
+			// 优先尝试 configKey
+			if asrConfig, ok := h.config.ASR[configKey]; ok {
+				if configMap, ok := asrConfig.(map[string]interface{}); ok {
+					for k, v := range configMap {
+						config[k] = v
+					}
+				}
+			} else if asrConfig, ok := h.config.ASR[asrProviderName]; ok {
+				// 尝试使用原始名称
 				if configMap, ok := asrConfig.(map[string]interface{}); ok {
 					for k, v := range configMap {
 						config[k] = v

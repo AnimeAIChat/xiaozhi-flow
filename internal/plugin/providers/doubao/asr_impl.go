@@ -74,6 +74,7 @@ type ASRProvider struct {
 	result      string
 	err         error
 	connMutex   sync.Mutex // 添加互斥锁保护连接状态
+	writeMutex  sync.Mutex // 保护WebSocket写入操作
 
 	sendDataCnt int // 计数器，用于跟踪发送的音频数据包数量
 	ticker      *time.Ticker // 用于定期发送心跳包保持连接
@@ -464,14 +465,6 @@ func (p *ASRProvider) StartStreaming(ctx context.Context) error {
 		p.session.ResetLLMContext()
 	}
 
-	// 检查是否已经在初始化或准备就绪
-	p.initMutex.RLock()
-	if p.isReady || p.initDone == nil {
-		p.initMutex.RUnlock()
-		return nil
-	}
-	p.initMutex.RUnlock()
-
 	// 加锁保护初始化过程
 	p.connMutex.Lock()
 	defer p.connMutex.Unlock()
@@ -480,6 +473,13 @@ func (p *ASRProvider) StartStreaming(ctx context.Context) error {
 	if p.isStreaming {
 		return nil
 	}
+
+	// 重置初始化状态，确保AddAudioWithContext能正确等待连接建立
+	p.initMutex.Lock()
+	p.initDone = make(chan struct{})
+	p.isReady = false
+	p.initErr = nil
+	p.initMutex.Unlock()
 
 	// 初始化流式识别状态
 	p.InitAudioProcessing()
@@ -605,12 +605,22 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 	// 发送初始请求
 	p.reqID = fmt.Sprintf("%d", time.Now().UnixNano())
 	request := p.constructRequest()
+	// 辅助函数：安全关闭 initDone
+	safeCloseInitDone := func() {
+		select {
+		case <-p.initDone:
+			// 已经关闭，不做任何操作
+		default:
+			close(p.initDone)
+		}
+	}
+
 	requestBytes, err := json.Marshal(request)
 	if err != nil {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("构造请求数据失败: %v", err)
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 
@@ -620,7 +630,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("压缩请求数据失败: %v", err)
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 	gzipWriter.Close()
@@ -641,7 +651,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("连接已关闭")
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 	err = p.conn.WriteMessage(websocket.BinaryMessage, fullRequest)
@@ -651,7 +661,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("发送请求失败: %v", err)
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 
@@ -662,7 +672,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("连接已关闭")
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 	_, response, err := p.conn.ReadMessage()
@@ -672,7 +682,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("读取响应失败: %v", err)
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 
@@ -683,7 +693,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 		p.initMutex.Lock()
 		p.initErr = fmt.Errorf("解析响应失败: %v", err)
 		p.initMutex.Unlock()
-		close(p.initDone)
+		safeCloseInitDone()
 		return
 	}
 
@@ -694,7 +704,7 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 			p.initMutex.Lock()
 			p.initErr = fmt.Errorf("ASR初始化错误: %v", msg)
 			p.initMutex.Unlock()
-			close(p.initDone)
+			safeCloseInitDone()
 			return
 		}
 	}
@@ -717,18 +727,28 @@ func (p *ASRProvider) sendInitialRequest(ctx context.Context) {
 	}()
 
 	// 关闭初始化完成信号
-	close(p.initDone)
+	safeCloseInitDone()
 }
 
 // asyncInitialize 异步初始化WebSocket连接
 func (p *ASRProvider) asyncInitialize(ctx context.Context) {
+	// 辅助函数：安全关闭 initDone
+	safeCloseInitDone := func() {
+		select {
+		case <-p.initDone:
+			// 已经关闭，不做任何操作
+		default:
+			close(p.initDone)
+		}
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			p.logger.Error("异步初始化发生错误: %v", r)
 			p.initMutex.Lock()
 			p.initErr = fmt.Errorf("异步初始化panic: %v", r)
 			p.initMutex.Unlock()
-			close(p.initDone)
+			safeCloseInitDone()
 		}
 	}()
 
@@ -826,9 +846,10 @@ func (p *ASRProvider) keepAlive() {
 			}
 			p.connMutex.Unlock()
 
-			// 发送一个空的音频包作为心跳包
-			emptyAudio := []byte{}
-			if err := p.sendAudioData(emptyAudio, false); err != nil {
+			// 发送静音包作为心跳包 (16000Hz * 2bytes * 0.1s = 3200 bytes)
+			// 避免发送空包导致服务端超时(Code=45000081)
+			silence := make([]byte, 3200)
+			if err := p.sendAudioData(silence, false); err != nil {
 				p.logger.Warn("发送心跳包失败: %v", err)
 				// 如果心跳包发送失败，停止心跳
 				return
@@ -1000,9 +1021,10 @@ func (p *ASRProvider) sendAudioData(data []byte, isLast bool) error {
 		p.sendDataCnt,
 	)
 	// 如果没有数据且不是最后一帧，不发送
-	if len(data) == 0 && !isLast {
-		return nil
-	}
+	// 注意：心跳包会发送空数据(len=0)，所以这里不能拦截空数据
+	// if len(data) == 0 && !isLast {
+	// 	return nil
+	// }
 	defer func() {
 		if r := recover(); r != nil {
 			// 捕获WebSocket写入时的panic，避免程序崩溃
@@ -1011,7 +1033,11 @@ func (p *ASRProvider) sendAudioData(data []byte, isLast bool) error {
 	}()
 
 	// 检查连接是否存在
-	if p.conn == nil {
+	p.connMutex.Lock()
+	conn := p.conn
+	p.connMutex.Unlock()
+
+	if conn == nil {
 		return fmt.Errorf("WebSocket连接不存在")
 	}
 
@@ -1035,7 +1061,13 @@ func (p *ASRProvider) sendAudioData(data []byte, isLast bool) error {
 	audioMessage := append(header, size...)
 	audioMessage = append(audioMessage, compressedAudio...)
 
-	if err := p.conn.WriteMessage(websocket.BinaryMessage, audioMessage); err != nil {
+	// 使用局部变量 conn 发送消息，避免在发送过程中 p.conn 被置空
+	// 加锁保护写入操作，避免并发写入导致panic
+	p.writeMutex.Lock()
+	err := conn.WriteMessage(websocket.BinaryMessage, audioMessage)
+	p.writeMutex.Unlock()
+
+	if err != nil {
 		return fmt.Errorf("发送音频数据失败: %v", err)
 	}
 
