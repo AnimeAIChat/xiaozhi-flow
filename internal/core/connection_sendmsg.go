@@ -63,7 +63,11 @@ func (h *ConnectionHandler) SendAudioMessage(filepath string, text string, textI
 			pending = 0
 		}
 		h.LogInfo(fmt.Sprintf("[TTS] [发送完成] textIndex=%d lastText=%d lastAudio=%d pending=%d closeAfterChat=%v", textIndex, h.tts_last_text_index, h.tts_last_audio_index, pending, h.closeAfterChat))
-		if pending == 0 {
+		
+		// 只有当队列为空且LLM不再生成时，才清除讲话状态
+		isLLMGenerating := atomic.LoadInt32(&h.llmGenerating) == 1
+		// h.LogInfo(fmt.Sprintf("[DEBUG] SendAudioMessage check: pending=%d, isLLMGenerating=%v", pending, isLLMGenerating))
+		if pending == 0 && !isLLMGenerating {
 			h.sendTTSMessage("stop", "", textIndex)
 			// 恢复ASR接收
 			atomic.StoreInt32(&h.asrPause, 0)
@@ -72,6 +76,8 @@ func (h *ConnectionHandler) SendAudioMessage(filepath string, text string, textI
 			} else {
 				h.clearSpeakStatus()
 			}
+		} else if pending == 0 && isLLMGenerating {
+			h.LogDebug("[TTS] 队列已空但LLM仍在生成，保持讲话状态")
 		}
 	}()
 

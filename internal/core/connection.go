@@ -124,6 +124,7 @@ type ConnectionHandler struct {
 	serverVoiceStop int32 // 1表示true服务端语音停止, 不再下发语音数据
 	asrPause        int32 // 1 表示暂停将来自客户端的音频发送到 ASR（例如 TTS 播放期间）
 	ttsPending      int32 // 当前待播放的TTS段数量
+	llmGenerating   int32 // 1表示LLM正在生成回复
 
 	opusDecoder *internalutils.OpusDecoder // Opus解码器
 
@@ -1016,7 +1017,11 @@ clearedAudioQueue:
 }
 
 func (h *ConnectionHandler) genResponseByLLM(ctx context.Context, messages []providers.Message, round int) error {
+	atomic.StoreInt32(&h.llmGenerating, 1)
+	h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM start, set llmGenerating=1, round=%d", round))
 	defer func() {
+		atomic.StoreInt32(&h.llmGenerating, 0)
+		h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM end, set llmGenerating=0, round=%d", round))
 		if r := recover(); r != nil {
 			h.LogError(fmt.Sprintf("genResponseByLLM发生panic: %v", r))
 			errorMsg := "抱歉，处理您的请求时发生了错误"
