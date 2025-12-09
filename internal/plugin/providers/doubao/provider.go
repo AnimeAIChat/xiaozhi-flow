@@ -154,14 +154,59 @@ func (e *LLMExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		if msgMap, ok := m.(map[string]interface{}); ok {
 			role, _ := msgMap["role"].(string)
 			content, _ := msgMap["content"].(string)
-			messages = append(messages, Message{
+			msg := Message{
 				Role:    role,
 				Content: content,
-			})
+			}
+			
+			if tcID, ok := msgMap["tool_call_id"].(string); ok {
+				msg.ToolCallID = tcID
+			}
+			
+			if tcsRaw, ok := msgMap["tool_calls"].([]interface{}); ok {
+				var tcs []ToolCall
+				for _, tcRaw := range tcsRaw {
+					if tcMap, ok := tcRaw.(map[string]interface{}); ok {
+						tc := ToolCall{
+							ID:   getString(tcMap, "id"),
+							Type: getString(tcMap, "type"),
+						}
+						if fnMap, ok := tcMap["function"].(map[string]interface{}); ok {
+							tc.Function = ToolCallFunction{
+								Name:      getString(fnMap, "name"),
+								Arguments: getString(fnMap, "arguments"),
+							}
+						}
+						tcs = append(tcs, tc)
+					}
+				}
+				msg.ToolCalls = tcs
+			}
+			
+			messages = append(messages, msg)
 		}
 	}
 
-	stream, err := provider.Chat(ctx, messages, nil)
+	var tools []Tool
+	if toolsRaw, ok := inputs["tools"].([]interface{}); ok {
+		for _, t := range toolsRaw {
+			if tMap, ok := t.(map[string]interface{}); ok {
+				tool := Tool{
+					Type: getString(tMap, "type"),
+				}
+				if fnMap, ok := tMap["function"].(map[string]interface{}); ok {
+					tool.Function = ToolFunction{
+						Name:        getString(fnMap, "name"),
+						Description: getString(fnMap, "description"),
+						Parameters:  fnMap["parameters"],
+					}
+				}
+				tools = append(tools, tool)
+			}
+		}
+	}
+
+	stream, err := provider.Chat(ctx, messages, tools)
 	if err != nil {
 		return nil, err
 	}
@@ -174,16 +219,37 @@ func (e *LLMExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 				// Optionally handle error
 				continue
 			}
+			
+			outMap := map[string]interface{}{}
 			if resp.Content != "" {
-				outCh <- map[string]interface{}{
-					"content": resp.Content,
+				outMap["content"] = resp.Content
+			}
+			
+			if len(resp.ToolCalls) > 0 {
+				tcs := make([]interface{}, len(resp.ToolCalls))
+				for i, tc := range resp.ToolCalls {
+					tcs[i] = map[string]interface{}{
+						"id":   tc.ID,
+						"type": tc.Type,
+						"function": map[string]interface{}{
+							"name":      tc.Function.Name,
+							"arguments": tc.Function.Arguments,
+						},
+					}
 				}
+				outMap["tool_calls"] = tcs
+			}
+			
+			if len(outMap) > 0 {
+				outCh <- outMap
 			}
 		}
 	}()
 
 	return outCh, nil
 }
+
+
 
 // --- TTS Executor ---
 
