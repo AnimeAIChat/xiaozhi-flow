@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-server-go/internal/core/providers/tts"
-	edgetts "xiaozhi-server-go/internal/core/providers/tts/edge"
 	"xiaozhi-server-go/internal/plugin/capability"
 )
 
@@ -66,18 +64,12 @@ func (e *TTSExecutor) Execute(ctx context.Context, config map[string]interface{}
 		voice = "zh-CN-XiaoxiaoNeural"
 	}
 
-	ttsConfig := &tts.Config{
-		Type:      "edge",
+	ttsConfig := &TTSConfig{
 		Voice:     voice,
 		OutputDir: "data/tmp",
 	}
 
-	provider, err := edgetts.NewProvider(ttsConfig, false)
-	if err != nil {
-		return nil, err
-	}
-
-	filepath, err := provider.ToTTS(text)
+	filepath, err := synthesizeSpeech(ttsConfig, text)
 	if err != nil {
 		return nil, err
 	}

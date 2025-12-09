@@ -1,9 +1,8 @@
-package ollama
+package openai
 
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/sashabaranov/go-openai"
 	"xiaozhi-server-go/internal/plugin/capability"
@@ -18,18 +17,19 @@ func NewProvider() *Provider {
 func (p *Provider) GetCapabilities() []capability.Definition {
 	return []capability.Definition{
 		{
-			ID:          "ollama_llm",
+			ID:          "openai_llm",
 			Type:        capability.TypeLLM,
-			Name:        "Ollama LLM",
-			Description: "Ollama Local Language Model",
+			Name:        "OpenAI LLM",
+			Description: "OpenAI Large Language Model",
 			ConfigSchema: capability.Schema{
 				Type: "object",
 				Properties: map[string]capability.Property{
-					"base_url":  {Type: "string", Default: "http://localhost:11434/v1", Description: "API Base URL"},
-					"model":     {Type: "string", Default: "llama3", Description: "Model Name"},
-					"api_key":   {Type: "string", Default: "ollama", Description: "API Key (ignored by Ollama but required by client)"},
+					"api_key":   {Type: "string", Secret: true, Description: "API Key"},
+					"base_url":  {Type: "string", Description: "API Base URL (optional)"},
+					"model":     {Type: "string", Default: "gpt-3.5-turbo", Description: "Model Name"},
+					"max_tokens": {Type: "number", Default: 2048},
 				},
-				Required: []string{"base_url", "model"},
+				Required: []string{"api_key", "model"},
 			},
 			InputSchema: capability.Schema{
 				Type: "object",
@@ -45,18 +45,19 @@ func (p *Provider) GetCapabilities() []capability.Definition {
 			},
 		},
 		{
-			ID:          "ollama_vllm",
+			ID:          "openai_vllm",
 			Type:        capability.TypeLLM,
-			Name:        "Ollama VLLM",
-			Description: "Ollama Vision Language Model",
+			Name:        "OpenAI VLLM",
+			Description: "OpenAI Vision Language Model",
 			ConfigSchema: capability.Schema{
 				Type: "object",
 				Properties: map[string]capability.Property{
-					"base_url":  {Type: "string", Default: "http://localhost:11434/v1", Description: "API Base URL"},
-					"model":     {Type: "string", Default: "llava", Description: "Model Name"},
-					"api_key":   {Type: "string", Default: "ollama", Description: "API Key"},
+					"api_key":    {Type: "string", Secret: true, Description: "API Key"},
+					"base_url":   {Type: "string", Description: "API Base URL (optional)"},
+					"model":      {Type: "string", Default: "gpt-4-vision-preview", Description: "Model Name"},
+					"max_tokens": {Type: "number", Default: 2048},
 				},
-				Required: []string{"base_url", "model"},
+				Required: []string{"api_key", "model"},
 			},
 			InputSchema: capability.Schema{
 				Type: "object",
@@ -77,7 +78,7 @@ func (p *Provider) GetCapabilities() []capability.Definition {
 
 func (p *Provider) CreateExecutor(capabilityID string) (capability.Executor, error) {
 	switch capabilityID {
-	case "ollama_llm", "ollama_vllm":
+	case "openai_llm", "openai_vllm":
 		return &ChatExecutor{}, nil
 	default:
 		return nil, fmt.Errorf("unknown capability: %s", capabilityID)
@@ -87,21 +88,24 @@ func (p *Provider) CreateExecutor(capabilityID string) (capability.Executor, err
 type ChatExecutor struct{}
 
 func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
-	return nil, fmt.Errorf("ollama only supports streaming via ExecuteStream")
+	return nil, fmt.Errorf("openai only supports streaming via ExecuteStream")
 }
 
 func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
+	apiKey, _ := config["api_key"].(string)
 	baseURL, _ := config["base_url"].(string)
 	model, _ := config["model"].(string)
-	apiKey, _ := config["api_key"].(string)
-	if apiKey == "" {
-		apiKey = "ollama"
+	maxTokens := 2048
+	if mt, ok := config["max_tokens"].(float64); ok {
+		maxTokens = int(mt)
+	} else if mt, ok := config["max_tokens"].(int); ok {
+		maxTokens = mt
 	}
 
-	isQwen3 := model != "" && strings.HasPrefix(strings.ToLower(model), "qwen3")
-
 	clientConfig := openai.DefaultConfig(apiKey)
-	clientConfig.BaseURL = baseURL
+	if baseURL != "" {
+		clientConfig.BaseURL = baseURL
+	}
 	client := openai.NewClientWithConfig(clientConfig)
 
 	// Parse messages
@@ -122,10 +126,6 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 		}
 	}
 
-	if isQwen3 {
-		messages = addNoThinkDirective(messages)
-	}
-
 	// Handle images for VLLM
 	if imagesRaw, ok := inputs["images"].([]interface{}); ok && len(imagesRaw) > 0 {
 		for i := len(messages) - 1; i >= 0; i-- {
@@ -136,7 +136,7 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 						Text: messages[i].Content,
 					},
 				}
-				
+
 				for _, img := range imagesRaw {
 					if imgStr, ok := img.(string); ok {
 						contentParts = append(contentParts, openai.ChatMessagePart{
@@ -147,7 +147,7 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 						})
 					}
 				}
-				
+
 				messages[i].Content = ""
 				messages[i].MultiContent = contentParts
 				break
@@ -156,9 +156,10 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 	}
 
 	req := openai.ChatCompletionRequest{
-		Model:    model,
-		Messages: messages,
-		Stream:   true,
+		Model:     model,
+		Messages:  messages,
+		Stream:    true,
+		MaxTokens: maxTokens,
 	}
 
 	stream, err := client.CreateChatCompletionStream(ctx, req)
@@ -171,9 +172,6 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 		defer close(outCh)
 		defer stream.Close()
 
-		isActive := true
-		buffer := ""
-
 		for {
 			response, err := stream.Recv()
 			if err != nil {
@@ -183,15 +181,9 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 			if len(response.Choices) > 0 {
 				content := response.Choices[0].Delta.Content
 				if content != "" {
-					buffer += content
-					buffer, isActive = handleThinkTagsWithBuffer(buffer, isActive)
-
-					if isActive && buffer != "" {
-						outCh <- map[string]interface{}{
-							"content": buffer,
-							"done":    false,
-						}
-						buffer = ""
+					outCh <- map[string]interface{}{
+						"content": content,
+						"done":    false,
 					}
 				}
 				if response.Choices[0].FinishReason != "" {
@@ -205,54 +197,4 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 	}()
 
 	return outCh, nil
-}
-
-// addNoThinkDirective 为qwen3模型在用户最后一条消息中添加/no_think指令
-func addNoThinkDirective(messages []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
-	// 复制消息列表
-	messagesCopy := make([]openai.ChatCompletionMessage, len(messages))
-	copy(messagesCopy, messages)
-
-	// 找到最后一条用户消息
-	for i := len(messagesCopy) - 1; i >= 0; i-- {
-		if messagesCopy[i].Role == openai.ChatMessageRoleUser {
-			// 在用户消息前添加/no_think指令
-			messagesCopy[i].Content = "/no_think " + messagesCopy[i].Content
-			break
-		}
-	}
-
-	return messagesCopy
-}
-
-// handleThinkTagsWithBuffer 处理思考标签并返回处理后的缓冲区和活动状态
-func handleThinkTagsWithBuffer(buffer string, isActive bool) (string, bool) {
-	if buffer == "" {
-		return buffer, isActive
-	}
-
-	// 处理完整的<think></think>标签
-	for strings.Contains(buffer, "<think>") && strings.Contains(buffer, "</think>") {
-		parts := strings.SplitN(buffer, "<think>", 2)
-		pre := parts[0]
-		parts = strings.SplitN(parts[1], "</think>", 2)
-		post := parts[1]
-		buffer = pre + post
-	}
-
-	// 处理只有开始标签的情况
-	if strings.Contains(buffer, "<think>") {
-		parts := strings.SplitN(buffer, "<think>", 2)
-		buffer = parts[0]
-		isActive = false
-	}
-
-	// 处理只有结束标签的情况
-	if strings.Contains(buffer, "</think>") {
-		parts := strings.SplitN(buffer, "</think>", 2)
-		buffer = parts[1]
-		isActive = true
-	}
-
-	return buffer, isActive
 }

@@ -11,6 +11,7 @@ const (
 	TypeLLM  Type = "llm"
 	TypeASR  Type = "asr"
 	TypeTTS  Type = "tts"
+	TypeVAD  Type = "vad"
 	TypeTool Type = "tool"
 )
 

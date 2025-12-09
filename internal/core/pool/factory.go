@@ -9,28 +9,27 @@ import (
 	"xiaozhi-server-go/internal/core/providers/asr"
 	"xiaozhi-server-go/internal/core/providers/llm"
 	"xiaozhi-server-go/internal/core/providers/tts"
-	"xiaozhi-server-go/internal/core/providers/vlllm"
 	"xiaozhi-server-go/internal/utils"
 
 	// 导入ASR提供者实现以触发注册
-	_ "xiaozhi-server-go/internal/core/providers/asr/deepgram"
-	_ "xiaozhi-server-go/internal/core/providers/asr/gosherpa"
-	_ "xiaozhi-server-go/internal/core/providers/asr/stepfun"
+	// _ "xiaozhi-server-go/internal/core/providers/asr/deepgram"
+	// _ "xiaozhi-server-go/internal/core/providers/asr/gosherpa"
+	// _ "xiaozhi-server-go/internal/core/providers/asr/stepfun"
 
 	// 导入LLM提供者实现以触发注册
-	_ "xiaozhi-server-go/internal/core/providers/llm/coze"
-	_ "xiaozhi-server-go/internal/core/providers/llm/doubao"
-	_ "xiaozhi-server-go/internal/core/providers/llm/ollama"
-	_ "xiaozhi-server-go/internal/core/providers/llm/openai"
+	// _ "xiaozhi-server-go/internal/core/providers/llm/coze"
+	// _ "xiaozhi-server-go/internal/core/providers/llm/doubao"
+	// _ "xiaozhi-server-go/internal/core/providers/llm/ollama"
+	// _ "xiaozhi-server-go/internal/core/providers/llm/openai"
 
 	// 导入TTS提供者实现以触发注册
-	_ "xiaozhi-server-go/internal/core/providers/tts/deepgram"
-	_ "xiaozhi-server-go/internal/core/providers/tts/edge"
-	_ "xiaozhi-server-go/internal/core/providers/tts/gosherpa"
+	// _ "xiaozhi-server-go/internal/core/providers/tts/deepgram"
+	// _ "xiaozhi-server-go/internal/core/providers/tts/edge"
+	// _ "xiaozhi-server-go/internal/core/providers/tts/gosherpa"
 
 	// 导入VLLM提供者实现以触发注册
-	_ "xiaozhi-server-go/internal/core/providers/vlllm/openai"
-	_ "xiaozhi-server-go/internal/core/providers/vlllm/ollama"
+	// _ "xiaozhi-server-go/internal/core/providers/vlllm/openai"
+	// _ "xiaozhi-server-go/internal/core/providers/vlllm/ollama"
 )
 
 /*
@@ -85,9 +84,6 @@ func (f *ProviderFactory) createProvider() (interface{}, error) {
 		params := f.params
 		delete_audio, _ := params["delete_audio"].(bool)
 		return tts.Create(cfg.Type, cfg, delete_audio)
-	case "vlllm":
-		cfg := f.config.(*config.VLLLMConfig)
-		return vlllm.Create(cfg.Type, cfg, f.logger)
 	case "mcp":
 		cfg := f.config.(*config.Config)
 		manager, err := domainmcp.NewFromConfig(cfg, f.logger)
@@ -165,22 +161,6 @@ func NewTTSFactory(ttsType string, config *config.Config, logger *utils.Logger) 
 				"type":         ttsCfg.Type,
 				"delete_audio": config.Audio.DeleteAudio,
 			},
-		}
-	}
-	return nil
-}
-
-func NewVLLLMFactory(
-	vlllmType string,
-	config *config.Config,
-	logger *utils.Logger,
-) ResourceFactory {
-	if vlllmCfg, ok := config.VLLLM[vlllmType]; ok {
-		return &ProviderFactory{
-			Name:         vlllmType,
-			providerType: "vlllm",
-			config:       &vlllmCfg,
-			logger:       logger,
 		}
 	}
 	return nil

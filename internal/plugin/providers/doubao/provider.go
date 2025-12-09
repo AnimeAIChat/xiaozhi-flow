@@ -4,10 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-server-go/internal/core/providers/llm"
-	doubaollm "xiaozhi-server-go/internal/core/providers/llm/doubao"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/domain/llm/inter"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/utils"
 )
@@ -138,21 +134,14 @@ func (e *LLMExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		maxTokens = mt
 	}
 
-	llmConfig := &llm.Config{
-		Type:      "doubao",
+	llmConfig := &LLMConfig{
 		APIKey:    apiKey,
 		BaseURL:   baseURL,
-		ModelName: model,
+		Model:     model,
 		MaxTokens: maxTokens,
 	}
 
-	provider, err := doubaollm.NewProvider(llmConfig)
-	if err != nil {
-		return nil, err
-	}
-	if err := provider.Initialize(); err != nil {
-		return nil, err
-	}
+	provider := NewLLMProvider(llmConfig)
 
 	// Parse messages
 	msgsRaw, ok := inputs["messages"].([]interface{})
@@ -160,31 +149,19 @@ func (e *LLMExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		return nil, fmt.Errorf("messages input is required")
 	}
 
-	var messages []inter.Message
+	var messages []Message
 	for _, m := range msgsRaw {
 		if msgMap, ok := m.(map[string]interface{}); ok {
 			role, _ := msgMap["role"].(string)
 			content, _ := msgMap["content"].(string)
-			messages = append(messages, inter.Message{
+			messages = append(messages, Message{
 				Role:    role,
 				Content: content,
 			})
 		}
 	}
 
-	// Call Response
-	// Convert messages to providers.Message
-	var provMessages []providers.Message
-	for _, m := range messages {
-		provMessages = append(provMessages, providers.Message{
-			Role:    m.Role,
-			Content: m.Content,
-		})
-	}
-
-	// Use a dummy session ID
-	sessionID := "plugin-session"
-	stream, err := provider.Response(ctx, sessionID, provMessages)
+	stream, err := provider.Chat(ctx, messages, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -192,9 +169,15 @@ func (e *LLMExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 	outCh := make(chan map[string]interface{})
 	go func() {
 		defer close(outCh)
-		for content := range stream {
-			outCh <- map[string]interface{}{
-				"content": content,
+		for resp := range stream {
+			if resp.Error != nil {
+				// Optionally handle error
+				continue
+			}
+			if resp.Content != "" {
+				outCh <- map[string]interface{}{
+					"content": resp.Content,
+				}
 			}
 		}
 	}()

@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/llm"
-	cozellm "xiaozhi-server-go/internal/core/providers/llm/coze"
 	"xiaozhi-server-go/internal/plugin/capability"
 )
 
@@ -73,36 +70,27 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 	botID, _ := config["bot_id"].(string)
 	userID, _ := config["user_id"].(string)
 	
-	extra := make(map[string]interface{})
-	extra["bot_id"] = botID
-	extra["user_id"] = userID
-	
+	llmConfig := &LLMConfig{
+		BaseURL: baseURL,
+		BotID:   botID,
+		UserID:  userID,
+	}
+
 	if pat, ok := config["personal_access_token"].(string); ok {
-		extra["personal_access_token"] = pat
+		llmConfig.AccessToken = pat
 	}
 	if cid, ok := config["client_id"].(string); ok {
-		extra["client_id"] = cid
+		llmConfig.ClientID = cid
 	}
 	if pk, ok := config["public_key"].(string); ok {
-		extra["public_key"] = pk
+		llmConfig.PublicKey = pk
 	}
 	if prk, ok := config["private_key"].(string); ok {
-		extra["private_key"] = prk
-	}
-	// Legacy provider uses "url" in extra for base url fallback, but also BaseURL field
-	extra["url"] = baseURL
-
-	llmConfig := &llm.Config{
-		Type:    "coze",
-		BaseURL: baseURL,
-		Extra:   extra,
+		llmConfig.PrivateKey = prk
 	}
 
-	provider, err := cozellm.NewProvider(llmConfig)
+	provider, err := NewLLMProvider(llmConfig)
 	if err != nil {
-		return nil, err
-	}
-	if err := provider.Initialize(); err != nil {
 		return nil, err
 	}
 
@@ -112,12 +100,12 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 		return nil, fmt.Errorf("messages input is required")
 	}
 
-	var messages []providers.Message
+	var messages []Message
 	for _, m := range msgsRaw {
 		if msgMap, ok := m.(map[string]interface{}); ok {
 			role, _ := msgMap["role"].(string)
 			content, _ := msgMap["content"].(string)
-			messages = append(messages, providers.Message{
+			messages = append(messages, Message{
 				Role:    role,
 				Content: content,
 			})
@@ -125,7 +113,7 @@ func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]inte
 	}
 
 	sessionID := fmt.Sprintf("plugin-%d", time.Now().UnixNano())
-	stream, err := provider.Response(ctx, sessionID, messages)
+	stream, err := provider.Chat(ctx, sessionID, messages)
 	if err != nil {
 		return nil, err
 	}

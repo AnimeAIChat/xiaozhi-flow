@@ -88,20 +88,8 @@ func (s *Service) initVLLMProviders() error {
 
 	vlllmConfig := s.config.VLLLM[selectedVLLLM]
 
-	// 创建VLLLM provider配置
-	providerConfig := &vlllm.Config{
-		Type:        vlllmConfig.Type,
-		ModelName:   vlllmConfig.ModelName,
-		BaseURL:     vlllmConfig.BaseURL,
-		APIKey:      vlllmConfig.APIKey,
-		Temperature: vlllmConfig.Temperature,
-		MaxTokens:   vlllmConfig.MaxTokens,
-		TopP:        vlllmConfig.TopP,
-		Security:    vlllmConfig.Security,
-	}
-
 	// 创建provider实例
-	provider, err := vlllm.NewProvider(providerConfig, s.logger)
+	provider, err := vlllm.Create(vlllmConfig.Type, &vlllmConfig, s.logger)
 	if err != nil {
 		s.logger.WarnTag("VLLLM", "创建 provider 失败: %v", err)
 		return errors.Wrap(errors.KindDomain, "init_vlllm", "failed to create VLLLM provider", err)

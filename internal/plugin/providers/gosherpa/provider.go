@@ -4,12 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"xiaozhi-server-go/internal/core/providers/asr"
-	gosherpaasr "xiaozhi-server-go/internal/core/providers/asr/gosherpa"
-	"xiaozhi-server-go/internal/core/providers/tts"
-	gosherpatts "xiaozhi-server-go/internal/core/providers/tts/gosherpa"
 	"xiaozhi-server-go/internal/plugin/capability"
-	"xiaozhi-server-go/internal/utils"
 )
 
 type Provider struct{}
@@ -94,21 +89,15 @@ func (e *TTSExecutor) Execute(ctx context.Context, config map[string]interface{}
 		return nil, fmt.Errorf("text input is required")
 	}
 
-	ttsConfig := &tts.Config{
-		Type:    "gosherpa",
-		Cluster: getString(config, "cluster"),
+	ttsConfig := &TTSConfig{
+		Cluster:   getString(config, "cluster"),
 		OutputDir: "data/tmp",
 	}
 	if ttsConfig.Cluster == "" {
 		ttsConfig.Cluster = "ws://localhost:8888"
 	}
 
-	provider, err := gosherpatts.NewProvider(ttsConfig, false)
-	if err != nil {
-		return nil, err
-	}
-
-	filepath, err := provider.ToTTS(text)
+	filepath, err := synthesizeSpeech(ttsConfig, text)
 	if err != nil {
 		return nil, err
 	}
@@ -128,25 +117,6 @@ type ASRExecutor struct{}
 
 func (e *ASRExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
 	return nil, fmt.Errorf("gosherpa_asr only supports streaming via ExecuteStream")
-}
-
-// Listener adapter
-type asrListener struct {
-	outputChan chan<- map[string]interface{}
-	provider   *gosherpaasr.Provider
-}
-
-func (l *asrListener) OnAsrResult(result string, isFinalResult bool) bool {
-	silenceCount := 0
-	if l.provider != nil {
-		silenceCount = l.provider.GetSilenceCount()
-	}
-	l.outputChan <- map[string]interface{}{
-		"text":          result,
-		"is_final":      isFinalResult,
-		"silence_count": silenceCount,
-	}
-	return false // Continue recognition
 }
 
 func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
@@ -169,50 +139,21 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		}
 
 		// Map config
-		asrConfig := &asr.Config{
-			Type: "gosherpa",
-			Data: map[string]interface{}{
-				"addr": addr,
-			},
+		asrConfig := &ASRConfig{
+			Cluster: addr,
 		}
 
-		// Create logger
-		logger, _ := utils.NewLogger(&utils.LogCfg{
-			LogLevel: "info",
-		})
-
 		// Create provider
-		provider, err := gosherpaasr.NewProvider(asrConfig, false, logger)
-		if err != nil {
+		provider := NewASRProvider(asrConfig, outputChan)
+
+		// Start streaming
+		if err := provider.Start(ctx, audioStream); err != nil {
 			outputChan <- map[string]interface{}{"error": err.Error()}
 			return
 		}
-		defer provider.CloseConnection()
 
-		// Set listener
-		// Note: gosherpa legacy provider uses PublishAsrResult which calls listener.OnAsrResult
-		listener := &asrListener{
-			outputChan: outputChan,
-			provider:   provider,
-		}
-		provider.SetListener(listener)
-
-		// Note: gosherpa legacy provider starts reading loop in NewProvider goroutine.
-		// We just need to feed audio.
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case data, ok := <-audioStream:
-				if !ok {
-					return
-				}
-				if err := provider.AddAudio(data); err != nil {
-					outputChan <- map[string]interface{}{"error": err.Error()}
-				}
-			}
-		}
+		// Wait for context done
+		<-ctx.Done()
 	}()
 
 	return outputChan, nil

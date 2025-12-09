@@ -3,10 +3,7 @@ package stepfun
 import (
 	"context"
 	"fmt"
-	"xiaozhi-server-go/internal/core/providers/asr"
-	stepfunasr "xiaozhi-server-go/internal/core/providers/asr/stepfun"
 	"xiaozhi-server-go/internal/plugin/capability"
-	"xiaozhi-server-go/internal/utils"
 )
 
 type Provider struct{}
@@ -65,23 +62,6 @@ func (e *ASRExecutor) Execute(ctx context.Context, config map[string]interface{}
 	return nil, fmt.Errorf("step_asr only supports streaming execution")
 }
 
-type asrListener struct {
-	outCh    chan<- map[string]interface{}
-	provider *stepfunasr.Provider
-}
-
-func (l *asrListener) OnAsrResult(result string, isFinalResult bool) bool {
-	select {
-	case l.outCh <- map[string]interface{}{
-		"text":          result,
-		"is_final":      isFinalResult,
-		"silence_count": l.provider.GetSilenceCount(),
-	}:
-	default:
-	}
-	return true
-}
-
 func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
 	audioStream, ok := inputs["audio_stream"].(<-chan []byte)
 	if !ok {
@@ -90,62 +70,28 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 
 	apiKey, _ := config["api_key"].(string)
 	model, _ := config["model"].(string)
-	if model == "" {
-		model = "step-asr"
-	}
 	voice, _ := config["voice"].(string)
-	if voice == "" {
-		voice = "cixing"
-	}
 	prompt, _ := config["prompt"].(string)
 
-	asrConfig := &asr.Config{
-		Type: "stepfun",
-		Data: map[string]interface{}{
-			"api_key": apiKey,
-			"model":   model,
-			"voice":   voice,
-			"prompt":  prompt,
-		},
+	asrConfig := &ASRConfig{
+		APIKey: apiKey,
+		Model:  model,
+		Voice:  voice,
+		Prompt: prompt,
 	}
 
-	logger, _ := utils.NewLogger(&utils.LogCfg{
-		LogLevel: "info",
-	})
-	provider, err := stepfunasr.NewProvider(asrConfig, false, logger)
-	if err != nil {
-		return nil, err
-	}
-
-	outCh := make(chan map[string]interface{})
-	listener := &asrListener{
-		outCh:    outCh,
-		provider: provider,
-	}
-	provider.SetListener(listener)
-	provider.EnableSilenceDetection(true)
+	outCh := make(chan map[string]interface{}, 10)
 
 	go func() {
 		defer close(outCh)
-		defer provider.Cleanup()
 
-		// Start streaming explicitly if needed, or it might be lazy loaded in AddAudio
-		// provider.StartStreaming(ctx) // stepfun provider handles this in AddAudioWithContext
-
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case data, ok := <-audioStream:
-				if !ok {
-					return
-				}
-				if err := provider.AddAudioWithContext(ctx, data); err != nil {
-					// Log error or send error event?
-					// For now just continue or break
-				}
-			}
+		provider := NewASRProvider(asrConfig, outCh)
+		if err := provider.Start(ctx, audioStream); err != nil {
+			outCh <- map[string]interface{}{"error": err.Error()}
+			return
 		}
+
+		<-ctx.Done()
 	}()
 
 	return outCh, nil

@@ -19,7 +19,6 @@ import (
 	domainllm "xiaozhi-server-go/internal/domain/llm"
 	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
-	"xiaozhi-server-go/internal/plugin/builtin/openai"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/plugin/providers/chatglm"
 	"xiaozhi-server-go/internal/plugin/providers/coze"
@@ -28,7 +27,10 @@ import (
 	"xiaozhi-server-go/internal/plugin/providers/edge"
 	"xiaozhi-server-go/internal/plugin/providers/gosherpa"
 	"xiaozhi-server-go/internal/plugin/providers/ollama"
+	"xiaozhi-server-go/internal/plugin/providers/openai"
 	"xiaozhi-server-go/internal/plugin/providers/stepfun"
+	"xiaozhi-server-go/internal/plugin/providers/webrtc"
+	llmadapters "xiaozhi-server-go/internal/core/providers/llm/adapters"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -344,12 +346,7 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	// Initialize Capability Registry
 	registry := capability.NewRegistry()
 	
-	// Register Builtin Plugins
-	// In the future, this could be dynamic or loaded from external plugins
-	openaiProvider := openai.NewProvider()
-	registry.Register("openai", openaiProvider)
-
-	// Register Vendor Plugins
+	// Register Plugins
 	registry.Register("chatglm", chatglm.NewProvider())
 	registry.Register("coze", coze.NewProvider())
 	registry.Register("deepgram", deepgram.NewProvider())
@@ -357,7 +354,12 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	registry.Register("edge", edge.NewProvider())
 	registry.Register("gosherpa", gosherpa.NewProvider())
 	registry.Register("ollama", ollama.NewProvider())
+	registry.Register("openai", openai.NewProvider())
 	registry.Register("stepfun", stepfun.NewProvider())
+	registry.Register("webrtc", webrtc.NewProvider())
+
+	// Register Legacy Adapters
+	llmadapters.RegisterLegacyAdapters()
 
 	state.registry = registry
 
