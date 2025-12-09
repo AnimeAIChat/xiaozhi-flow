@@ -24,7 +24,4 @@ type Repository interface {
 
 	// GetStringArrayConfigValue 获取字符串数组类型的配置值
 	GetStringArrayConfigValue(key string) ([]string, error)
-
-	// MigrateLegacyConfig 迁移旧配置数据到新表结构
-	MigrateLegacyConfig() error
 }

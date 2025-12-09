@@ -528,37 +528,3 @@ func (r *DatabaseRepository) getDescriptionFromKey(key string) string {
 	return fmt.Sprintf("%s 配置", category)
 }
 
-// MigrateLegacyConfig 迁移旧配置数据到新表结构
-func (r *DatabaseRepository) MigrateLegacyConfig() error {
-	// 1. 检查是否需要迁移 (检查 providers 表是否为空)
-	var providerCount int64
-	if err := r.db.Model(&storage.Provider{}).Count(&providerCount).Error; err != nil {
-		return errors.Wrap(errors.KindStorage, "config.migrate", "failed to check providers count", err)
-	}
-	
-	// 如果 providers 表已有数据，假设已经迁移过或正在使用新结构，不再自动迁移
-	if providerCount > 0 {
-		return nil
-	}
-
-	// 2. 加载配置
-	// 由于 loadConfigFromDB 会先从 config_records 加载并反序列化，
-	// 如果 config_records 中包含旧的 LLM/TTS 等配置，它们会被加载到 cfg 对象中。
-	cfg, err := r.loadConfigFromDB()
-	if err != nil {
-		return errors.Wrap(errors.KindDomain, "config.migrate", "failed to load legacy config", err)
-	}
-	
-	if cfg == nil {
-		return nil // 没有配置需要迁移
-	}
-
-	// 3. 保存配置
-	// SaveConfig 会将 cfg 中的 LLM/TTS/ASR/Plugins 保存到新表，
-	// 并将剩余配置保存回 config_records (同时清除 config_records 中的旧 LLM 等数据)
-	if err := r.SaveConfig(cfg); err != nil {
-		return errors.Wrap(errors.KindDomain, "config.migrate", "failed to save migrated config", err)
-	}
-
-	return nil
-}
