@@ -109,8 +109,16 @@ func findLastPunctuationWithMinLength(text string, punctuations []string, minLen
 	for _, punct := range punctuations {
 		// 从最小长度位置开始查找
 		searchText := text[minLength:]
-		if idx := strings.LastIndex(searchText, punct); idx != -1 {
+		
+		// 循环查找直到找到有效位置或找不到为止
+		for {
+			idx := strings.LastIndex(searchText, punct)
+			if idx == -1 {
+				break
+			}
+			
 			actualIdx := idx + minLength
+			isValid := true
 
 			// 如果是小数点（英文句号），且前后均为 ASCII 数字，则认为是小数点，跳过此位置
 			if punct == "." {
@@ -124,21 +132,27 @@ func findLastPunctuationWithMinLength(text string, punctuations []string, minLen
 						afterRune, _ := utf8.DecodeRuneInString(text[afterStart:])
 						// 仅当两边都是 ASCII 数字时认为是小数点
 						if beforeRune >= '0' && beforeRune <= '9' && afterRune >= '0' && afterRune <= '9' {
-							continue
+							isValid = false
 						}
 					}
 				}
 			}
 
 			// 检查标点符号是否在括号内，如果是则跳过
-			if isInsideParentheses(text, actualIdx) {
-				continue
+			if isValid && isInsideParentheses(text, actualIdx) {
+				isValid = false
 			}
 
-			if actualIdx > lastIndex {
-				lastIndex = actualIdx
-				foundPunctuation = punct
+			if isValid {
+				if actualIdx > lastIndex {
+					lastIndex = actualIdx
+					foundPunctuation = punct
+				}
+				break // 找到该标点的最右有效位置，处理下一个标点
 			}
+			
+			// 如果当前位置无效，继续在当前位置之前查找
+			searchText = searchText[:idx]
 		}
 	}
 
@@ -172,8 +186,10 @@ func adjustForClosingQuotes(text string, pos int) int {
 
 	// 只处理中文下引号的情况
 	chineseClosingQuotes := map[rune]bool{
-		'”': true, // 中文右双引号
-		'’': true, // 中文右单引号
+		'”':  true, // 中文右双引号
+		'’':  true, // 中文右单引号
+		'"':  true, // 英文双引号
+		'\'': true, // 英文单引号
 	}
 
 	// 最多向前查找2个字符（只考虑紧邻的引号）
@@ -341,8 +357,8 @@ func RemoveParentheses(text string) string {
 	// 移除其他可能的括号变体和特殊组合
 	text = regexp.MustCompile(`【[^】]*】`).ReplaceAllString(text, "") // 中文方括号
 	text = regexp.MustCompile(`\[[^\]]*\]`).ReplaceAllString(text, "") // 英文方括号
-	text = regexp.MustCompile(`「[^」]*」`).ReplaceAllString(text, "") // 中文引号
-	text = regexp.MustCompile(`'[^']*'`).ReplaceAllString(text, "")   // 英文单引号
+	// text = regexp.MustCompile(`「[^」]*」`).ReplaceAllString(text, "") // 中文引号 - 保留引号内容
+	// text = regexp.MustCompile(`'[^']*'`).ReplaceAllString(text, "")   // 英文单引号 - 保留引号内容
 
 	return text
 }
