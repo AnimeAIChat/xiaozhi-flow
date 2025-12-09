@@ -3,12 +3,11 @@ package doubao
 import (
 	"bytes"
 	"time"
+	contractsproviders "xiaozhi-server-go/internal/contracts/providers"
 )
 
-// AsrEventListener defines the interface for ASR events
-type AsrEventListener interface {
-	OnAsrResult(result string, isFinalResult bool) bool
-}
+// AsrEventListener is now an alias to the contract interface
+type AsrEventListener = contractsproviders.ASREventListener
 
 // ASRConfig ASR配置结构
 type ASRConfig struct {

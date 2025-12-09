@@ -3,6 +3,7 @@ package providers
 import (
 	"context"
 	"xiaozhi-server-go/internal/domain/llm/inter"
+	contractsproviders "xiaozhi-server-go/internal/contracts/providers"
 )
 
 // Provider 所有提供者的基础接口
@@ -11,9 +12,8 @@ type Provider interface {
 	Cleanup() error
 }
 
-type AsrEventListener interface {
-	OnAsrResult(result string, isFinalResult bool) bool
-}
+// AsrEventListener is now an alias to the contract interface to maintain backward compatibility
+type AsrEventListener = contractsproviders.ASREventListener
 
 // ASRProvider 语音识别提供者接口
 type ASRProvider interface {
