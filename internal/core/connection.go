@@ -65,6 +65,10 @@ type llmConfigGetter interface {
 type ConnectionHandler struct {
 	// 确保实现 AsrEventListener 接口
 	_                providers.AsrEventListener
+	// Ensure implementation of MCPDispatcher interfaces
+	_                components.Speaker
+	_                components.AudioSender
+	
 	config           *config.Config
 	logger           *internallogging.Logger // TODO: 待logger.go迁移后更新
 	conn             Connection
@@ -165,6 +169,7 @@ type ConnectionHandler struct {
 	// Components
 	responseSender *components.ResponseSender
 	audioProcessor *components.AudioProcessor
+	mcpDispatcher  *components.MCPDispatcher
 }
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
@@ -212,6 +217,32 @@ func NewConnectionHandler(
 
 		headers: make(map[string]string),
 	}
+	
+	// Initialize MCP Dispatcher
+	// Note: dialogueManager is initialized later in InitWithAgent, so we might need to update dispatcher then.
+	// Or we can initialize dialogueManager here if possible, or make dispatcher use a getter.
+	// For now, let's initialize dialogueManager here if it's not dependent on agent.
+	// Looking at InitWithAgent, it seems dialogueManager is initialized there.
+	// So we should probably initialize dispatcher in InitWithAgent or update it.
+	// Let's move dispatcher initialization to InitWithAgent or after InitWithAgent is called.
+	// But NewConnectionHandler returns handler, and InitWithAgent is called later.
+	// So we can initialize dispatcher with nil dialogueManager and set it later?
+	// Or better, make ConnectionHandler implement DialogueManagerProvider interface?
+	// Let's stick to updating it in InitWithAgent for now, or just initialize it here with nil and set it later.
+	// Actually, let's initialize it here but we need to be careful about nil pointer.
+	// Wait, dialogueManager is created in InitWithAgent?
+	// Let's check InitWithAgent.
+	
+	handler.mcpDispatcher = components.NewMCPDispatcher(
+		logger,
+		handler,
+		handler.providers.tts,
+		nil, // Will be set in InitWithAgent
+		handler.config,
+		handler,
+		handler.agentID,
+		&handler.closeAfterChat,
+	)
 
 	for key, values := range req.Header {
 		if len(values) > 0 {
@@ -265,6 +296,19 @@ func NewConnectionHandler(
 	handler.dialogueManager = chat.NewDialogueManager(handler.logger, nil)
 	handler.dialogueManager.SetSystemMessage(prompt)
 	handler.functionRegister = domainllminfra.NewFunctionRegistry()
+	
+	// Re-initialize MCP Dispatcher with initialized dependencies
+	handler.mcpDispatcher = components.NewMCPDispatcher(
+		logger,
+		handler,
+		handler.providers.tts,
+		handler.dialogueManager,
+		handler.config,
+		handler,
+		handler.agentID,
+		&handler.closeAfterChat,
+	)
+	
 	handler.initMCPResultHandlers()
 
 	return handler
@@ -762,7 +806,7 @@ func (h *ConnectionHandler) sendAudioMessageCoroutine() {
 			h.LogDebug("[协程] [音频发送] 收到停止信号，退出协程")
 			return
 		case task := <-h.audioMessagesQueue:
-			h.sendAudioMessage(task.filepath, task.text, task.textIndex, task.round)
+			h.SendAudioMessage(task.filepath, task.text, task.textIndex, task.round)
 		}
 	}
 }

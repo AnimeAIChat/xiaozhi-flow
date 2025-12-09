@@ -43,7 +43,8 @@ func (h *ConnectionHandler) sendEmotionMessage(emotion string) error {
 	return h.responseSender.SendEmotion(emotion)
 }
 
-func (h *ConnectionHandler) sendAudioMessage(filepath string, text string, textIndex int, round int) {
+// SendAudioMessage sends an audio message
+func (h *ConnectionHandler) SendAudioMessage(filepath string, text string, textIndex int, round int) {
 	logText := internalutils.SanitizeForLog(text)
 	startTime := time.Now() // 记录发送任务开始时间
 	fileDeleted := false    // 标记文件是否已被删除
@@ -79,7 +80,7 @@ func (h *ConnectionHandler) sendAudioMessage(filepath string, text string, textI
 	}
 	// 检查轮次
 	if round != h.talkRound {
-		h.LogInfo(fmt.Sprintf("sendAudioMessage: 跳过过期轮次的音频: 任务轮次=%d, 当前轮次=%d, 文本=%s",
+		h.LogInfo(fmt.Sprintf("SendAudioMessage: 跳过过期轮次的音频: 任务轮次=%d, 当前轮次=%d, 文本=%s",
 			round, h.talkRound, logText))
 		// 即使跳过，也要根据配置删除音频文件
 		h.deleteAudioFileIfNeeded(filepath, "跳过过期轮次")
@@ -88,7 +89,7 @@ func (h *ConnectionHandler) sendAudioMessage(filepath string, text string, textI
 	}
 
 	if atomic.LoadInt32(&h.serverVoiceStop) == 1 { // 服务端语音停止
-		h.LogInfo(fmt.Sprintf("sendAudioMessage 服务端语音停止, 不再发送音频数据：%s", logText))
+		h.LogInfo(fmt.Sprintf("SendAudioMessage 服务端语音停止, 不再发送音频数据：%s", logText))
 		// 服务端语音停止时也要根据配置删除音频文件
 		h.deleteAudioFileIfNeeded(filepath, "服务端语音停止")
 		return
