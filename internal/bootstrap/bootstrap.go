@@ -44,7 +44,6 @@ import (
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
 	"xiaozhi-server-go/internal/utils"
-	pluginmanager "xiaozhi-server-go/internal/plugin/manager"
 	"xiaozhi-server-go/internal/logger"
 
 	"github.com/gin-gonic/gin"
@@ -54,12 +53,6 @@ import (
 	// 注意：移除了对src/core的直接依赖，将通过适配器层来访问
 	// 提供者注册将延迟到第二阶段进行
 )
-
-// PluginManager 插件管理器接口
-type PluginManager interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
 
 const scalarHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -101,7 +94,6 @@ type appState struct {
 	bootstrapManager      *adapters.BootstrapManager // 新增：引导管理器
 	componentContainer    *adapters.ComponentContainer // 新增：组件容器
 	configIntegrator      *integration.ConfigIntegrator   // 新增：配置集成器
-	pluginManager         PluginManager // 新增：插件管理器
 	llmManager            llmrepo.LLMRepository // 新增：LLM管理器
 	llmService            domainllm.Service     // 新增：LLM服务
 }
@@ -163,11 +155,6 @@ func Run(ctx context.Context) error {
 				logger.ErrorTag("认证", "认证管理器未正常关闭: %v", closeErr)
 			}
 		}
-		if state.pluginManager != nil {
-			if closeErr := state.pluginManager.Stop(context.Background()); closeErr != nil {
-				logger.WarnTag("插件", "插件管理器未正常关闭: %v", closeErr)
-			}
-		}
 	}()
 
 	rootCtx, cancel := context.WithCancel(ctx)
@@ -177,22 +164,6 @@ func Run(ctx context.Context) error {
 	defer stop()
 
 	group, groupCtx := errgroup.WithContext(rootCtx)
-
-	// 启动插件管理器
-	if state.pluginManager != nil {
-		group.Go(func() error {
-			if err := state.pluginManager.Start(groupCtx); err != nil {
-				if groupCtx.Err() != nil {
-					return nil // context cancelled
-				}
-				logger.ErrorTag("插件", "插件管理器启动失败: %v", err)
-				return err
-			}
-			<-groupCtx.Done()
-			logger.InfoTag("插件", "插件管理器已关闭")
-			return nil
-		})
-	}
 
 	if err := startServices(state.config, logger, authManager, state.configRepo, state.domainMCPManager, state.componentContainer, group, groupCtx); err != nil {
 		cancel()
@@ -349,13 +320,6 @@ func InitGraph() []initStep {
 			DependsOn: []string{"observability:setup-hooks", "storage:init-database", "components:init-container"},
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initAuthStep,
-		},
-		{
-			ID:        "plugin:init-manager",
-			Title:     "Initialise plugin manager",
-			DependsOn: []string{"logging:init-provider"},
-			Kind:      platformerrors.KindBootstrap,
-			Execute:   initPluginManagerStep,
 		},
 	}
 }
@@ -629,48 +593,7 @@ func initMCPManagerStep(_ context.Context, state *appState) error {
 	return nil
 }
 
-func initPluginManagerStep(_ context.Context, state *appState) error {
-	if state == nil || state.config == nil || state.logger == nil {
-		return platformerrors.New(
-			platformerrors.KindBootstrap,
-			"plugin:init-manager",
-			"missing config/logger",
-		)
-	}
 
-	// 创建简化的插件管理器配置
-	config := &pluginmanager.PluginConfig{
-		Enabled: true,
-		Discovery: &pluginmanager.DiscoveryConfig{
-			Enabled:      true,
-			ScanInterval: 30 * time.Second,
-			Paths:        []string{"./plugins", "./plugins/examples"},
-		},
-		Registry: &pluginmanager.RegistryConfig{
-			Type: "memory",
-			TTL:  5 * time.Minute,
-		},
-		HealthCheck: &pluginmanager.HealthCheckConfig{
-			Interval:         10 * time.Second,
-			Timeout:          5 * time.Second,
-			FailureThreshold: 3,
-		},
-	}
-
-	// 创建插件管理器 (使用统一日志系统)
-	hclogger := logger.NewHCLogAdapter(state.logger).Named("plugin-manager")
-	pluginMgr, err := pluginmanager.NewPluginManager(config, hclogger)
-	if err != nil {
-		state.logger.WarnTag("引导", "插件管理器初始化失败: %v", err)
-		// Continue anyway, plugin system is optional
-		return nil
-	}
-
-	state.pluginManager = pluginMgr
-	state.logger.InfoTag("引导", "插件管理器初始化完成")
-
-	return nil
-}
 
 func initAuthManager(config *platformconfig.Config, logger *utils.Logger) (*domainauth.AuthManager, error) {
 	storeType := strings.ToLower(strings.TrimSpace(config.Server.Auth.Store.Type))
