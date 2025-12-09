@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 // WorkflowExecutorImpl 工作流执行器实现
 type WorkflowExecutorImpl struct {
-	pluginManager PluginManager
+	registry      *capability.Registry
 	dagEngine     DAGEngine
 	dataFlow      DataFlow
 	logger        Logger
@@ -22,9 +24,9 @@ type WorkflowExecutorImpl struct {
 }
 
 // NewWorkflowExecutor 创建工作流执行器
-func NewWorkflowExecutor(pluginManager PluginManager, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
+func NewWorkflowExecutor(registry *capability.Registry, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
 	return &WorkflowExecutorImpl{
-		pluginManager: pluginManager,
+		registry:      registry,
 		dagEngine:     dagEngine,
 		dataFlow:      dataFlow,
 		logger:        logger,
@@ -278,14 +280,30 @@ func (e *WorkflowExecutorImpl) executeTaskNode(ctx context.Context, workflow *Wo
 	result.Inputs = inputs
 
 	// 调用插件
-	if node.Plugin == "" {
-		e.markNodeFailed(execution, node.ID, "No plugin specified")
+	// 假设 node.Plugin 存储的是 capabilityID (例如 "openai_chat")
+	// 如果 node.Plugin 为空，尝试使用 node.Type 或其他元数据
+	capabilityID := node.Plugin
+	if capabilityID == "" {
+		e.markNodeFailed(execution, node.ID, "No plugin/capability specified")
 		return
 	}
 
-	pluginOutputs, err := e.pluginManager.CallPlugin(ctx, node.Plugin, node.Method, inputs)
+	executor, err := e.registry.GetExecutor(capabilityID)
 	if err != nil {
-		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin call failed: %w", err))
+		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Failed to get executor for capability %s: %v", capabilityID, err))
+		return
+	}
+
+	// 准备配置
+	// 这里的 node.Config 是 map[string]interface{}，直接传递给 Executor
+	config := node.Config
+	if config == nil {
+		config = make(map[string]interface{})
+	}
+
+	pluginOutputs, err := executor.Execute(ctx, config, inputs)
+	if err != nil {
+		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin execution failed: %w", err))
 		return
 	}
 
