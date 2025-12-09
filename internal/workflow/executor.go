@@ -6,11 +6,13 @@ import (
 	"sync"
 	"time"
 
+	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 // WorkflowExecutorImpl 工作流执行器实现
 type WorkflowExecutorImpl struct {
+	config        *config.Config
 	registry      *capability.Registry
 	dagEngine     DAGEngine
 	dataFlow      DataFlow
@@ -21,17 +23,18 @@ type WorkflowExecutorImpl struct {
 	executionMu   sync.RWMutex
 	cancelFuncs   map[string]context.CancelFunc
 	cancelFuncsMu sync.RWMutex
-}
-
 // NewWorkflowExecutor 创建工作流执行器
-func NewWorkflowExecutor(registry *capability.Registry, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
+func NewWorkflowExecutor(config *config.Config, registry *capability.Registry, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
 	return &WorkflowExecutorImpl{
+		config:        config,
 		registry:      registry,
 		dagEngine:     dagEngine,
 		dataFlow:      dataFlow,
 		logger:        logger,
 		executions:    make(map[string]*Execution),
 		cancelFuncs:   make(map[string]context.CancelFunc),
+	}
+}	cancelFuncs:   make(map[string]context.CancelFunc),
 	}
 }
 
@@ -293,7 +296,6 @@ func (e *WorkflowExecutorImpl) executeTaskNode(ctx context.Context, workflow *Wo
 		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Failed to get executor for capability %s: %v", capabilityID, err))
 		return
 	}
-
 	// 准备配置
 	// 这里的 node.Config 是 map[string]interface{}，直接传递给 Executor
 	config := node.Config
@@ -301,10 +303,14 @@ func (e *WorkflowExecutorImpl) executeTaskNode(ctx context.Context, workflow *Wo
 		config = make(map[string]interface{})
 	}
 
+	// 合并全局配置
+	config = e.mergeGlobalConfig(capabilityID, config)
+
 	pluginOutputs, err := executor.Execute(ctx, config, inputs)
 	if err != nil {
 		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin execution failed: %w", err))
 		return
+	}return
 	}
 
 	// 处理插件输出
@@ -568,4 +574,37 @@ func (e *WorkflowExecutorImpl) GetExecutionLogs(executionID string) ([]Execution
 	copy(logs, execution.Logs)
 
 	return logs, nil
+}
+
+// mergeGlobalConfig 合并全局配置到节点配置
+func (e *WorkflowExecutorImpl) mergeGlobalConfig(capabilityID string, nodeConfig map[string]interface{}) map[string]interface{} {
+	if e.config == nil {
+		return nodeConfig
+	}
+
+	// 复制节点配置
+	newConfig := make(map[string]interface{})
+	for k, v := range nodeConfig {
+		newConfig[k] = v
+	}
+
+	// 根据 capabilityID 注入配置
+	// 目前主要处理 LLM 配置
+	if capabilityID == "openai_chat" {
+		if llmConfig, ok := e.config.LLM["openai"]; ok {
+			if _, exists := newConfig["api_key"]; !exists || newConfig["api_key"] == "" {
+				newConfig["api_key"] = llmConfig.APIKey
+			}
+			if _, exists := newConfig["base_url"]; !exists || newConfig["base_url"] == "" {
+				newConfig["base_url"] = llmConfig.BaseURL
+			}
+			if _, exists := newConfig["model"]; !exists || newConfig["model"] == "" {
+				newConfig["model"] = llmConfig.ModelName
+			}
+		}
+	}
+
+	// TODO: 处理其他类型的配置注入
+
+	return newConfig
 }

@@ -21,6 +21,8 @@ import (
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/plugin/builtin/openai"
+	"xiaozhi-server-go/internal/plugin/builtin/asr"
+	"xiaozhi-server-go/internal/plugin/builtin/tts"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -339,6 +341,12 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	// In the future, this could be dynamic or loaded from external plugins
 	openaiProvider := openai.NewProvider()
 	registry.Register("openai", openaiProvider)
+
+	asrProvider := asr.NewProvider()
+	registry.Register("builtin_asr", asrProvider)
+
+	ttsProvider := tts.NewProvider()
+	registry.Register("builtin_tts", ttsProvider)
 
 	manager, err := llminfra.NewLLMManager(state.config, registry)
 	if err != nil {

@@ -698,6 +698,7 @@ func (m *StartupWorkflowManagerImpl) executeWorkflowAsync(ctx context.Context, w
 
 	// 创建工作流执行器
 	workflowExecutor := workflow.NewWorkflowExecutor(
+		nil, // TODO: 传递配置
 		nil, // TODO: 传递插件管理器
 		nil, // TODO: 传递DAG引擎
 		nil, // TODO: 传递数据流引擎
