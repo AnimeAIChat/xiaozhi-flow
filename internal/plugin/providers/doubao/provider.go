@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"xiaozhi-server-go/internal/plugin/capability"
-	"xiaozhi-server-go/internal/utils"
+	"xiaozhi-server-go/internal/platform/logging"
 )
 
 type Provider struct{}
@@ -337,8 +337,8 @@ func (e *ASRExecutor) ExecuteStream(ctx context.Context, config map[string]inter
 		}
 
 		// Create logger
-		logger, _ := utils.NewLogger(&utils.LogCfg{
-			LogLevel: "info",
+		logger, _ := logging.New(logging.Config{
+			Level: "info",
 		})
 
 		// Create provider

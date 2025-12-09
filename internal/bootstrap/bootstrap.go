@@ -95,7 +95,7 @@ type appState struct {
 	configPath            string
 	configRepo            types.Repository
 	logProvider           *platformlogging.Logger
-	logger                *utils.Logger
+	logger                *platformlogging.Logger
 	slogger               *slog.Logger
 	observabilityShutdown platformobservability.ShutdownFunc
 	authManager           *domainauth.AuthManager
@@ -189,7 +189,7 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-func logBootstrapGraph(steps []initStep, logger *utils.Logger) {
+func logBootstrapGraph(steps []initStep, logger *platformlogging.Logger) {
 	if logger == nil {
 		return
 	}

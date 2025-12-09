@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"xiaozhi-server-go/internal/transport/ws"
-	"xiaozhi-server-go/internal/utils"
+	"xiaozhi-server-go/internal/platform/logging"
 
 	"github.com/gorilla/websocket"
 )
@@ -57,7 +57,7 @@ type ASRProvider struct {
 	wsURL         string
 	chunkDuration int
 	connectID     string
-	logger        *utils.Logger // 添加日志记录器
+	logger        *logging.Logger // 添加日志记录器
 	session       *ws.Session
 
 	// 配置
@@ -94,7 +94,7 @@ type ASRProvider struct {
 }
 
 // NewASRProvider 创建豆包ASR提供者实例
-func NewASRProvider(config *ASRConfig, deleteFile bool, logger *utils.Logger, session *ws.Session) (*ASRProvider, error) {
+func NewASRProvider(config *ASRConfig, deleteFile bool, logger *logging.Logger, session *ws.Session) (*ASRProvider, error) {
 	base := NewBaseASR(config, deleteFile)
 
 	// 从config.Data中获取配置
