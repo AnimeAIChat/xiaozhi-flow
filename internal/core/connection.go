@@ -1324,10 +1324,12 @@ func (h *ConnectionHandler) addToolCallMessage(toolResultText string, functionCa
 	functionID := functionCallData["id"].(string)
 	functionName := functionCallData["name"].(string)
 	functionArguments := functionCallData["arguments"].(string)
-	if len(toolResultText) > 20 {
-		toolResultText = toolResultText[:20] + "..."
+	
+	logText := toolResultText
+	if len(logText) > 20 {
+		logText = logText[:20] + "..."
 	}
-	h.LogInfo(fmt.Sprintf("函数调用结果: %s", toolResultText))
+	h.LogInfo(fmt.Sprintf("函数调用结果: %s", logText))
 	h.LogInfo(fmt.Sprintf("函数调用参数: %s", functionArguments))
 	h.LogInfo(fmt.Sprintf("函数调用名称: %s", functionName))
 	h.LogInfo(fmt.Sprintf("函数调用ID: %s", functionID))
