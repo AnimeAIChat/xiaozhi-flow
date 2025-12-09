@@ -38,6 +38,7 @@ import (
 	"xiaozhi-server-go/internal/plugin/capability"
 	internalutils "xiaozhi-server-go/internal/utils"
 	internallogging "xiaozhi-server-go/internal/platform/logging"
+	"xiaozhi-server-go/internal/core/components"
 )
 
 type Connection interface {
@@ -160,6 +161,10 @@ type ConnectionHandler struct {
 
 	mcpResultHandlers map[string]func(interface{}) // MCP处理器映射
 	ctx               context.Context
+
+	// Components
+	responseSender *components.ResponseSender
+	audioProcessor *components.AudioProcessor
 }
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
@@ -198,6 +203,7 @@ func NewConnectionHandler(
 		talkRound: 0,
 
 		serverAudioFormat:        "opus", // 默认使用Opus格式
+		audioProcessor:           components.NewAudioProcessor(logger, "opus"),
 		serverAudioSampleRate:    24000,
 		serverAudioChannels:      1,
 		serverAudioFrameDuration: 60,
@@ -480,6 +486,7 @@ func (h *ConnectionHandler) Handle(conn Connection) {
 	defer conn.Close()
 
 	h.conn = conn
+	h.responseSender = components.NewResponseSender(conn, h.logger, h.sessionID)
 
 	// 启动消息处理协程
 	go h.processClientAudioMessagesCoroutine() // 添加客户端音频消息处理协程

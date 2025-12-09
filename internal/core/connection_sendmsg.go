@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/json"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -10,85 +9,38 @@ import (
 
 // sendHelloMessage 发送欢迎消息
 func (h *ConnectionHandler) sendHelloMessage() error {
-	// 添加安全检查
-	if h.conn == nil {
-		return fmt.Errorf("连接对象未初始化，无法发送hello消息")
+	if h.responseSender == nil {
+		return fmt.Errorf("ResponseSender not initialized")
 	}
-
-	// 其他可能的 nil 检查
-	if h.config == nil {
-		return fmt.Errorf("配置对象未初始化")
-	}
-
-	hello := make(map[string]interface{})
-	hello["type"] = "hello"
-	hello["version"] = 1
-	hello["transport"] = "websocket"
-	hello["session_id"] = h.sessionID
-	hello["audio_params"] = map[string]interface{}{
+	audioParams := map[string]interface{}{
 		"format":         h.serverAudioFormat,
 		"sample_rate":    h.serverAudioSampleRate,
 		"channels":       h.serverAudioChannels,
 		"frame_duration": h.serverAudioFrameDuration,
 	}
-	data, err := json.Marshal(hello)
-	if err != nil {
-		return fmt.Errorf("序列化欢迎消息失败: %v", err)
-	}
-
-	return h.conn.WriteMessage(1, data)
+	return h.responseSender.SendHello(1, "websocket", audioParams)
 }
 
 func (h *ConnectionHandler) sendTTSMessage(state string, text string, textIndex int) error {
-	// 发送TTS状态结束通知
-	stateMsg := map[string]interface{}{
-		"type":        "tts",
-		"state":       state,
-		"session_id":  h.sessionID,
-		"text":        text,
-		"index":       textIndex,
-		"audio_codec": "opus", // 标识使用Opus编码
+	if h.responseSender == nil {
+		return fmt.Errorf("ResponseSender not initialized")
 	}
-	data, err := json.Marshal(stateMsg)
-	if err != nil {
-		return fmt.Errorf("序列化%s状态失败: %v", state, err)
-	}
-	if err := h.conn.WriteMessage(1, data); err != nil {
-		return fmt.Errorf("发送%s状态失败: %v", state, err)
-	}
-	return nil
+	return h.responseSender.SendTTSState(state, text, textIndex)
 }
 
 func (h *ConnectionHandler) sendSTTMessage(text string) error {
-	sttMsg := map[string]interface{}{
-		"type":       "stt",
-		"text":       text,
-		"session_id": h.sessionID,
+	if h.responseSender == nil {
+		return fmt.Errorf("ResponseSender not initialized")
 	}
-	jsonData, err := json.Marshal(sttMsg)
-	if err != nil {
-		return fmt.Errorf("序列化 STT 消息失败: %v", err)
-	}
-	if err := h.conn.WriteMessage(1, jsonData); err != nil {
-		return fmt.Errorf("发送 STT 消息失败: %v", err)
-	}
-
-	return nil
+	return h.responseSender.SendSTT(text)
 }
 
 // sendEmotionMessage 发送情绪消息
 func (h *ConnectionHandler) sendEmotionMessage(emotion string) error {
-	data := map[string]interface{}{
-		"type":       "llm",
-		"text":       internalutils.GetEmotionEmoji(emotion),
-		"emotion":    emotion,
-		"session_id": h.sessionID,
+	if h.responseSender == nil {
+		return fmt.Errorf("ResponseSender not initialized")
 	}
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("序列化情绪消息失败: %v", err)
-	}
-	return h.conn.WriteMessage(1, jsonData)
+	return h.responseSender.SendEmotion(emotion)
 }
 
 func (h *ConnectionHandler) sendAudioMessage(filepath string, text string, textIndex int, round int) {
@@ -213,7 +165,7 @@ func (h *ConnectionHandler) sendAudioFrames(audioData [][]byte, text string, rou
 			return nil
 		}
 
-		if err := h.conn.WriteMessage(2, audioData[i]); err != nil {
+		if err := h.responseSender.SendAudioFrame(audioData[i]); err != nil {
 			return fmt.Errorf("发送预缓冲音频帧失败: %v", err)
 		}
 		playPosition += h.serverAudioFrameDuration
@@ -262,7 +214,7 @@ func (h *ConnectionHandler) sendAudioFrames(audioData [][]byte, text string, rou
 		}
 
 		// 发送音频帧
-		if err := h.conn.WriteMessage(2, chunk); err != nil {
+		if err := h.responseSender.SendAudioFrame(chunk); err != nil {
 			return fmt.Errorf("发送音频帧失败: %v", err)
 		}
 
