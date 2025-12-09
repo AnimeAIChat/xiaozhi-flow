@@ -19,6 +19,8 @@ import (
 	domainllm "xiaozhi-server-go/internal/domain/llm"
 	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
+	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/plugin/builtin/openai"
 	authstore "xiaozhi-server-go/internal/domain/auth/store"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -367,7 +369,15 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 		)
 	}
 
-	manager, err := llminfra.NewLLMManager(state.config)
+	// Initialize Capability Registry
+	registry := capability.NewRegistry()
+	
+	// Register Builtin Plugins
+	// In the future, this could be dynamic or loaded from external plugins
+	openaiProvider := openai.NewProvider()
+	registry.Register("openai", openaiProvider)
+
+	manager, err := llminfra.NewLLMManager(state.config, registry)
 	if err != nil {
 		return platformerrors.Wrap(platformerrors.KindBootstrap, "llm:init-manager", "failed to create LLM manager", err)
 	}
@@ -376,7 +386,7 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	state.llmService = domainllm.NewService(manager)
 	
 	if state.logger != nil {
-		state.logger.InfoTag("引导", "LLM管理器初始化完成")
+		state.logger.InfoTag("引导", "LLM管理器初始化完成 (Plugin System Enabled)")
 	}
 
 	return nil

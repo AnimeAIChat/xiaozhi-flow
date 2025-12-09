@@ -68,7 +68,7 @@ func (p *Provider) CreateExecutor(capabilityID string) (capability.Executor, err
 
 type ChatExecutor struct{}
 
-func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
+func (e *ChatExecutor) prepareClientAndRequest(config map[string]interface{}, inputs map[string]interface{}) (*openai.Client, openai.ChatCompletionRequest, error) {
 	// 1. Parse Config
 	apiKey, _ := config["api_key"].(string)
 	baseURL, _ := config["base_url"].(string)
@@ -86,14 +86,13 @@ func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{
 	// 2. Parse Inputs
 	msgsRaw, ok := inputs["messages"].([]interface{})
 	if !ok {
-		return nil, fmt.Errorf("messages input is required and must be an array")
+		return nil, openai.ChatCompletionRequest{}, fmt.Errorf("messages input is required and must be an array")
 	}
 
 	var messages []openai.ChatCompletionMessage
 	for _, m := range msgsRaw {
 		msgMap, ok := m.(map[string]interface{})
 		if !ok {
-			// Try to handle if it's already the struct (unlikely in this architecture but good for safety)
 			continue
 		}
 		role, _ := msgMap["role"].(string)
@@ -109,12 +108,23 @@ func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{
 		temperature = t
 	}
 
-	// 3. Call API
-	resp, err := client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+	req := openai.ChatCompletionRequest{
 		Model:       model,
 		Messages:    messages,
 		Temperature: float32(temperature),
-	})
+	}
+
+	return client, req, nil
+}
+
+func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error) {
+	client, req, err := e.prepareClientAndRequest(config, inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Call API
+	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -132,4 +142,51 @@ func (e *ChatExecutor) Execute(ctx context.Context, config map[string]interface{
 			"total_tokens":      resp.Usage.TotalTokens,
 		},
 	}, nil
+}
+
+func (e *ChatExecutor) ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error) {
+	client, req, err := e.prepareClientAndRequest(config, inputs)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Stream = true
+	stream, err := client.CreateChatCompletionStream(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	outCh := make(chan map[string]interface{})
+
+	go func() {
+		defer close(outCh)
+		defer stream.Close()
+
+		for {
+			response, err := stream.Recv()
+			if err != nil {
+				// End of stream or error
+				return
+			}
+
+			if len(response.Choices) > 0 {
+				content := response.Choices[0].Delta.Content
+				if content != "" {
+					outCh <- map[string]interface{}{
+						"content": content,
+						"done":    false,
+					}
+				}
+				if response.Choices[0].FinishReason != "" {
+					outCh <- map[string]interface{}{
+						"content": "",
+						"done":    true,
+						"finish_reason": string(response.Choices[0].FinishReason),
+					}
+				}
+			}
+		}
+	}()
+
+	return outCh, nil
 }

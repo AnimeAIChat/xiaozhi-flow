@@ -51,6 +51,13 @@ type Executor interface {
 	Execute(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (map[string]interface{}, error)
 }
 
+// StreamExecutor is an extension of Executor that supports streaming output
+type StreamExecutor interface {
+	Executor
+	// ExecuteStream runs the capability and returns a channel of updates
+	ExecuteStream(ctx context.Context, config map[string]interface{}, inputs map[string]interface{}) (<-chan map[string]interface{}, error)
+}
+
 // Provider is an interface for a plugin that provides multiple capabilities
 type Provider interface {
 	// GetCapabilities returns all capabilities provided by this plugin

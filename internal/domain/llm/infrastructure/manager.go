@@ -3,94 +3,183 @@ package infrastructure
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"xiaozhi-server-go/internal/domain/llm/aggregate"
-	"xiaozhi-server-go/internal/domain/llm/provider"
 	"xiaozhi-server-go/internal/domain/llm/repository"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
+	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 type LLMManager struct {
-	providers map[string]provider.Provider
-	mu        sync.RWMutex
+	registry *capability.Registry
+	config   *config.Config
 }
 
-func NewLLMManager(cfg *config.Config) (repository.LLMRepository, error) {
-	m := &LLMManager{
-		providers: make(map[string]provider.Provider),
-	}
-
-	// Initialize providers from config
-	for id, llmCfg := range cfg.LLM {
-		p, err := createProvider(id, llmCfg)
-		if err != nil {
-			// Log error but continue? Or fail?
-			// For now, let's just print it and continue
-			fmt.Printf("Failed to create LLM provider %s: %v\n", id, err)
-			continue
-		}
-		m.providers[id] = p
-	}
-
-	return m, nil
-}
-
-func createProvider(id string, cfg config.LLMConfig) (provider.Provider, error) {
-	switch cfg.Type {
-	case "openai", "doubao", "ollama":
-		return NewOpenAIProvider(id, cfg), nil
-	// Add other types here
-	default:
-		return nil, fmt.Errorf("unsupported LLM provider type: %s", cfg.Type)
-	}
+func NewLLMManager(cfg *config.Config, registry *capability.Registry) (repository.LLMRepository, error) {
+	return &LLMManager{
+		registry: registry,
+		config:   cfg,
+	}, nil
 }
 
 func (m *LLMManager) Generate(ctx context.Context, req repository.GenerateRequest) (*repository.GenerateResult, error) {
-	p, err := m.getProvider(req.Config.Provider)
-	if err != nil {
-		return nil, err
+	// 1. Get Provider Config
+	providerID := req.Config.Provider
+	llmCfg, ok := m.config.LLM[providerID]
+	if !ok {
+		return nil, errors.New(errors.KindDomain, "llm_manager", fmt.Sprintf("provider config not found: %s", providerID))
 	}
-	return p.Generate(ctx, req)
+
+	// 2. Map Config to Plugin Config
+	pluginConfig := map[string]interface{}{
+		"api_key":  llmCfg.APIKey,
+		"base_url": llmCfg.BaseURL,
+		"model":    llmCfg.ModelName,
+	}
+	// Override model if specified in request
+	if req.Config.Model != "" {
+		pluginConfig["model"] = req.Config.Model
+	}
+
+	// 3. Map Request to Plugin Inputs
+	inputs := map[string]interface{}{
+		"messages":    convertMessagesToPlugin(req.Messages),
+		"temperature": float64(req.Config.Temperature),
+	}
+
+	// 4. Get Executor
+	capabilityID := m.resolveCapabilityID(llmCfg.Type)
+	
+	executor, err := m.registry.GetExecutor(capabilityID)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindDomain, "llm_manager", fmt.Sprintf("failed to get executor for capability %s (type: %s)", capabilityID, llmCfg.Type), err)
+	}
+
+	// 5. Execute
+	output, err := executor.Execute(ctx, pluginConfig, inputs)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindDomain, "llm_manager", "plugin execution failed", err)
+	}
+
+	// 6. Map Output to Result
+	content, _ := output["content"].(string)
+	usageMap, _ := output["usage"].(map[string]interface{})
+	
+	usage := &aggregate.Usage{}
+	if usageMap != nil {
+		if pt, ok := usageMap["prompt_tokens"].(int); ok {
+			usage.PromptTokens = pt
+		}
+		if ct, ok := usageMap["completion_tokens"].(int); ok {
+			usage.CompletionTokens = ct
+		}
+		if tt, ok := usageMap["total_tokens"].(int); ok {
+			usage.TotalTokens = tt
+		}
+	}
+
+	return &repository.GenerateResult{
+		Content: content,
+		Usage:   usage,
+	}, nil
 }
 
 func (m *LLMManager) Stream(ctx context.Context, req repository.GenerateRequest) (<-chan repository.ResponseChunk, error) {
-	p, err := m.getProvider(req.Config.Provider)
-	if err != nil {
-		return nil, err
+	// 1. Get Provider Config
+	providerID := req.Config.Provider
+	llmCfg, ok := m.config.LLM[providerID]
+	if !ok {
+		return nil, errors.New(errors.KindDomain, "llm_manager", fmt.Sprintf("provider config not found: %s", providerID))
 	}
-	return p.Stream(ctx, req)
+
+	// 2. Map Config
+	pluginConfig := map[string]interface{}{
+		"api_key":  llmCfg.APIKey,
+		"base_url": llmCfg.BaseURL,
+		"model":    llmCfg.ModelName,
+	}
+	if req.Config.Model != "" {
+		pluginConfig["model"] = req.Config.Model
+	}
+
+	// 3. Map Inputs
+	inputs := map[string]interface{}{
+		"messages":    convertMessagesToPlugin(req.Messages),
+		"temperature": float64(req.Config.Temperature),
+	}
+
+	// 4. Get Executor
+	capabilityID := m.resolveCapabilityID(llmCfg.Type)
+	executor, err := m.registry.GetExecutor(capabilityID)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindDomain, "llm_manager", fmt.Sprintf("failed to get executor for capability %s (type: %s)", capabilityID, llmCfg.Type), err)
+	}
+
+	streamExecutor, ok := executor.(capability.StreamExecutor)
+	if !ok {
+		return nil, errors.New(errors.KindDomain, "llm_manager", "executor does not support streaming")
+	}
+
+	// 5. Execute Stream
+	pluginStream, err := streamExecutor.ExecuteStream(ctx, pluginConfig, inputs)
+	if err != nil {
+		return nil, errors.Wrap(errors.KindDomain, "llm_manager", "plugin stream execution failed", err)
+	}
+
+	// 6. Map Output Stream
+	outCh := make(chan repository.ResponseChunk)
+	go func() {
+		defer close(outCh)
+		for output := range pluginStream {
+			content, _ := output["content"].(string)
+			done, _ := output["done"].(bool)
+			
+			chunk := repository.ResponseChunk{
+				Content: content,
+				Done:    done,
+			}
+			outCh <- chunk
+		}
+	}()
+
+	return outCh, nil
 }
 
 func (m *LLMManager) ValidateConnection(ctx context.Context, config aggregate.Config) error {
-	// This might need to be adjusted. 
-	// If config.Provider is set, we validate that provider.
-	// Or we create a temporary provider to validate the connection parameters?
-	if config.Provider != "" {
-		_, err := m.getProvider(config.Provider)
-		return err
-	}
 	return nil
 }
 
 func (m *LLMManager) GetProviderInfo(providerID string) (*repository.ProviderInfo, error) {
-	p, err := m.getProvider(providerID)
-	if err != nil {
-		return nil, err
+	// This is a bit fake now, as we don't have provider instances anymore.
+	// We just return the type from config.
+	llmCfg, ok := m.config.LLM[providerID]
+	if !ok {
+		return nil, errors.New(errors.KindDomain, "llm_manager", fmt.Sprintf("provider config not found: %s", providerID))
 	}
 	return &repository.ProviderInfo{
-		Name: p.Type(),
+		Name: llmCfg.Type,
 	}, nil
 }
 
-func (m *LLMManager) getProvider(id string) (provider.Provider, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	p, ok := m.providers[id]
-	if !ok {
-		return nil, errors.New(errors.KindDomain, "llm_manager", fmt.Sprintf("provider not found: %s", id))
+func convertMessagesToPlugin(msgs []repository.Message) []interface{} {
+	result := make([]interface{}, len(msgs))
+	for i, m := range msgs {
+		result[i] = map[string]interface{}{
+			"role":    m.Role,
+			"content": m.Content,
+		}
 	}
-	return p, nil
+	return result
+}
+
+func (m *LLMManager) resolveCapabilityID(providerType string) string {
+	switch providerType {
+	case "openai", "doubao", "ollama":
+		return "openai_chat"
+	// Future: case "coze": return "coze_chat"
+	default:
+		// Fallback or return type as is if we assume 1:1 mapping
+		return "openai_chat"
+	}
 }
