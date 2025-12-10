@@ -1,10 +1,7 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
-	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/gin-gonic/gin"

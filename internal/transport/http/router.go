@@ -15,8 +15,6 @@ import (
 	"xiaozhi-server-go/internal/platform/observability"
 	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
 	v1 "xiaozhi-server-go/internal/transport/http/v1"
-)
-
 	"xiaozhi-server-go/internal/plugin/capability"
 )
 
@@ -122,14 +120,8 @@ func Build(opts Options) (*Router, error) {
 	return &Router{
 		Engine:   engine,
 		API:      api,
-		Secured:  secured,
+		Secured:  nil,
 		V1:       v1Group,
-		V1Secure: v1Secure,
-	}, nil &Router{
-		Engine:   engine,
-		API:      api,
-		Secured:  secured,
-		V1:       v1,
 		V1Secure: v1Secure,
 	}, nil
 }
