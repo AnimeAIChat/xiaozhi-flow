@@ -867,6 +867,24 @@ func (h *ConnectionHandler) genResponseByLLM(ctx context.Context, messages []pro
 	defer func() {
 		atomic.StoreInt32(&h.llmGenerating, 0)
 		// h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM end, set llmGenerating=0, round=%d", round))
+
+		// 检查是否需要清除讲话状态
+		// 如果TTS队列为空，说明所有音频都已发送完毕（或者根本没有音频）
+		// 此时如果SendAudioMessage已经执行完毕（pending=0），它可能因为当时llmGenerating=1而没有清除状态
+		// 所以这里需要补救
+		pending := atomic.LoadInt32(&h.ttsPending)
+		if pending == 0 {
+			h.LogInfo("[LLM] 生成结束且无待播放音频，清除讲话状态")
+			h.sendTTSMessage("stop", "", h.tts_last_text_index)
+			// 恢复ASR接收移至 clearSpeakStatus 中处理
+			// atomic.StoreInt32(&h.asrPause, 0)
+			if h.closeAfterChat {
+				h.Close()
+			} else {
+				h.clearSpeakStatus()
+			}
+		}
+
 		if r := recover(); r != nil {
 			h.LogError(fmt.Sprintf("genResponseByLLM发生panic: %v", r))
 			errorMsg := "抱歉，处理您的请求时发生了错误"
