@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
@@ -30,7 +29,6 @@ type Service struct {
 	config       *config.Config
 	imagePipeline *domainimage.Pipeline
 	vlllmMap     map[string]*vlllm.Provider
-	authToken    *domainauth.AuthToken
 }
 
 // NewService 创建新的Vision服务实例
@@ -55,9 +53,6 @@ func NewService(
 		imagePipeline:  imagePipeline,
 		vlllmMap:       make(map[string]*vlllm.Provider),
 	}
-
-	// 初始化认证工具
-	service.authToken = domainauth.NewAuthToken(config.Server.Token)
 
 	// 初始化VLLLM providers
 	if err := service.initVLLMProviders(); err != nil {
@@ -219,21 +214,16 @@ func (s *Service) verifyAuth(c *gin.Context) (*AuthVerifyResult, error) {
 	s.logger.Debug("收到认证token: %s", token)
 
 	// 验证token
-	isValid, deviceID, err := s.authToken.VerifyToken(token)
-	if err != nil || !isValid {
-		s.logger.Warn("认证token验证失败: %v", err)
-		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "token verification failed", err)
+	if token != s.config.Server.Token {
+		s.logger.Warn("认证token验证失败")
+		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "token verification failed", nil)
 	}
 
-	// 检查设备ID匹配
-	requestDeviceID := c.GetHeader("Device-Id")
-	if requestDeviceID != deviceID {
-		s.logger.Warn(
-			"设备ID与token不匹配: 请求设备ID=%s, token设备ID=%s",
-			requestDeviceID,
-			deviceID,
-		)
-		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "device ID mismatch", nil)
+	// 获取设备ID
+	deviceID := c.GetHeader("Device-Id")
+	if deviceID == "" {
+		s.logger.Warn("缺少Device-Id header")
+		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "missing device id", nil)
 	}
 
 	return &AuthVerifyResult{

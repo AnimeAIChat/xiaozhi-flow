@@ -48,8 +48,6 @@ func (s *SystemServiceV1) Register(router *gin.RouterGroup) {
 	configs := router.Group("/config")
 	{
 		configs.GET("", s.listConfigs)                 // 获取系统配置
-		configs.POST("/test/database", s.testDatabase) // 测试数据库连接
-		configs.GET("/schema/database", s.getDatabaseSchema) // 获取数据库模式
 		configs.POST("", s.updateConfig)               // 更新系统配置
 	}
 
@@ -60,13 +58,6 @@ func (s *SystemServiceV1) Register(router *gin.RouterGroup) {
 		providers.POST("", s.createProvider)           // 创建供应商配置
 		providers.PUT("/:type/:name", s.updateProvider) // 更新供应商配置
 		providers.DELETE("/:type/:name", s.deleteProvider) // 删除供应商配置
-	}
-
-	// 系统初始化
-	init := router.Group("/init")
-	{
-		init.GET("", s.getInitStatus)                 // 获取初始化状态
-		init.POST("", s.initializeSystem)             // 系统初始化
 	}
 }
 
@@ -256,134 +247,7 @@ func (s *SystemServiceV1) listConfigs(c *gin.Context) {
 	httpUtils.Response.Success(c, configs, "获取系统配置成功")
 }
 
-// testDatabase 测试数据库连接
-// @Summary 测试数据库连接
-// @Description 测试数据库连接配置
-// @Tags System
-// @Accept json
-// @Produce json
-// @Param request body v1.DatabaseTestRequest true "数据库配置"
-// @Success 200 {object} httptransport.APIResponse{data=v1.DatabaseTestResponse}
-// @Failure 400 {object} httptransport.APIResponse
-// @Router /v1/system/config/test/database [post]
-func (s *SystemServiceV1) testDatabase(c *gin.Context) {
-	var request v1.DatabaseTestRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		httpUtils.Response.ValidationError(c, err)
-		return
-	}
 
-	s.logger.InfoTag("API", "测试数据库连接",
-		"type", request.Config.Type,
-		"host", request.Config.Host,
-		"database", request.Config.Database,
-		"request_id", getRequestID(c),
-	)
-
-	// 模拟数据库连接测试
-	response := v1.DatabaseTestResponse{
-		Success:   true,
-		Connected: true,
-		Message:   "数据库连接成功",
-		Latency:   25, // 25ms
-		Version:   "8.0.28",
-		Details: gin.H{
-			"max_connections":     1000,
-			"current_connections": 5,
-			"charset":           "utf8mb4",
-		},
-	}
-
-	httpUtils.Response.Success(c, response, "数据库连接测试完成")
-}
-
-// getDatabaseSchema 获取数据库模式
-// @Summary 获取数据库模式
-// @Description 获取数据库表结构信息
-// @Tags System
-// @Produce json
-// @Success 200 {object} httptransport.APIResponse{data=v1.DatabaseSchema}
-// @Router /v1/system/config/schema/database [get]
-func (s *SystemServiceV1) getDatabaseSchema(c *gin.Context) {
-	s.logger.InfoTag("API", "获取数据库模式",
-		"request_id", getRequestID(c),
-	)
-
-	// 模拟数据库模式数据
-	schema := v1.DatabaseSchema{
-		Name: "xiaozhi_server",
-		Tables: []v1.TableInfo{
-			{
-				Name:         "users",
-				Engine:       "InnoDB",
-				Charset:      "utf8mb4",
-				Collation:    "utf8mb4_unicode_ci",
-				Rows:         150,
-				DataLength:   16384,
-				IndexLength:  32768,
-				AutoIncrement: 151,
-				CreatedAt:    time.Now().Add(-30 * 24 * time.Hour),
-				UpdatedAt:    time.Now().Add(-1 * time.Hour),
-				Columns: []v1.ColumnInfo{
-					{
-						Name:         "id",
-						Type:         "bigint",
-						Nullable:     false,
-						PrimaryKey:   true,
-						AutoIncrement: true,
-					},
-					{
-						Name:     "username",
-						Type:     "varchar(50)",
-						Nullable: false,
-					},
-					{
-						Name:     "email",
-						Type:     "varchar(100)",
-						Nullable: false,
-					},
-					{
-						Name:     "password_hash",
-						Type:     "varchar(255)",
-						Nullable: false,
-					},
-					{
-						Name:         "created_at",
-						Type:         "timestamp",
-						Nullable:     false,
-						Default:      "CURRENT_TIMESTAMP",
-					},
-				},
-			},
-		},
-		Indexes: []v1.IndexInfo{
-			{
-				Name:      "PRIMARY",
-				Type:      "btree",
-				Unique:    true,
-				Columns:   []string{"id"},
-				TableName: "users",
-			},
-			{
-				Name:      "idx_username",
-				Type:      "btree",
-				Unique:    true,
-				Columns:   []string{"username"},
-				TableName: "users",
-			},
-			{
-				Name:      "idx_email",
-				Type:      "btree",
-				Unique:    true,
-				Columns:   []string{"email"},
-				TableName: "users",
-			},
-		},
-		ForeignKeys: []v1.ForeignKeyInfo{},
-	}
-
-	httpUtils.Response.Success(c, schema, "获取数据库模式成功")
-}
 
 // updateConfig 更新系统配置
 // @Summary 更新系统配置
@@ -622,71 +486,7 @@ func (s *SystemServiceV1) deleteProvider(c *gin.Context) {
 	httpUtils.Response.Success(c, gin.H{"provider": fmt.Sprintf("%s/%s", providerType, providerName)}, "供应商删除成功")
 }
 
-// getInitStatus 获取初始化状态
-// @Summary 获取系统初始化状态
-// @Description 检查系统是否已完成初始化
-// @Tags System
-// @Produce json
-// @Success 200 {object} httptransport.APIResponse
-// @Router /v1/system/init [get]
-func (s *SystemServiceV1) getInitStatus(c *gin.Context) {
-	s.logger.InfoTag("API", "获取初始化状态",
-		"request_id", getRequestID(c),
-	)
 
-	// 模拟初始化状态检查
-	status := gin.H{
-		"initialized": true,
-		"version":     "1.0.0",
-		"init_time":   time.Now().Add(-30 * 24 * time.Hour),
-		"admin_created": true,
-		"database_configured": true,
-		"providers_configured": 2,
-	}
-
-	httpUtils.Response.Success(c, status, "获取初始化状态成功")
-}
-
-// initializeSystem 系统初始化
-// @Summary 系统初始化
-// @Description 执行系统初始化操作
-// @Tags System
-// @Accept json
-// @Produce json
-// @Param request body v1.InitRequest true "初始化配置"
-// @Success 200 {object} httptransport.APIResponse
-// @Failure 400 {object} httptransport.APIResponse
-// @Router /v1/system/init [post]
-func (s *SystemServiceV1) initializeSystem(c *gin.Context) {
-	var request v1.InitRequest
-	if err := c.ShouldBindJSON(&request); err != nil {
-		httpUtils.Response.ValidationError(c, err)
-		return
-	}
-
-	s.logger.InfoTag("API", "系统初始化",
-		"database_type", request.DatabaseConfig.Type,
-		"admin_username", request.AdminConfig.Username,
-		"request_id", getRequestID(c),
-	)
-
-	// 模拟系统初始化
-	result := gin.H{
-		"success": true,
-		"message": "系统初始化完成",
-		"database": gin.H{
-			"connected": true,
-			"tables_created": true,
-		},
-		"admin": gin.H{
-			"created": true,
-			"user_id": 1,
-		},
-		"providers_count": len(request.Providers),
-	}
-
-	httpUtils.Response.Success(c, result, "系统初始化成功")
-}
 
 // ========== 模拟数据方法 ==========
 // TODO: 实际实现中应该从数据库或配置中获取真实数据

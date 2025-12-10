@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sashabaranov/go-openai"
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	"xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/service"
 	domainimage "xiaozhi-server-go/internal/domain/image"
@@ -30,7 +29,7 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/storage"
 	"xiaozhi-server-go/internal/domain/chat"
-	"xiaozhi-server-go/internal/core/pool"
+	domainproviders "xiaozhi-server-go/internal/domain/providers"
 	providers "xiaozhi-server-go/internal/domain/providers/types"
 	"xiaozhi-server-go/internal/domain/providers/llm"
 	"xiaozhi-server-go/internal/domain/providers/tts"
@@ -79,7 +78,6 @@ type ConnectionHandler struct {
 	conn             Connection
 	closeOnce        sync.Once
 	taskMgr          *task.TaskManager
-	authManager      *domainauth.AuthManager // 认证管理器
 	safeCallbackFunc func(func(*ConnectionHandler)) func()
 	providers        struct {
 		asr   providers.ASRProvider
@@ -188,7 +186,7 @@ type ConnectionHandler struct {
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
 	config *config.Config,
-	providerSet *pool.ProviderSet,
+	providerSet *domainproviders.Set,
 	registry *capability.Registry,
 	logger *internallogging.Logger, // TODO: 待logger.go迁移后更新
 	req *http.Request,

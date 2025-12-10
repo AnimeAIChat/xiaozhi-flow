@@ -8,7 +8,7 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	websockettransport "xiaozhi-server-go/internal/core/transport/websocket"
 	"xiaozhi-server-go/internal/core/transport"
-	"xiaozhi-server-go/internal/core/pool"
+	providers "xiaozhi-server-go/internal/domain/providers"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
 	"xiaozhi-server-go/internal/plugin/capability"
@@ -19,35 +19,33 @@ import (
 type TransportAdapter struct {
 	config       *config.Config
 	logger       *logging.Logger
-	legacyAdapter *LegacyPoolManagerAdapter
 	registry      *capability.Registry
 
 	// WebSocket 服务器组件
 	wsTransport  *websockettransport.WebSocketTransport
-	poolManager  *pool.PoolManager
+	providerManager *providers.Manager
 	taskMgr      *task.TaskManager
 }
 
 // NewTransportAdapter 创建传输层适配器
-func NewTransportAdapter(cfg *config.Config, logger *logging.Logger, legacyAdapter *LegacyPoolManagerAdapter, deviceRepo repository.DeviceRepository, registry *capability.Registry) *TransportAdapter {
+func NewTransportAdapter(cfg *config.Config, logger *logging.Logger, deviceRepo repository.DeviceRepository, registry *capability.Registry) *TransportAdapter {
 	adapter := &TransportAdapter{
 		config:        cfg,
 		logger:        logger,
-		legacyAdapter: legacyAdapter,
 		registry:      registry,
 	}
 
 	// 初始化WebSocket传输
 	if cfg.Transport.WebSocket.Enabled {
 		// 创建池管理器
-		poolManager, err := pool.NewPoolManager(cfg, logger)
+		providerManager, err := providers.NewManagerWithMCP(cfg, logger, nil)
 		if err != nil {
 			if logger != nil {
 				logger.ErrorTag("传输适配器", "创建池管理器失败: %v", err)
 			}
 			return adapter
 		}
-		adapter.poolManager = poolManager
+		adapter.providerManager = providerManager
 
 		// 创建任务管理器
 		taskConfig := task.ResourceConfig{
@@ -61,7 +59,7 @@ func NewTransportAdapter(cfg *config.Config, logger *logging.Logger, legacyAdapt
 		adapter.wsTransport = websockettransport.NewWebSocketTransport(cfg, logger)
 
 		// 设置连接处理器工厂
-		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, poolManager, taskMgr, logger, deviceRepo, registry)
+		connFactory := transport.NewDefaultConnectionHandlerFactory(cfg, providerManager, taskMgr, logger, deviceRepo, registry)
 		adapter.wsTransport.SetConnectionHandler(connFactory)
 
 		if logger != nil {
@@ -82,7 +80,7 @@ func (ta *TransportAdapter) GetWebSocketTransport() *websockettransport.WebSocke
 }
 
 // StartTransportServer 启动传输服务器
-func (ta *TransportAdapter) StartTransportServer(ctx context.Context, authManager interface{}, domainMCPManager interface{}) error {
+func (ta *TransportAdapter) StartTransportServer(ctx context.Context, domainMCPManager interface{}) error {
 	if ta.logger != nil {
 		ta.logger.InfoTag("传输适配器", "正在启动传输服务器...")
 	}

@@ -10,7 +10,7 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/transport/ws"
 	"xiaozhi-server-go/internal/core"
-	"xiaozhi-server-go/internal/core/pool"
+	providers "xiaozhi-server-go/internal/domain/providers"
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/domain/task"
 	"xiaozhi-server-go/internal/domain/device/repository"
@@ -20,8 +20,8 @@ import (
 // ConnectionContextAdapter 连接上下文适配器，完全兼容现有的ConnectionContext逻辑
 type ConnectionContextAdapter struct {
 	handler     *core.ConnectionHandler
-	providerSet *pool.ProviderSet
-	poolManager *pool.PoolManager
+	providerSet *providers.Set
+	providerManager *providers.Manager
 	clientID    string
 	logger      *logging.Logger
 	conn        Connection
@@ -34,9 +34,9 @@ type ConnectionContextAdapter struct {
 func NewConnectionContextAdapter(
 	conn Connection,
 	config *config.Config,
-	providerSet *pool.ProviderSet,
+	providerSet *providers.Set,
 	registry *capability.Registry,
-	poolManager *pool.PoolManager,
+	providerManager *providers.Manager,
 	taskMgr *task.TaskManager,
 	logger *logging.Logger,
 	req *http.Request,
@@ -51,7 +51,7 @@ func NewConnectionContextAdapter(
 	adapter := &ConnectionContextAdapter{
 		handler:     handler,
 		providerSet: providerSet,
-		poolManager: poolManager,
+		providerManager: providerManager,
 		clientID:    clientID,
 		logger:      logger,
 		conn:        conn,
@@ -94,7 +94,7 @@ func (a *ConnectionContextAdapter) Close() {
 	}
 
 	// 归还资源到池中
-	if a.providerSet != nil && a.poolManager != nil {
+	if a.providerSet != nil && a.providerManager != nil {
 		releaseCtx, releaseCancel := context.WithTimeoutCause(
 			context.Background(),
 			3*time.Second,
@@ -167,7 +167,7 @@ func (a *ConnectionContextAdapter) CreateSafeCallback() func(func(*core.Connecti
 // DefaultConnectionHandlerFactory 默认连接处理器工厂
 type DefaultConnectionHandlerFactory struct {
 	config      *config.Config
-	poolManager *pool.PoolManager
+	providerManager *providers.Manager
 	taskMgr     *task.TaskManager
 	logger      *logging.Logger
 	deviceRepo  repository.DeviceRepository
@@ -177,7 +177,7 @@ type DefaultConnectionHandlerFactory struct {
 // NewDefaultConnectionHandlerFactory 创建默认连接处理器工厂
 func NewDefaultConnectionHandlerFactory(
 	config *config.Config,
-	poolManager *pool.PoolManager,
+	providerManager *providers.Manager,
 	taskMgr *task.TaskManager,
 	logger *logging.Logger,
 	deviceRepo repository.DeviceRepository,
@@ -185,7 +185,7 @@ func NewDefaultConnectionHandlerFactory(
 ) *DefaultConnectionHandlerFactory {
 	return &DefaultConnectionHandlerFactory{
 		config:      config,
-		poolManager: poolManager,
+		providerManager: providerManager,
 		taskMgr:     taskMgr,
 		logger:      logger,
 		deviceRepo:  deviceRepo,
@@ -198,7 +198,7 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	conn Connection,
 	req *http.Request,
 ) ConnectionHandler {
-	if f.poolManager == nil {
+	if f.providerManager == nil {
 		f.logger.Error("池管理器未初始化")
 		return nil
 	}
@@ -227,7 +227,7 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	}
 
 	// 从资源池获取提供者集合
-	providerSet, err := f.poolManager.GetProviderSet()
+	providerSet, err := f.providerManager.Acquire(context.Background())
 	if err != nil {
 		f.logger.Error("获取提供者集合失败: %v", err)
 		return nil
@@ -235,7 +235,7 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	//检查conn是否有属性mcpManager
 	if holder, ok := conn.(MCPManagerHolder); ok {
 		if mgr := holder.GetMCPManager(); mgr != nil {
-			f.poolManager.ReturnMcpManager(providerSet.MCP)
+			f.providerManager.ReleaseMCP(context.Background(), providerSet.MCP)
 			providerSet.MCP = mgr
 			f.logger.InfoTag("连接", "复用现有的 MCPManager")
 		} else {
@@ -251,7 +251,7 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 		f.config,
 		providerSet,
 		f.registry,
-		f.poolManager,
+		f.providerManager,
 		f.taskMgr,
 		f.logger,
 		req,
@@ -260,9 +260,9 @@ func (f *DefaultConnectionHandlerFactory) CreateHandler(
 	return adapter
 }
 
-// SetPoolManager 设置池管理器（用于异步初始化）
-func (f *DefaultConnectionHandlerFactory) SetPoolManager(poolManager *pool.PoolManager) {
-	f.poolManager = poolManager
+// SetProviderManager 设置池管理器（用于异步初始化）
+func (f *DefaultConnectionHandlerFactory) SetProviderManager(providerManager *providers.Manager) {
+	f.providerManager = providerManager
 }
 
 

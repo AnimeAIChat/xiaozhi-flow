@@ -1,8 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, Button, Select, Space, Tooltip, Modal, Form, Input, InputNumber, message, Badge, Progress } from 'antd';
+import { Card, Button, Select, Space, Tooltip, Modal, Form, Input, InputNumber, App, Badge, Progress } from 'antd';
 import { DatabaseOutlined, ApiOutlined, RobotOutlined, CloudOutlined, SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined, PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import { BaseNode, NodeData } from './nodes';
-import { HttpStartupAdapter } from './HttpStartupAdapter';
 
 const { Option } = Select;
 
@@ -27,13 +26,16 @@ export const SimpleReteEditor: React.FC<{
   onExecute?: () => void;
   workflowId?: string;
   autoConnect?: boolean;
+  adapter?: any;
 }> = ({
   onNodesChange,
   onConnectionsChange,
   onExecute,
   workflowId = 'xiaozhi-flow-default-startup',
-  autoConnect = true
+  autoConnect = true,
+  adapter
 }) => {
+  const { message } = App.useApp();
   const [nodes, setNodes] = useState<SimpleNode[]>([]);
   const [connections, setConnections] = useState<SimpleConnection[]>([]);
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -47,39 +49,29 @@ export const SimpleReteEditor: React.FC<{
 
   // 启动流程相关状态
   const [startupAdapter] = useState(() => {
-    // 根据环境变量或当前域名配置API地址
-    const protocol = window.location.protocol;
-    const host = window.location.hostname;
-
-    // 根据后端配置，Web服务默认运行在8081端口
-    let apiPort = '8081';
-
-    // 如果是localhost，根据当前前端端口推断后端端口
-    if (host === 'localhost' || host === '127.0.0.1') {
-      const currentPort = window.location.port;
-      if (currentPort === '3000' || currentPort === '5173') {
-        // 前端开发服务器，使用默认后端Web端口
-        apiPort = '8081';
-      } else if (currentPort === '8080') {
-        // 如果前端在8080，后端Web可能在8081
-        apiPort = '8081';
-      } else if (currentPort === '8081') {
-        // 同端口
-        apiPort = '8081';
-      }
-    }
-
-    const baseUrl = `${protocol}//${host}:${apiPort}/api/startup`;
-    console.log('创建 HttpStartupAdapter，baseUrl:', baseUrl);
-    return new HttpStartupAdapter(baseUrl);
+    if (adapter) return adapter;
+    throw new Error("Adapter is required");
   });
   const [isLoading, setIsLoading] = useState(false);
   const [execution, setExecution] = useState<any>(null);
   const [executionStats, setExecutionStats] = useState<any>(null);
   const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [availableNodeTypes, setAvailableNodeTypes] = useState<any[]>([]);
 
   // 使用 useRef 来防止重复初始化
   const hasInitialized = useRef(false);
+
+  // 加载可用节点类型
+  useEffect(() => {
+    if (adapter && adapter.getCapabilities) {
+      adapter.getCapabilities().then((caps: any[]) => {
+        setAvailableNodeTypes(Array.isArray(caps) ? caps : []);
+      }).catch((err: any) => {
+        console.error('Failed to load capabilities:', err);
+        setAvailableNodeTypes([]);
+      });
+    }
+  }, [adapter]);
 
   // 初始化和连接管理
   useEffect(() => {
@@ -563,6 +555,21 @@ export const SimpleReteEditor: React.FC<{
     }
   }, [execution, startupAdapter]);
 
+  // 保存工作流
+  const handleSave = useCallback(async () => {
+    if (adapter && adapter.saveWorkflow) {
+      try {
+        await adapter.saveWorkflow(workflowId, nodes, connections);
+        message.success('工作流保存成功');
+      } catch (error) {
+        console.error('保存工作流失败:', error);
+        message.error('保存工作流失败');
+      }
+    } else {
+      message.warning('当前适配器不支持保存功能');
+    }
+  }, [adapter, workflowId, nodes, connections]);
+
   // 获取节点图标
   const getNodeIcon = (type: NodeData['type']) => {
     switch (type) {
@@ -608,160 +615,6 @@ export const SimpleReteEditor: React.FC<{
 
   return (
     <div className="w-full h-full relative bg-gray-50 overflow-hidden">
-      {/* 工具栏 */}
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-3">
-        <div className="text-sm font-semibold text-gray-600 mb-3">添加节点</div>
-        <div className="flex flex-col space-y-2">
-          <Button
-            size="small"
-            icon={<DatabaseOutlined />}
-            onClick={() => addNode('database')}
-            className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
-          >
-            数据库
-          </Button>
-          <Button
-            size="small"
-            icon={<ApiOutlined />}
-            onClick={() => addNode('api')}
-            className="bg-green-50 text-green-600 border-green-200 hover:bg-green-100"
-          >
-            API
-          </Button>
-          <Button
-            size="small"
-            icon={<RobotOutlined />}
-            onClick={() => addNode('ai')}
-            className="bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100"
-          >
-            AI
-          </Button>
-          <Button
-            size="small"
-            icon={<CloudOutlined />}
-            onClick={() => addNode('cloud')}
-            className="bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100"
-          >
-            云服务
-          </Button>
-          <Button
-            size="small"
-            icon={<SettingOutlined />}
-            onClick={() => addNode('config')}
-            className="bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100"
-          >
-            配置
-          </Button>
-        </div>
-      </div>
-
-      {/* 控制面板 */}
-      <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4">
-        <div className="text-sm font-semibold text-gray-600 mb-3">启动流程控制</div>
-
-        {/* 执行状态 */}
-        {execution && (
-          <div className="mb-3 p-2 bg-gray-50 rounded">
-            <div className="text-xs text-gray-600">执行状态</div>
-            <Badge
-              status={
-                execution.status === 'running' ? "processing" :
-                execution.status === 'completed' ? "success" :
-                execution.status === 'failed' ? "error" : "default"
-              }
-              text={execution.status}
-            />
-          </div>
-        )}
-
-        {/* 执行进度 */}
-        {executionStats && (
-          <div className="mb-3 p-2 bg-blue-50 rounded">
-            <div className="text-xs text-gray-600 mb-1">执行进度</div>
-            <Progress
-              percent={executionStats.progress}
-              size="small"
-              status={executionStats.status === 'failed' ? 'exception' : 'active'}
-            />
-            <div className="text-xs text-gray-500 mt-1">
-              {executionStats.completed}/{executionStats.total} 节点完成
-            </div>
-          </div>
-        )}
-
-        <Space direction="vertical" className="w-full">
-          <Button
-            type="primary"
-            icon={<PlayCircleOutlined />}
-            onClick={executeWorkflow}
-            disabled={isLoading || (execution && execution.status === 'running')}
-            className="w-full"
-          >
-            执行启动流程
-          </Button>
-
-          {/* 执行控制按钮 */}
-          {execution && execution.status === 'running' && (
-            <div className="space-y-2 border-t pt-2">
-              <Button
-                size="small"
-                icon={<PauseCircleOutlined />}
-                onClick={pauseExecution}
-                className="w-full"
-              >
-                暂停
-              </Button>
-              <Button
-                size="small"
-                icon={<StopOutlined />}
-                danger
-                onClick={cancelExecution}
-                className="w-full"
-              >
-                取消
-              </Button>
-            </div>
-          )}
-
-          {execution && execution.status === 'paused' && (
-            <Button
-              size="small"
-              icon={<PlayCircleOutlined />}
-              onClick={resumeExecution}
-              className="w-full"
-            >
-              恢复
-            </Button>
-          )}
-
-          {/* 节点操作 */}
-          {selectedNode && (
-            <div className="space-y-2 border-t pt-3">
-              <div className="text-xs text-gray-500">选中节点: {selectedNode}</div>
-              <Button
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => {
-                  const node = nodes.find(n => n.id === selectedNode);
-                  if (node) startEditNode(node);
-                }}
-                className="w-full"
-              >
-                编辑
-              </Button>
-              <Button
-                size="small"
-                icon={<DeleteOutlined />}
-                danger
-                onClick={() => deleteNode(selectedNode)}
-                className="w-full"
-              >
-                删除
-              </Button>
-            </div>
-          )}
-        </Space>
-      </div>
 
       {/* 状态信息 */}
       <div className="absolute bottom-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4">
@@ -864,35 +717,6 @@ export const SimpleReteEditor: React.FC<{
           </Card>
         ))}
       </div>
-
-      {/* 编辑节点模态框 */}
-      <Modal
-        title="编辑节点"
-        open={editModalVisible}
-        onOk={saveNodeEdit}
-        onCancel={() => {
-          setEditModalVisible(false);
-          setEditingNode(null);
-        }}
-        okText="保存"
-        cancelText="取消"
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item
-            label="节点名称"
-            name="label"
-            rules={[{ required: true, message: '请输入节点名称' }]}
-          >
-            <Input placeholder="输入节点名称" />
-          </Form.Item>
-          <Form.Item
-            label="节点描述"
-            name="description"
-          >
-            <Input.TextArea placeholder="输入节点描述" rows={3} />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   );
 };

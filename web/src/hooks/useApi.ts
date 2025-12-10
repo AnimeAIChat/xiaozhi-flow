@@ -114,40 +114,6 @@ export const useSystemLogs = (level?: string) => {
   });
 };
 
-/**
- * 获取提供商列表的Hook
- */
-export const useProviders = (type?: ProviderType) => {
-  return useQuery({
-    queryKey: queryKeys.providers(type),
-    queryFn: () => apiService.getProviders(type),
-    staleTime: 300000, // 5分钟内的数据被认为是新的
-    retry: 2,
-    retryDelay: 1000,
-  });
-};
-
-/**
- * 测试提供商连接的Hook
- */
-export const useTestProvider = () => {
-  const { message } = App.useApp();
-
-  return useMutation({
-    mutationFn: ({ type, config }: { type: ProviderType; config: ProviderConfig }): Promise<ProviderTestResult> =>
-      apiService.testProvider(type, config),
-    onSuccess: (result, variables) => {
-      if (result.success) {
-        message.success(`${variables.config.name} 连接测试成功！延迟: ${result.latency}ms`);
-      } else {
-        message.error(`${variables.config.name} 连接失败: ${result.message}`);
-      }
-    },
-    onError: (error) => {
-      message.error(`提供商测试出错: ${error.message}`);
-    },
-  });
-};
 
 /**
  * 更新提供商配置的Hook
