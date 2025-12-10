@@ -39,6 +39,11 @@ import (
 	internalutils "xiaozhi-server-go/internal/utils"
 	internallogging "xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/core/components"
+	"xiaozhi-server-go/internal/workflow"
+	"xiaozhi-server-go/internal/domain/vad"
+	vadinter "xiaozhi-server-go/internal/domain/vad/inter"
+	"xiaozhi-server-go/internal/domain/vad/silero_vad"
+	"xiaozhi-server-go/internal/plugin/providers/core"
 )
 
 type Connection interface {
@@ -88,6 +93,13 @@ type ConnectionHandler struct {
 	ttsManager    *domaintts.Manager
 	configService *service.ConfigService // 配置服务
 	registry      *capability.Registry   // 插件注册表
+
+	// Workflow & VAD
+	workflowExecutor workflow.WorkflowExecutor
+	vadManager       *vad.Manager
+	audioBuffer      []byte
+	isSpeaking       bool
+	silenceCounter   int
 
 	initialVoice    string // 初始语音名称
 	ttsProviderName string // 默认TTS提供者名称
@@ -293,6 +305,32 @@ func NewConnectionHandler(
 
 	// 初始化新架构的 LLM 和 TTS Manager
 	handler.initManagers(config)
+
+	// Initialize VAD
+	vadConfig := vadinter.VADConfig{
+		SampleRate:    16000,
+		Channels:      1,
+		FrameDuration: 60, // ms
+		Sensitivity:   0.01, // Adjust as needed
+	}
+	vadProvider, err := silero_vad.NewSileroVAD(vadConfig)
+	if err != nil {
+		logger.Error("Failed to initialize Silero VAD: %v", err)
+	} else {
+		handler.vadManager = vad.NewManager(vadConfig)
+		handler.vadManager.SetProvider(vadProvider)
+	}
+
+	// Initialize Workflow Executor
+	dagEngine := workflow.NewDAGEngine(logger)
+	dataFlow := workflow.NewDataFlowEngine(dagEngine, logger)
+	handler.workflowExecutor = workflow.NewWorkflowExecutor(config, registry, dagEngine, dataFlow, logger)
+
+	// Register Core Provider
+	if providerSet != nil {
+		coreProvider := core.NewCoreProvider(providerSet.ASR, providerSet.LLM, providerSet.TTS)
+		registry.Register("core", coreProvider)
+	}
 
 	// 初始化对话管理器
 	handler.dialogueManager = chat.NewDialogueManager(handler.logger, nil)
@@ -654,189 +692,109 @@ func (h *ConnectionHandler) processClientTextMessagesCoroutine() {
 
 // processClientAudioMessagesCoroutine 处理音频消息队列
 func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
-	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动")
+	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动 (Workflow Mode)")
 	defer h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程退出")
 
-	// 插件相关变量
-	var (
-		pluginInputChan  chan []byte
-		pluginOutputChan <-chan map[string]interface{}
-		pluginCancel     context.CancelFunc
-		usePlugin        bool
-	)
-
-	// 启动插件流的辅助函数
-	startPluginStream := func() bool {
-		if h.registry == nil {
-			return false
-		}
-
-		// 获取用户选择的ASR提供者
-		_, _, asrProviderName := h.getUserModelSelection()
-		if asrProviderName == "" {
-			asrProviderName = "builtin_asr"
-		}
-
-		// 映射旧名称到 Capability ID 和 Config Key
-		capabilityID := asrProviderName
-		configKey := asrProviderName
-
-		switch asrProviderName {
-		case "DoubaoASR":
-			capabilityID = "doubao_asr"
-			configKey = "doubao"
-		}
-
-		executor, err := h.registry.GetExecutor(capabilityID)
-		if err != nil {
-			// 尝试使用原始名称
-			executor, err = h.registry.GetExecutor(asrProviderName)
-			if err != nil {
-				return false
-			}
-			capabilityID = asrProviderName
-		}
-
-		streamExecutor, ok := executor.(capability.StreamExecutor)
-		if !ok {
-			h.LogError(fmt.Sprintf("[ASR] [插件] %s 不支持流式执行", capabilityID))
-			return false
-		}
-
-		// 准备配置
-		config := map[string]interface{}{}
-		
-		// 如果是builtin_asr，需要指定engine
-		if capabilityID == "builtin_asr" {
-			config["engine"] = "doubao"
-		}
-
-		// 注入全局配置
-		if h.config != nil && h.config.ASR != nil {
-			// 优先尝试 configKey
-			if asrConfig, ok := h.config.ASR[configKey]; ok {
-				if configMap, ok := asrConfig.(map[string]interface{}); ok {
-					for k, v := range configMap {
-						config[k] = v
-					}
-				}
-			} else if asrConfig, ok := h.config.ASR[asrProviderName]; ok {
-				// 尝试使用原始名称
-				if configMap, ok := asrConfig.(map[string]interface{}); ok {
-					for k, v := range configMap {
-						config[k] = v
-					}
-				}
-			}
-		}
-
-		pluginInputChan = make(chan []byte, 100)
-		inputs := map[string]interface{}{
-			"audio_stream": (<-chan []byte)(pluginInputChan),
-		}
-
-		ctx, cancel := context.WithCancel(context.Background())
-		out, err := streamExecutor.ExecuteStream(ctx, config, inputs)
-		if err != nil {
-			h.LogError(fmt.Sprintf("[ASR] [插件] 启动失败: %v", err))
-			cancel()
-			return false
-		}
-
-		pluginOutputChan = out
-		pluginCancel = cancel
-		usePlugin = true
-
-		// 启动结果处理协程
-		go func() {
-			for res := range pluginOutputChan {
-				if text, ok := res["text"].(string); ok {
-					isFinal, _ := res["is_final"].(bool)
-					// 处理静音计数
-					if silenceCount, ok := res["silence_count"].(int); ok {
-						if silenceCount >= 2 {
-							h.LogInfo("[ASR] [插件] [静音检测] 连续两次，结束对话")
-							h.closeAfterChat = true
-							// 模拟静音结果
-							h.OnAsrResult("[SILENCE_TIMEOUT] 长时间未检测到用户说话，请礼貌的结束对话", true)
-							continue
-						}
-					}
-					h.OnAsrResult(text, isFinal)
-				}
-				if errStr, ok := res["error"].(string); ok {
-					h.LogError(fmt.Sprintf("[ASR] [插件] 错误: %s", errStr))
-				}
-			}
-		}()
-		h.LogInfo("[ASR] [插件] 已启动 builtin_asr 插件流")
-		return true
-	}
-
-	// 尝试启动插件
-	if !startPluginStream() {
-		h.LogInfo("[ASR] [插件] 无法启动插件，回退到旧版管理器")
-	}
-
-	defer func() {
-		if pluginCancel != nil {
-			pluginCancel()
-		}
-		if pluginInputChan != nil {
-			close(pluginInputChan)
-		}
-	}()
+	// Load default workflow
+	defaultWorkflow := workflow.CreateDefaultConversationWorkflow()
 
 	for {
 		select {
 		case <-h.stopChan:
 			h.LogDebug("[协程] [音频队列] 收到停止信号，退出协程")
 			return
-		case audioData := <-h.clientAudioQueue:
+		case data := <-h.clientAudioQueue:
 			// 如果已设置为在播放服务端语音时暂停ASR，则跳过发送到ASR
 			if atomic.LoadInt32(&h.asrPause) == 1 {
 				h.LogDebug("[协程] [音频队列] 当前处于ASR暂停状态，跳过发送客户端音频到ASR")
 				continue
 			}
-			if h.closeAfterChat {
-				h.LogInfo(fmt.Sprintf("[协程] [音频队列] 检测到新音频输入，重新开启对话模式，样本大小=%d", len(audioData)))
-				h.closeAfterChat = false
-				atomic.StoreInt32(&h.asrPause, 0)
-				
-				if usePlugin {
-					// 重启插件流以重置状态
-					if pluginCancel != nil {
-						pluginCancel()
+
+			// 1. Process VAD
+			if h.vadManager != nil {
+				isSpeech, err := h.vadManager.ProcessAudio(data)
+				if err != nil {
+					h.LogError(fmt.Sprintf("VAD error: %v", err))
+					continue
+				}
+
+				if isSpeech {
+					if !h.isSpeaking {
+						h.LogInfo("Speech detected")
+						h.isSpeaking = true
+						h.audioBuffer = make([]byte, 0) // Start new buffer
 					}
-					if pluginInputChan != nil {
-						close(pluginInputChan)
-					}
-					startPluginStream()
+					h.silenceCounter = 0
+					h.audioBuffer = append(h.audioBuffer, data...)
 				} else {
-					if h.providers.asr != nil {
-						h.providers.asr.ResetSilenceCount()
-						if err := h.providers.asr.Reset(); err != nil {
-							h.LogError(fmt.Sprintf("重置ASR状态失败: %v", err))
-							continue
+					if h.isSpeaking {
+						h.silenceCounter++
+						// Append silence to buffer too, to avoid cutting off tail
+						h.audioBuffer = append(h.audioBuffer, data...)
+
+						// Threshold for silence (e.g. 10 frames * 60ms = 600ms)
+						if h.silenceCounter > 10 {
+							h.LogInfo("End of speech detected")
+							h.isSpeaking = false
+							
+							// Trigger Workflow
+							// Copy buffer to avoid race conditions if we reuse it immediately (though we reset it)
+							audioData := make([]byte, len(h.audioBuffer))
+							copy(audioData, h.audioBuffer)
+							
+							go h.executeWorkflow(defaultWorkflow, audioData)
+							
+							h.audioBuffer = nil
 						}
 					}
 				}
-			}
-			h.LogDebug(fmt.Sprintf("[协程] [音频队列] 转发音频到ASR，样本大小=%d", len(audioData)))
-			
-			if usePlugin {
-				select {
-				case pluginInputChan <- audioData:
-				default:
-					h.LogWarn("[ASR] [插件] 输入缓冲区已满，丢弃音频帧")
-				}
 			} else {
-				if err := h.providers.asr.AddAudio(audioData); err != nil {
-					h.LogError(fmt.Sprintf("处理音频数据失败: %v", err))
-				}
+				// Fallback if VAD is not available
+				// h.LogWarn("VAD not initialized")
 			}
 		}
 	}
+}
+
+func (h *ConnectionHandler) executeWorkflow(wf *workflow.Workflow, audioData []byte) {
+	h.LogInfo("Executing workflow...")
+	inputs := map[string]interface{}{
+		"audio_data": audioData,
+		"history": h.dialogueManager.GetLLMDialogue(),
+	}
+
+	execution, err := h.workflowExecutor.Execute(context.Background(), wf, inputs)
+	if err != nil {
+		h.LogError(fmt.Sprintf("Workflow execution failed: %v", err))
+		return
+	}
+
+	// Wait for completion
+	for {
+		if execution.Status == workflow.ExecutionStatusCompleted || execution.Status == workflow.ExecutionStatusFailed {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if execution.Status == workflow.ExecutionStatusFailed {
+		h.LogError(fmt.Sprintf("Workflow failed"))
+		return
+	}
+
+	// Handle outputs
+	// We expect TTS output
+	if audioData, ok := execution.Outputs["tts_node.audio_data"]; ok {
+		if bytes, ok := audioData.([]byte); ok {
+			h.sendAudioToClient(bytes)
+		}
+	}
+}
+
+func (h *ConnectionHandler) sendAudioToClient(data []byte) {
+    if h.responseSender != nil {
+        h.responseSender.SendAudio(data)
+    }
 }
 
 func (h *ConnectionHandler) sendAudioMessageCoroutine() {

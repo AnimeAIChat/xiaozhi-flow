@@ -108,7 +108,12 @@ func (s *ResponseSender) SendAudioFrame(data []byte) error {
 	return s.conn.WriteMessage(2, data)
 }
 
-// SendRawText sends a raw text message
+// SendRawText sends raw text message
 func (s *ResponseSender) SendRawText(text string) error {
 	return s.conn.WriteMessage(1, []byte(text))
+}
+
+// SendAudio sends audio data
+func (s *ResponseSender) SendAudio(data []byte) error {
+	return s.conn.WriteMessage(2, data)
 }
