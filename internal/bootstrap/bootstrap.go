@@ -783,6 +783,7 @@ func startHTTPServer(
 	configRepo types.Repository,
 	transportManager adapters.TransportManager,
 	deviceRepo repository.DeviceRepository,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (*http.Server, error) {
@@ -798,6 +799,7 @@ func startHTTPServer(
 		Config:         config,
 		Logger:         logger,
 		AuthMiddleware: webapiService.AuthMiddleware(),
+		Registry:       registry,
 	})
 	if err != nil {
 		return nil, err
@@ -1006,7 +1008,7 @@ func startServices(
 		return fmt.Errorf("启动 Transport 服务失败: %w", err)
 	}
 
-	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, g, groupCtx); err != nil {
+	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, registry, g, groupCtx); err != nil {
 		return fmt.Errorf("启动 Http 服务失败: %w", err)
 	}
 

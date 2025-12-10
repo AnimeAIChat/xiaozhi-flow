@@ -695,9 +695,6 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动 (Workflow Mode)")
 	defer h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程退出")
 
-	// Load default workflow
-	defaultWorkflow := workflow.CreateDefaultConversationWorkflow()
-
 	for {
 		select {
 		case <-h.stopChan:
@@ -742,7 +739,14 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 							audioData := make([]byte, len(h.audioBuffer))
 							copy(audioData, h.audioBuffer)
 							
-							go h.executeWorkflow(defaultWorkflow, audioData)
+							// Load current workflow
+							wf, err := workflow.LoadCurrentWorkflow()
+							if err != nil {
+								h.LogError(fmt.Sprintf("Failed to load workflow: %v", err))
+								continue
+							}
+
+							go h.executeWorkflow(wf, audioData)
 							
 							h.audioBuffer = nil
 						}
