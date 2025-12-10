@@ -29,7 +29,6 @@ import (
 		"xiaozhi-server-go/internal/plugin/providers/openai"
 	"xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/plugin/providers/stepfun"
-	"xiaozhi-server-go/internal/plugin/providers/webrtc"
 	llmadapters "xiaozhi-server-go/internal/core/adapters"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
@@ -318,7 +317,6 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	registry.Register("ollama", ollama.NewProvider())
 	registry.Register("openai", openai.NewProvider())
 	registry.Register("stepfun", stepfun.NewProvider())
-	registry.Register("webrtc", webrtc.NewProvider())
 
 	// Register Legacy Adapters
 	llmadapters.RegisterLegacyAdapters()

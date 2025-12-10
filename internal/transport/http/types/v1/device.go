@@ -106,6 +106,16 @@ type DeviceQuery struct {
 	Location  bool     `form:"location"`
 }
 
+// Pagination 分页信息
+type Pagination struct {
+	Page      int64 `json:"page"`
+	Limit     int64 `json:"limit"`
+	Total     int64 `json:"total"`
+	TotalPages int64 `json:"total_pages"`
+	HasNext   bool  `json:"has_next"`
+	HasPrev   bool  `json:"has_prev"`
+}
+
 // DeviceListResponse 设备列表响应
 type DeviceListResponse struct {
 	Devices    []DeviceInfo `json:"devices"`
