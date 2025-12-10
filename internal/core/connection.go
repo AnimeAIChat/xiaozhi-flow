@@ -38,10 +38,6 @@ import (
 	internalutils "xiaozhi-server-go/internal/utils"
 	internallogging "xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/core/components"
-	"xiaozhi-server-go/internal/workflow"
-	"xiaozhi-server-go/internal/domain/vad"
-	vadinter "xiaozhi-server-go/internal/domain/vad/inter"
-	"xiaozhi-server-go/internal/domain/vad/silero_vad"
 	"xiaozhi-server-go/internal/plugin/providers/core"
 )
 
@@ -91,13 +87,6 @@ type ConnectionHandler struct {
 	ttsManager    *domaintts.Manager
 	configService *service.ConfigService // 配置服务
 	registry      *capability.Registry   // 插件注册表
-
-	// Workflow & VAD
-	workflowExecutor workflow.WorkflowExecutor
-	vadManager       *vad.Manager
-	audioBuffer      []byte
-	isSpeaking       bool
-	silenceCounter   int
 
 	initialVoice    string // 初始语音名称
 	ttsProviderName string // 默认TTS提供者名称
@@ -303,26 +292,6 @@ func NewConnectionHandler(
 
 	// 初始化新架构的 LLM 和 TTS Manager
 	handler.initManagers(config)
-
-	// Initialize VAD
-	vadConfig := vadinter.VADConfig{
-		SampleRate:    16000,
-		Channels:      1,
-		FrameDuration: 60, // ms
-		Sensitivity:   0.01, // Adjust as needed
-	}
-	vadProvider, err := silero_vad.NewSileroVAD(vadConfig)
-	if err != nil {
-		logger.Error("Failed to initialize Silero VAD: %v", err)
-	} else {
-		handler.vadManager = vad.NewManager(vadConfig)
-		handler.vadManager.SetProvider(vadProvider)
-	}
-
-	// Initialize Workflow Executor
-	dagEngine := workflow.NewDAGEngine(logger)
-	dataFlow := workflow.NewDataFlowEngine(dagEngine, logger)
-	handler.workflowExecutor = workflow.NewWorkflowExecutor(config, registry, dagEngine, dataFlow, logger)
 
 	// Register Core Provider
 	if providerSet != nil {
@@ -690,7 +659,7 @@ func (h *ConnectionHandler) processClientTextMessagesCoroutine() {
 
 // processClientAudioMessagesCoroutine 处理音频消息队列
 func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
-	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动 (Workflow Mode)")
+	h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程启动")
 	defer h.LogInfo("[协程] [音频队列] 客户端音频消息处理协程退出")
 
 	for {
@@ -705,98 +674,14 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 				continue
 			}
 
-			// 1. Process VAD
-			if h.vadManager != nil {
-				isSpeech, err := h.vadManager.ProcessAudio(data)
-				if err != nil {
-					h.LogError(fmt.Sprintf("VAD error: %v", err))
-					continue
+			// 将音频数据发送给ASR提供者
+			if h.providers.asr != nil {
+				if err := h.providers.asr.AddAudio(data); err != nil {
+					h.LogError(fmt.Sprintf("ASR添加音频失败: %v", err))
 				}
-
-				if isSpeech {
-					if !h.isSpeaking {
-						h.LogInfo("Speech detected")
-						h.isSpeaking = true
-						h.audioBuffer = make([]byte, 0) // Start new buffer
-					}
-					h.silenceCounter = 0
-					h.audioBuffer = append(h.audioBuffer, data...)
-				} else {
-					if h.isSpeaking {
-						h.silenceCounter++
-						// Append silence to buffer too, to avoid cutting off tail
-						h.audioBuffer = append(h.audioBuffer, data...)
-
-						// Threshold for silence (e.g. 10 frames * 60ms = 600ms)
-						if h.silenceCounter > 10 {
-							h.LogInfo("End of speech detected")
-							h.isSpeaking = false
-							
-							// Trigger Workflow
-							// Copy buffer to avoid race conditions if we reuse it immediately (though we reset it)
-							audioData := make([]byte, len(h.audioBuffer))
-							copy(audioData, h.audioBuffer)
-							
-							// Load current workflow
-							wf, err := workflow.LoadCurrentWorkflow()
-							if err != nil {
-								h.LogError(fmt.Sprintf("Failed to load workflow: %v", err))
-								continue
-							}
-
-							go h.executeWorkflow(wf, audioData)
-							
-							h.audioBuffer = nil
-						}
-					}
-				}
-			} else {
-				// Fallback if VAD is not available
-				// h.LogWarn("VAD not initialized")
 			}
 		}
 	}
-}
-
-func (h *ConnectionHandler) executeWorkflow(wf *workflow.Workflow, audioData []byte) {
-	h.LogInfo("Executing workflow...")
-	inputs := map[string]interface{}{
-		"audio_data": audioData,
-		"history": h.dialogueManager.GetLLMDialogue(),
-	}
-
-	execution, err := h.workflowExecutor.Execute(context.Background(), wf, inputs)
-	if err != nil {
-		h.LogError(fmt.Sprintf("Workflow execution failed: %v", err))
-		return
-	}
-
-	// Wait for completion
-	for {
-		if execution.Status == workflow.ExecutionStatusCompleted || execution.Status == workflow.ExecutionStatusFailed {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	if execution.Status == workflow.ExecutionStatusFailed {
-		h.LogError(fmt.Sprintf("Workflow failed"))
-		return
-	}
-
-	// Handle outputs
-	// We expect TTS output
-	if audioData, ok := execution.Outputs["tts_node.audio_data"]; ok {
-		if bytes, ok := audioData.([]byte); ok {
-			h.sendAudioToClient(bytes)
-		}
-	}
-}
-
-func (h *ConnectionHandler) sendAudioToClient(data []byte) {
-    if h.responseSender != nil {
-        h.responseSender.SendAudio(data)
-    }
 }
 
 func (h *ConnectionHandler) sendAudioMessageCoroutine() {
