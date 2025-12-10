@@ -1018,10 +1018,10 @@ clearedAudioQueue:
 
 func (h *ConnectionHandler) genResponseByLLM(ctx context.Context, messages []providers.Message, round int) error {
 	atomic.StoreInt32(&h.llmGenerating, 1)
-	h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM start, set llmGenerating=1, round=%d", round))
+	// h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM start, set llmGenerating=1, round=%d", round))
 	defer func() {
 		atomic.StoreInt32(&h.llmGenerating, 0)
-		h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM end, set llmGenerating=0, round=%d", round))
+		// h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM end, set llmGenerating=0, round=%d", round))
 		if r := recover(); r != nil {
 			h.LogError(fmt.Sprintf("genResponseByLLM发生panic: %v", r))
 			errorMsg := "抱歉，处理您的请求时发生了错误"
