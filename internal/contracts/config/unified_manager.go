@@ -1,6 +1,7 @@
 package config
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"reflect"
@@ -10,13 +11,12 @@ import (
 	"time"
 
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // UnifiedConfigManagerImpl 统一配置管理器实现
 type UnifiedConfigManagerImpl struct {
 	sessionID       string
-	logger          *utils.Logger
+	logger          *logging.Logger
 	ctx             context.Context
 	cancel          context.CancelFunc
 	isInitialized   bool
@@ -52,9 +52,9 @@ type UnifiedConfigManagerImpl struct {
 type ConfigManagerOption func(*UnifiedConfigManagerImpl)
 
 // NewUnifiedConfigManager 创建统一配置管理器
-func NewUnifiedConfigManager(logger *utils.Logger, options ...ConfigManagerOption) UnifiedConfigManager {
+func NewUnifiedConfigManager(logger *logging.Logger, options ...ConfigManagerOption) UnifiedConfigManager {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1160,3 +1160,5 @@ func (m *UnifiedConfigManagerImpl) recordValidationError() {
 	defer m.statsMutex.Unlock()
 	m.stats.ValidationErrors++
 }
+
+

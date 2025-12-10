@@ -1,6 +1,7 @@
 package notifier
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"regexp"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"xiaozhi-server-go/internal/contracts/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ChangeNotifier 配置变更通知器实现
@@ -17,7 +17,7 @@ type ChangeNotifier struct {
 	subscribers map[string][]config.ConfigChangeSubscriber
 	patterns    map[string]*regexp.Regexp
 	mutex       sync.RWMutex
-	logger      *utils.Logger
+	logger      *logging.Logger
 	eventQueue  chan config.ConfigChangeEvent
 	workers     int
 	ctx         context.Context
@@ -25,9 +25,9 @@ type ChangeNotifier struct {
 }
 
 // NewChangeNotifier 创建配置变更通知器
-func NewChangeNotifier(logger *utils.Logger, workers int) *ChangeNotifier {
+func NewChangeNotifier(logger *logging.Logger, workers int) *ChangeNotifier {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	if workers <= 0 {
@@ -340,14 +340,14 @@ func (s *DefaultConfigSubscriber) IsAsync() bool {
 type LoggingSubscriber struct {
 	id     string
 	filter string
-	logger *utils.Logger
+	logger *logging.Logger
 	async  bool
 }
 
 // NewLoggingSubscriber 创建日志记录订阅者
-func NewLoggingSubscriber(id, filter string, logger *utils.Logger, async bool) *LoggingSubscriber {
+func NewLoggingSubscriber(id, filter string, logger *logging.Logger, async bool) *LoggingSubscriber {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	return &LoggingSubscriber{
@@ -384,3 +384,5 @@ func (ls *LoggingSubscriber) GetFilter() string {
 func (ls *LoggingSubscriber) IsAsync() bool {
 	return ls.async
 }
+
+

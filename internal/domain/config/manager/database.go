@@ -51,12 +51,6 @@ func (r *DatabaseRepository) SaveConfig(cfg *config.Config) error {
 		return errors.Wrap(errors.KindDomain, "config.save", "config cannot be nil", nil)
 	}
 
-	// 将配置转换为键值对并保存到数据库
-	configMap, err := r.configToMap(cfg)
-	if err != nil {
-		return errors.Wrap(errors.KindDomain, "config.save", "failed to convert config to map", err)
-	}
-
 	// 使用事务确保原子性
 	tx := r.db.Begin()
 	defer func() {
@@ -65,13 +59,106 @@ func (r *DatabaseRepository) SaveConfig(cfg *config.Config) error {
 		}
 	}()
 
+	// 1. 保存 Providers (LLM, TTS, ASR, VLLLM)
+	if err := tx.Exec("DELETE FROM providers").Error; err != nil {
+		tx.Rollback()
+		return errors.Wrap(errors.KindStorage, "config.save", "failed to delete existing providers", err)
+	}
+
+	saveProvider := func(id, pType string, configData interface{}) error {
+		p := storage.Provider{
+			ID:      id,
+			Type:    pType,
+			Name:    id, // 默认使用ID作为Name
+			Config:  storage.FlexibleJSON{Data: configData},
+			Enabled: true,
+		}
+		
+		// 尝试提取更友好的 Name
+		if m, ok := configData.(config.LLMConfig); ok {
+			p.Name = m.Type
+		} else if m, ok := configData.(config.TTSConfig); ok {
+			p.Name = m.Type
+		} else if m, ok := configData.(config.VLLLMConfig); ok {
+			p.Name = m.Type
+		} else if m, ok := configData.(map[string]interface{}); ok {
+			if name, ok := m["type"].(string); ok {
+				p.Name = name
+			}
+		}
+
+		return tx.Create(&p).Error
+	}
+
+	for id, c := range cfg.LLM {
+		if err := saveProvider(id, "llm", c); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	for id, c := range cfg.TTS {
+		if err := saveProvider(id, "tts", c); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	for id, c := range cfg.ASR {
+		if err := saveProvider(id, "asr", c); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+	for id, c := range cfg.VLLLM {
+		if err := saveProvider(id, "vllm", c); err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// 2. 保存 Plugins
+	if err := tx.Exec("DELETE FROM plugins").Error; err != nil {
+		tx.Rollback()
+		return errors.Wrap(errors.KindStorage, "config.save", "failed to delete existing plugins", err)
+	}
+
+	for id, c := range cfg.Plugins {
+		p := storage.Plugin{
+			ID:          id,
+			Name:        c.Name,
+			Type:        c.Type,
+			Description: c.Description,
+			Config:      storage.FlexibleJSON{Data: c.Config},
+			Enabled:     c.Enabled,
+		}
+		if err := tx.Create(&p).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	// 3. 保存基础配置 (config_records)
+	// 创建副本并清空已保存到其他表的字段，避免重复保存
+	cfgCopy := *cfg
+	cfgCopy.LLM = nil
+	cfgCopy.TTS = nil
+	cfgCopy.ASR = nil
+	cfgCopy.VLLLM = nil
+	cfgCopy.Plugins = nil
+
+	// 将配置转换为键值对并保存到数据库
+	configMap, err := r.configToMap(&cfgCopy)
+	if err != nil {
+		tx.Rollback()
+		return errors.Wrap(errors.KindDomain, "config.save", "failed to convert config to map", err)
+	}
+
 	// 先将所有现有配置标记为非活跃
 	if err := tx.Exec("UPDATE config_records SET is_active = ?", false).Error; err != nil {
 		tx.Rollback()
 		return errors.Wrap(errors.KindStorage, "config.save", "failed to deactivate existing configs", err)
 	}
 
-	// 删除所有非活跃的配置记录，避免唯一约束冲突
+	// 删除所有非活跃的配置记录
 	if err := tx.Exec("DELETE FROM config_records WHERE is_active = ?", false).Error; err != nil {
 		tx.Rollback()
 		return errors.Wrap(errors.KindStorage, "config.save", "failed to delete inactive configs", err)
@@ -138,78 +225,123 @@ func (r *DatabaseRepository) IsInitialized() (bool, error) {
 func (r *DatabaseRepository) loadConfigFromDB() (*config.Config, error) {
 	// 检查数据库是否为nil
 	if r.db == nil {
-		// 数据库未初始化，返回默认配置
 		return config.DefaultConfig(), nil
 	}
 
 	// 检查数据库连接是否有效
 	if _, err := r.db.DB(); err != nil {
-		// 数据库连接无效，返回默认配置
 		return config.DefaultConfig(), nil
 	}
 
-	// 使用原生 SQL 查询来避免 datatypes.JSON 的自动解析问题
+	// 1. 加载基础配置 (config_records)
+	var cfg *config.Config
+	
 	rows, err := r.db.Raw("SELECT key, value FROM config_records WHERE is_active = ?", true).Rows()
-	if err != nil {
-		// 如果表不存在或其他数据库错误，返回默认配置
-		return config.DefaultConfig(), nil
-	}
-	defer rows.Close()
-
-	configMap := make(map[string]interface{})
-
-	for rows.Next() {
-		var key string
-		var valueStr string
-		if err := rows.Scan(&key, &valueStr); err != nil {
-			continue // 跳过无法解析的记录
+	if err == nil {
+		defer rows.Close()
+		configMap := make(map[string]interface{})
+		for rows.Next() {
+			var key string
+			var valueStr string
+			if err := rows.Scan(&key, &valueStr); err != nil {
+				continue
+			}
+			var value interface{}
+			if err := json.Unmarshal([]byte(valueStr), &value); err != nil {
+				continue
+			}
+			configMap[key] = value
 		}
 
-		var value interface{}
-		if err := json.Unmarshal([]byte(valueStr), &value); err != nil {
-			continue // 跳过无法解析的记录
+		if len(configMap) > 0 {
+			nested := r.unflattenMap(configMap)
+			data, err := json.Marshal(nested)
+			if err == nil {
+				var c config.Config
+				if err := json.Unmarshal(data, &c); err == nil {
+					cfg = &c
+				}
+			}
 		}
-		configMap[key] = value
 	}
 
-	if len(configMap) == 0 {
-		return nil, nil // 没有配置记录
+	// 如果没有基础配置，可能需要初始化默认值，或者返回nil让上层处理
+	// 这里我们假设如果config_records为空，则返回nil，触发InitDefaultConfig
+	if cfg == nil {
+		return nil, nil
 	}
 
-	// 调试：打印展平的配置映射中的 ASR 相关键
-	// fmt.Printf("DEBUG: Flattened config map ASR keys:\n")
-	// for key, value := range configMap {
-	// 	if strings.HasPrefix(key, "ASR.") {
-	// 		fmt.Printf("  %s = %v (type: %T)\n", key, value, value)
-	// 	}
-	// }
+	// 2. 加载 Providers (LLM, TTS, ASR, VLLLM)
+	var providers []storage.Provider
+	if err := r.db.Find(&providers).Error; err == nil {
+		if cfg.LLM == nil { cfg.LLM = make(map[string]config.LLMConfig) }
+		if cfg.TTS == nil { cfg.TTS = make(map[string]config.TTSConfig) }
+		if cfg.ASR == nil { cfg.ASR = make(map[string]interface{}) }
+		if cfg.VLLLM == nil { cfg.VLLLM = make(map[string]config.VLLLMConfig) }
 
-	// 将展平的映射重新构建为嵌套结构
-	nested := r.unflattenMap(configMap)
+		for _, p := range providers {
+			if !p.Enabled {
+				continue
+			}
+			
+			// 确保 Data 是正确的类型
+			var dataBytes []byte
+			if p.Config.Data != nil {
+				dataBytes, _ = json.Marshal(p.Config.Data)
+			}
 
-	// 调试：打印重建后的嵌套结构
-	// if asrSection, ok := nested["ASR"]; ok {
-	// 	asrJSON, _ := json.MarshalIndent(asrSection, "", "  ")
-	// 	fmt.Printf("DEBUG: Reconstructed nested config ASR section:\n%s\n", string(asrJSON))
-	// } else {
-	// 	fmt.Printf("DEBUG: ASR section not found in nested config\n")
-	// }
-
-	data, err := json.Marshal(nested)
-	if err != nil {
-		return nil, err
+			switch p.Type {
+			case "llm":
+				var llmConfig config.LLMConfig
+				if len(dataBytes) > 0 {
+					json.Unmarshal(dataBytes, &llmConfig)
+				}
+				cfg.LLM[p.ID] = llmConfig
+			case "tts":
+				var ttsConfig config.TTSConfig
+				if len(dataBytes) > 0 {
+					json.Unmarshal(dataBytes, &ttsConfig)
+				}
+				cfg.TTS[p.ID] = ttsConfig
+			case "asr":
+				var asrConfig map[string]interface{}
+				if len(dataBytes) > 0 {
+					json.Unmarshal(dataBytes, &asrConfig)
+				}
+				cfg.ASR[p.ID] = asrConfig
+			case "vllm":
+				var vllmConfig config.VLLLMConfig
+				if len(dataBytes) > 0 {
+					json.Unmarshal(dataBytes, &vllmConfig)
+				}
+				cfg.VLLLM[p.ID] = vllmConfig
+			}
+		}
 	}
 
-	// fmt.Printf("DEBUG: Final JSON data for unmarshaling:\n%s\n", string(data))
-
-	var cfg config.Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return nil, err
+	// 3. 加载 Plugins
+	var plugins []storage.Plugin
+	if err := r.db.Find(&plugins).Error; err == nil {
+		if cfg.Plugins == nil { cfg.Plugins = make(map[string]config.PluginConfig) }
+		
+		for _, p := range plugins {
+			var pluginConfig config.PluginConfig
+			pluginConfig.ID = p.ID
+			pluginConfig.Name = p.Name
+			pluginConfig.Type = p.Type
+			pluginConfig.Description = p.Description
+			pluginConfig.Enabled = p.Enabled
+			
+			if p.Config.Data != nil {
+				dataBytes, _ := json.Marshal(p.Config.Data)
+				json.Unmarshal(dataBytes, &pluginConfig.Config)
+			}
+			
+			cfg.Plugins[p.ID] = pluginConfig
+		}
 	}
 
-	// fmt.Printf("DEBUG: Unmarshaled config ASR field: %v\n", cfg.ASR)
-
-	return &cfg, nil
+	return cfg, nil
 }
 
 // configToMap 将配置对象转换为键值对映射
@@ -395,3 +527,4 @@ func (r *DatabaseRepository) getDescriptionFromKey(key string) string {
 	}
 	return fmt.Sprintf("%s 配置", category)
 }
+

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"errors"
 	"fmt"
@@ -10,12 +11,11 @@ import (
 
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
 	"xiaozhi-server-go/internal/platform/config"
-	coreproviders "xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/asr"
-	"xiaozhi-server-go/internal/core/providers/llm"
-	"xiaozhi-server-go/internal/core/providers/tts"
-	"xiaozhi-server-go/internal/core/providers/vlllm"
-	"xiaozhi-server-go/internal/utils"
+	"xiaozhi-server-go/internal/domain/providers/asr"
+	"xiaozhi-server-go/internal/domain/providers/llm"
+	"xiaozhi-server-go/internal/domain/providers/tts"
+	"xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/vlllm"
 )
 
 // Set groups together the provider instances required to serve a single
@@ -24,9 +24,9 @@ import (
 type Set struct {
 	manager *Manager
 
-	ASR   coreproviders.ASRProvider
-	LLM   coreproviders.LLMProvider
-	TTS   coreproviders.TTSProvider
+	ASR   types.ASRProvider
+	LLM   types.LLMProvider
+	TTS   types.TTSProvider
 	VLLLM *vlllm.Provider
 	MCP   *domainmcp.Manager
 }
@@ -64,12 +64,12 @@ func (s *Set) clear() {
 // relies on maps.Clone to ensure configuration maps are safely duplicated per
 // provider instance.
 type Manager struct {
-	logger  *utils.Logger
+	logger  *logging.Logger
 	modules map[string]string
 
-	asrPool   *providerPool[coreproviders.ASRProvider]
-	llmPool   *providerPool[coreproviders.LLMProvider]
-	ttsPool   *providerPool[coreproviders.TTSProvider]
+	asrPool   *providerPool[types.ASRProvider]
+	llmPool   *providerPool[types.LLMProvider]
+	ttsPool   *providerPool[types.TTSProvider]
 	vlllmPool *providerPool[*vlllm.Provider]
 	mcpPool   *providerPool[*domainmcp.Manager]
 
@@ -77,18 +77,18 @@ type Manager struct {
 }
 
 // NewManager initialises the provider pools declared in the supplied config.
-func NewManager(cfg *config.Config, logger *utils.Logger) (*Manager, error) {
+func NewManager(cfg *config.Config, logger *logging.Logger) (*Manager, error) {
 	return NewManagerWithMCP(cfg, logger, nil)
 }
 
 // NewManagerWithMCP initialises the provider pools with an optional pre-initialised MCP manager.
-func NewManagerWithMCP(cfg *config.Config, logger *utils.Logger, preInitMCPManager interface{}) (*Manager, error) {
+func NewManagerWithMCP(cfg *config.Config, logger *logging.Logger, preInitMCPManager interface{}) (*Manager, error) {
 	if cfg == nil {
 		return nil, fmt.Errorf("providers manager requires config")
 	}
 
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	modules := map[string]string{}
@@ -271,11 +271,11 @@ func (m *Manager) doWarmup(ctx context.Context, pool interface{}, poolType strin
 	// We need to use a helper function that can work with any pool type
 
 	switch p := pool.(type) {
-	case *providerPool[coreproviders.ASRProvider]:
+	case *providerPool[types.ASRProvider]:
 		warmupConcretePool(ctx, p, poolType, m.logger)
-	case *providerPool[coreproviders.LLMProvider]:
+	case *providerPool[types.LLMProvider]:
 		warmupConcretePool(ctx, p, poolType, m.logger)
-	case *providerPool[coreproviders.TTSProvider]:
+	case *providerPool[types.TTSProvider]:
 		warmupConcretePool(ctx, p, poolType, m.logger)
 	case *providerPool[*vlllm.Provider]:
 		warmupConcretePool(ctx, p, poolType, m.logger)
@@ -287,7 +287,7 @@ func (m *Manager) doWarmup(ctx context.Context, pool interface{}, poolType strin
 }
 
 // warmupConcretePool is a generic function to warmup any concrete pool type
-func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolType string, logger *utils.Logger) {
+func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolType string, logger *logging.Logger) {
 	warmSize := pool.warmSize
 
 	for i := 0; i < warmSize; i++ {
@@ -337,7 +337,7 @@ func warmupConcretePool[T any](ctx context.Context, pool *providerPool[T], poolT
 }
 
 // warmupMCPManager attempts to pre-warm the XiaoZhiMCPClient within an MCP Manager
-func warmupMCPManager(ctx context.Context, manager *domainmcp.Manager, logger *utils.Logger) {
+func warmupMCPManager(ctx context.Context, manager *domainmcp.Manager, logger *logging.Logger) {
 	if manager == nil {
 		return
 	}
@@ -444,7 +444,7 @@ func (m *Manager) releasePartial(ctx context.Context, set *Set) {
 
 type providerPool[T any] struct {
 	name    string
-	logger  *utils.Logger
+	logger  *logging.Logger
 	create  func(context.Context) (T, error)
 	reset   func(context.Context, T) error
 	destroy func(T) error
@@ -459,7 +459,7 @@ type providerPool[T any] struct {
 
 func newProviderPool[T any](
 	name string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	create func(context.Context) (T, error),
 	reset func(context.Context, T) error,
 	destroy func(T) error,
@@ -585,8 +585,8 @@ func (p *providerPool[T]) stats() map[string]int64 {
 func newASRPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
-) (*providerPool[coreproviders.ASRProvider], error) {
+	logger *logging.Logger,
+) (*providerPool[types.ASRProvider], error) {
 	name, ok := modules["ASR"]
 	if !ok || name == "" {
 		return nil, nil
@@ -607,7 +607,7 @@ func newASRPool(
 		providerType = name
 	}
 
-	create := func(ctx context.Context) (coreproviders.ASRProvider, error) {
+	create := func(ctx context.Context) (types.ASRProvider, error) {
 		data := maps.Clone(asrCfgMap)
 		provider, err := asr.Create(
 			providerType,
@@ -622,21 +622,21 @@ func newASRPool(
 		if err != nil {
 			return nil, err
 		}
-		coreProvider, ok := provider.(coreproviders.ASRProvider)
+		coreProvider, ok := provider.(types.ASRProvider)
 		if !ok {
-			return nil, fmt.Errorf("asr provider %s does not implement coreproviders.ASRProvider", name)
+			return nil, fmt.Errorf("asr provider %s does not implement types.ASRProvider", name)
 		}
 		return coreProvider, nil
 	}
 
-	reset := func(ct context.Context, provider coreproviders.ASRProvider) error {
+	reset := func(ct context.Context, provider types.ASRProvider) error {
 		if resetter, ok := any(provider).(interface{ Reset() error }); ok {
 			return resetter.Reset()
 		}
 		return nil
 	}
 
-	destroy := func(provider coreproviders.ASRProvider) error {
+	destroy := func(provider types.ASRProvider) error {
 		if provider == nil {
 			return nil
 		}
@@ -649,8 +649,8 @@ func newASRPool(
 func newLLMPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
-) (*providerPool[coreproviders.LLMProvider], error) {
+	logger *logging.Logger,
+) (*providerPool[types.LLMProvider], error) {
 	name, ok := modules["LLM"]
 	if !ok || name == "" {
 		return nil, nil
@@ -661,7 +661,7 @@ func newLLMPool(
 		return nil, fmt.Errorf("selected LLM provider %q is not configured", name)
 	}
 
-	create := func(ctx context.Context) (coreproviders.LLMProvider, error) {
+	create := func(ctx context.Context) (types.LLMProvider, error) {
 		extra := maps.Clone(llmCfg.Extra)
 		provider, err := llm.Create(
 			llmCfg.Type,
@@ -691,14 +691,14 @@ func newLLMPool(
 		return provider, nil
 	}
 
-	reset := func(ct context.Context, provider coreproviders.LLMProvider) error {
+	reset := func(ct context.Context, provider types.LLMProvider) error {
 		if resetter, ok := any(provider).(interface{ Reset() error }); ok {
 			return resetter.Reset()
 		}
 		return nil
 	}
 
-	destroy := func(provider coreproviders.LLMProvider) error {
+	destroy := func(provider types.LLMProvider) error {
 		if provider == nil {
 			return nil
 		}
@@ -714,8 +714,8 @@ func newLLMPool(
 func newTTSPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
-) (*providerPool[coreproviders.TTSProvider], error) {
+	logger *logging.Logger,
+) (*providerPool[types.TTSProvider], error) {
 	name, ok := modules["TTS"]
 	if !ok || name == "" {
 		return nil, nil
@@ -726,7 +726,7 @@ func newTTSPool(
 		return nil, fmt.Errorf("selected TTS provider %q is not configured", name)
 	}
 
-	create := func(ctx context.Context) (coreproviders.TTSProvider, error) {
+	create := func(ctx context.Context) (types.TTSProvider, error) {
 		provider, err := tts.Create(
 			ttsCfg.Type,
 			&tts.Config{
@@ -748,14 +748,14 @@ func newTTSPool(
 		return provider, nil
 	}
 
-	reset := func(ct context.Context, provider coreproviders.TTSProvider) error {
+	reset := func(ct context.Context, provider types.TTSProvider) error {
 		if resetter, ok := any(provider).(interface{ Reset() error }); ok {
 			return resetter.Reset()
 		}
 		return nil
 	}
 
-	destroy := func(provider coreproviders.TTSProvider) error {
+	destroy := func(provider types.TTSProvider) error {
 		if provider == nil {
 			return nil
 		}
@@ -768,7 +768,7 @@ func newTTSPool(
 func newVLLLMPool(
 	cfg *config.Config,
 	modules map[string]string,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*providerPool[*vlllm.Provider], error) {
 	name, ok := modules["VLLLM"]
 	if !ok || name == "" {
@@ -805,7 +805,7 @@ func newVLLLMPool(
 
 func newMCPPool(
 	cfg *config.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	preInitMCPManager interface{},
 ) (*providerPool[*domainmcp.Manager], error) {
 	create := func(ctx context.Context) (*domainmcp.Manager, error) {
@@ -840,3 +840,6 @@ func newMCPPool(
 
 	return newProviderPool("mcp", logger, create, reset, destroy), nil
 }
+
+
+

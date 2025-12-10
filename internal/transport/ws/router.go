@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 
 	"xiaozhi-server-go/internal/platform/observability"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // HandlerBuilder creates a session handler for an upgraded websocket connection.
@@ -19,7 +19,7 @@ type HandlerBuilder func(conn *Connection, req *http.Request) (SessionHandler, e
 // Router is responsible for upgrading HTTP connections to websocket sessions.
 type Router struct {
 	hub    *Hub
-	logger *utils.Logger
+	logger *logging.Logger
 
 	upgrader         *websocket.Upgrader
 	handshakeTimeout time.Duration
@@ -33,7 +33,7 @@ type RouterOptions struct {
 }
 
 // NewRouter constructs a websocket router.
-func NewRouter(hub *Hub, logger *utils.Logger, opts RouterOptions) *Router {
+func NewRouter(hub *Hub, logger *logging.Logger, opts RouterOptions) *Router {
 	upgrader := &websocket.Upgrader{
 		CheckOrigin: opts.CheckOrigin,
 	}
@@ -179,3 +179,6 @@ func resolveIdentifiers(req *http.Request, conn *websocket.Conn) (string, string
 	}
 	return deviceID, clientID
 }
+
+
+

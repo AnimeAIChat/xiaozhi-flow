@@ -115,3 +115,52 @@ type ModelSelection struct {
 func (ModelSelection) TableName() string {
 	return "model_selections"
 }
+
+// Workflow 工作流定义，用于可视化DAG编辑
+type Workflow struct {
+	ID          string        `gorm:"primaryKey" json:"id"` // UUID
+	Name        string        `gorm:"not null" json:"name"`
+	Description string        `gorm:"type:text" json:"description"`
+	GraphData   FlexibleJSON  `gorm:"type:json" json:"graph_data"` // Rete.js JSON数据
+	IsActive    bool          `gorm:"default:false" json:"is_active"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+}
+
+// TableName 指定表名
+func (Workflow) TableName() string {
+	return "workflows"
+}
+
+// Plugin 插件定义
+type Plugin struct {
+	ID          string        `gorm:"primaryKey" json:"id"`
+	Name        string        `gorm:"not null" json:"name"`
+	Type        string        `gorm:"not null" json:"type"` // e.g., "utility", "device"
+	Description string        `gorm:"type:text" json:"description"`
+	Config      FlexibleJSON  `gorm:"type:json" json:"config"` // 插件特定配置
+	Enabled     bool          `gorm:"default:false" json:"enabled"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+}
+
+// TableName 指定表名
+func (Plugin) TableName() string {
+	return "plugins"
+}
+
+// Provider 服务提供商定义 (LLM, TTS, ASR)
+type Provider struct {
+	ID          string        `gorm:"primaryKey" json:"id"`
+	Type        string        `gorm:"not null;index" json:"type"` // e.g., "llm", "tts", "asr"
+	Name        string        `gorm:"not null" json:"name"`       // e.g., "openai", "doubao"
+	Config      FlexibleJSON  `gorm:"type:json" json:"config"`    // 提供商特定配置 (API Key, URL等)
+	Enabled     bool          `gorm:"default:true" json:"enabled"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+}
+
+// TableName 指定表名
+func (Provider) TableName() string {
+	return "providers"
+}

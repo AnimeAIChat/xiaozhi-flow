@@ -1,6 +1,7 @@
 package httptransport
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,16 +13,18 @@ import (
 
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/observability"
-	"xiaozhi-server-go/internal/utils"
 	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
+	v1 "xiaozhi-server-go/internal/transport/http/v1"
+	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 // Options configures the HTTP router builder.
 type Options struct {
 	Config         *config.Config
-	Logger         *utils.Logger
+	Logger         *logging.Logger
 	AuthMiddleware gin.HandlerFunc
 	StaticRoot     string
+	Registry       *capability.Registry
 }
 
 // Router bundles together the gin engine and common route groups.
@@ -40,7 +43,7 @@ func Build(opts Options) (*Router, error) {
 	}
 	logger := opts.Logger
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	if opts.Config.Log.Level == "debug" {
@@ -69,12 +72,18 @@ func Build(opts Options) (*Router, error) {
 	api := engine.Group("/api")
 
 	// 创建 V1 API 路由组
-	v1 := api.Group("/v1")
-	v1.Use(httpMiddleware.VersionMiddleware())
+	v1Group := api.Group("/v1")
+	v1Group.Use(httpMiddleware.VersionMiddleware())
+
+	// Initialize Workflow Service
+	if opts.Registry != nil {
+		workflowService := v1.NewWorkflowService(opts.Config, logger, opts.Registry)
+		workflowService.RegisterRoutes(v1Group)
+	}
 
 	var v1Secure *gin.RouterGroup
 	if opts.AuthMiddleware != nil {
-		v1Secure = v1.Group("")
+		v1Secure = v1Group.Group("")
 		v1Secure.Use(opts.AuthMiddleware)
 	}
 
@@ -108,22 +117,16 @@ func Build(opts Options) (*Router, error) {
 			c.Status(404)
 		}
 	})
-	var secured *gin.RouterGroup
-	if opts.AuthMiddleware != nil {
-		secured = api.Group("")
-		secured.Use(opts.AuthMiddleware)
-	}
-
 	return &Router{
 		Engine:   engine,
 		API:      api,
-		Secured:  secured,
-		V1:       v1,
+		Secured:  nil,
+		V1:       v1Group,
 		V1Secure: v1Secure,
 	}, nil
 }
 
-func loggingMiddleware(logger *utils.Logger) gin.HandlerFunc {
+func loggingMiddleware(logger *logging.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
@@ -187,3 +190,6 @@ func observabilityMiddleware() gin.HandlerFunc {
 		)
 	}
 }
+
+
+

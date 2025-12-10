@@ -1,12 +1,11 @@
 package ws
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"net/http"
 	"sync"
 	"time"
-
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ServerConfig stores the settings required to expose the websocket transport.
@@ -21,13 +20,13 @@ type Server struct {
 	cfg     ServerConfig
 	hub     *Hub
 	router  *Router
-	logger  *utils.Logger
+	logger  *logging.Logger
 	httpSrv *http.Server
 	mu      sync.Mutex
 }
 
 // NewServer builds a websocket transport server.
-func NewServer(cfg ServerConfig, router *Router, hub *Hub, logger *utils.Logger) *Server {
+func NewServer(cfg ServerConfig, router *Router, hub *Hub, logger *logging.Logger) *Server {
 	if cfg.Path == "" {
 		cfg.Path = "/"
 	}
@@ -104,3 +103,6 @@ func (s *Server) Stop() error {
 func (s *Server) Counts() (int, int) {
 	return s.hub.Counts()
 }
+
+
+

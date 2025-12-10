@@ -1,17 +1,17 @@
 package manager
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
-	"xiaozhi-server-go/internal/domain/asr/infrastructure/adapters"
+	asr "xiaozhi-server-go/internal/domain/asr/infrastructure/adapters"
 	"xiaozhi-server-go/internal/domain/llm/infrastructure/adapters/openai"
 	"xiaozhi-server-go/internal/domain/tts/infrastructure/adapters/edge"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // UnifiedProviderManager 统一提供者管理器
@@ -19,7 +19,7 @@ import (
 type UnifiedProviderManager struct {
 	sessionID      string
 	config         *config.Config
-	logger         *utils.Logger
+	logger         *logging.Logger
 	isInitialized  bool
 
 	// 提供者注册表
@@ -62,9 +62,9 @@ type Config struct {
 }
 
 // NewUnifiedProviderManager 创建统一提供者管理器
-func NewUnifiedProviderManager(cfg *config.Config, logger *utils.Logger) *UnifiedProviderManager {
+func NewUnifiedProviderManager(cfg *config.Config, logger *logging.Logger) *UnifiedProviderManager {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -119,9 +119,27 @@ func (m *UnifiedProviderManager) Cleanup() error {
 	defer m.mutex.Unlock()
 
 	// 清理所有活跃的提供者
-	m.cleanupProviders(m.activeASRProviders)
-	m.cleanupProviders(m.activeLLMProviders)
-	m.cleanupProviders(m.activeTTSProviders)
+	for name, provider := range m.activeASRProviders {
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				m.logger.WarnTag("ProviderManager", "关闭ASR提供者 %s 失败: %v", name, err)
+			}
+		}
+	}
+	for name, provider := range m.activeLLMProviders {
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				m.logger.WarnTag("ProviderManager", "关闭LLM提供者 %s 失败: %v", name, err)
+			}
+		}
+	}
+	for name, provider := range m.activeTTSProviders {
+		if closer, ok := provider.(interface{ Close() error }); ok {
+			if err := closer.Close(); err != nil {
+				m.logger.WarnTag("ProviderManager", "关闭TTS提供者 %s 失败: %v", name, err)
+			}
+		}
+	}
 
 	// 清空提供者映射
 	m.activeASRProviders = make(map[string]contractProviders.ASRProvider)
@@ -281,7 +299,7 @@ func (m *UnifiedProviderManager) warmupProviders() error {
 	}
 
 	// 预热LLM提供者（如果配置了）
-	if m.config.LLM.OpenAI.APIKey != "" {
+	if llmCfg, ok := m.config.LLM["openai"]; ok && llmCfg.APIKey != "" {
 		llmProvider, err := m.CreateLLMProvider("openai", m.config, options)
 		if err != nil {
 			m.logger.WarnTag("ProviderManager", "预热OpenAI LLM提供者失败: %v", err)
@@ -330,17 +348,6 @@ func (m *UnifiedProviderManager) startHealthCheckRoutine() {
 
 			if totalCount > 0 {
 				m.logger.DebugTag("ProviderManager", "健康检查完成: %d/%d 提供者健康", healthyCount, totalCount)
-			}
-		}
-	}
-}
-
-// cleanupProviders 清理提供者
-func (m *UnifiedProviderManager) cleanupProviders(providers map[string]interface{}) {
-	for name, provider := range providers {
-		if closer, ok := provider.(interface{ Close() error }); ok {
-			if err := closer.Close(); err != nil {
-				m.logger.WarnTag("ProviderManager", "关闭提供者 %s 失败: %v", name, err)
 			}
 		}
 	}
@@ -413,3 +420,5 @@ func (ps *ProviderStats) addLatency(latency time.Duration) {
 		ps.AverageLatency = total / time.Duration(len(ps.requestLatencies))
 	}
 }
+
+

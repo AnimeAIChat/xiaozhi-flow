@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"xiaozhi-server-go/internal/domain/auth"
 	"xiaozhi-server-go/internal/domain/llm"
 	"xiaozhi-server-go/internal/platform/config"
 
@@ -32,7 +31,6 @@ type XiaoZhiMCPClient struct {
 	ctx      context.Context
 	logger   Logger
 	cfg      *config.Config
-	auth     *auth.Manager
 	isReady  bool
 	readyCh  chan struct{}
 
@@ -49,13 +47,12 @@ type XiaoZhiMCPClient struct {
 	toolNameMap map[string]string
 }
 
-func NewXiaoZhiMCPClient(logger Logger, cfg *config.Config, auth *auth.Manager) (*XiaoZhiMCPClient, error) {
+func NewXiaoZhiMCPClient(logger Logger, cfg *config.Config) (*XiaoZhiMCPClient, error) {
 	c := &XiaoZhiMCPClient{
 		tools:       make([]Tool, 0),
 		mu:          sync.RWMutex{},
 		logger:      logger,
 		cfg:         cfg,
-		auth:        auth,
 		isReady:     false,
 		readyCh:     make(chan struct{}),
 		callResults: make(map[int]chan interface{}),
@@ -76,16 +73,9 @@ func (c *XiaoZhiMCPClient) SetID(deviceID string, clientID string) {
 
 // SetToken sets the authentication token
 func (c *XiaoZhiMCPClient) SetToken(token string) {
-	auth := auth.NewAuthToken(token)
-	visionToken, err := auth.GenerateToken(c.deviceID)
-	if err != nil {
-		c.logger.Error("生成Vision Token失败: %v", err)
-		return
-	}
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.token = visionToken
+	c.token = token
 }
 
 // SetVisionURL sets the vision service URL

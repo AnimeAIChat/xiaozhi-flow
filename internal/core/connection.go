@@ -16,7 +16,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/sashabaranov/go-openai"
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	"xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/service"
 	domainimage "xiaozhi-server-go/internal/domain/image"
@@ -30,12 +29,16 @@ import (
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/storage"
 	"xiaozhi-server-go/internal/domain/chat"
-	"xiaozhi-server-go/internal/core/pool"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/llm"
-	"xiaozhi-server-go/internal/core/providers/tts"
-	"xiaozhi-server-go/internal/core/providers/vlllm"
+	domainproviders "xiaozhi-server-go/internal/domain/providers"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/llm"
+	"xiaozhi-server-go/internal/domain/providers/tts"
+	"xiaozhi-server-go/internal/domain/providers/vlllm"
+	"xiaozhi-server-go/internal/plugin/capability"
 	internalutils "xiaozhi-server-go/internal/utils"
+	internallogging "xiaozhi-server-go/internal/platform/logging"
+	"xiaozhi-server-go/internal/core/components"
+	"xiaozhi-server-go/internal/plugin/providers/core"
 )
 
 type Connection interface {
@@ -62,12 +65,15 @@ type llmConfigGetter interface {
 type ConnectionHandler struct {
 	// 确保实现 AsrEventListener 接口
 	_                providers.AsrEventListener
+	// Ensure implementation of MCPDispatcher interfaces
+	_                components.Speaker
+	_                components.AudioSender
+	
 	config           *config.Config
-	logger           *internalutils.Logger // TODO: 待logger.go迁移后更新
+	logger           *internallogging.Logger // TODO: 待logger.go迁移后更新
 	conn             Connection
 	closeOnce        sync.Once
 	taskMgr          *task.TaskManager
-	authManager      *domainauth.AuthManager // 认证管理器
 	safeCallbackFunc func(func(*ConnectionHandler)) func()
 	providers        struct {
 		asr   providers.ASRProvider
@@ -80,6 +86,7 @@ type ConnectionHandler struct {
 	llmManager    *domainllm.Manager
 	ttsManager    *domaintts.Manager
 	configService *service.ConfigService // 配置服务
+	registry      *capability.Registry   // 插件注册表
 
 	initialVoice    string // 初始语音名称
 	ttsProviderName string // 默认TTS提供者名称
@@ -116,6 +123,7 @@ type ConnectionHandler struct {
 	serverVoiceStop int32 // 1表示true服务端语音停止, 不再下发语音数据
 	asrPause        int32 // 1 表示暂停将来自客户端的音频发送到 ASR（例如 TTS 播放期间）
 	ttsPending      int32 // 当前待播放的TTS段数量
+	llmGenerating   int32 // 1表示LLM正在生成回复
 
 	opusDecoder *internalutils.OpusDecoder // Opus解码器
 
@@ -157,18 +165,25 @@ type ConnectionHandler struct {
 
 	mcpResultHandlers map[string]func(interface{}) // MCP处理器映射
 	ctx               context.Context
-}
 
+	// Components
+	responseSender   *components.ResponseSender
+	audioProcessor   *components.AudioProcessor
+	mcpDispatcher    *components.MCPDispatcher
+	conversationLoop *components.ConversationLoop
+}
 // NewConnectionHandler 创建新的连接处理器
 func NewConnectionHandler(
 	config *config.Config,
-	providerSet *pool.ProviderSet,
-	logger *internalutils.Logger, // TODO: 待logger.go迁移后更新
+	providerSet *domainproviders.Set,
+	registry *capability.Registry,
+	logger *internallogging.Logger, // TODO: 待logger.go迁移后更新
 	req *http.Request,
 	ctx context.Context,
 ) *ConnectionHandler {
 	handler := &ConnectionHandler{
 		config:           config,
+		registry:         registry,
 		logger:           logger,
 		clientListenMode: "auto",
 		stopChan:         make(chan struct{}),
@@ -194,6 +209,7 @@ func NewConnectionHandler(
 		talkRound: 0,
 
 		serverAudioFormat:        "opus", // 默认使用Opus格式
+		audioProcessor:           components.NewAudioProcessor(logger, "opus"),
 		serverAudioSampleRate:    24000,
 		serverAudioChannels:      1,
 		serverAudioFrameDuration: 60,
@@ -202,6 +218,32 @@ func NewConnectionHandler(
 
 		headers: make(map[string]string),
 	}
+	
+	// Initialize MCP Dispatcher
+	// Note: dialogueManager is initialized later in InitWithAgent, so we might need to update dispatcher then.
+	// Or we can initialize dialogueManager here if possible, or make dispatcher use a getter.
+	// For now, let's initialize dialogueManager here if it's not dependent on agent.
+	// Looking at InitWithAgent, it seems dialogueManager is initialized there.
+	// So we should probably initialize dispatcher in InitWithAgent or update it.
+	// Let's move dispatcher initialization to InitWithAgent or after InitWithAgent is called.
+	// But NewConnectionHandler returns handler, and InitWithAgent is called later.
+	// So we can initialize dispatcher with nil dialogueManager and set it later?
+	// Or better, make ConnectionHandler implement DialogueManagerProvider interface?
+	// Let's stick to updating it in InitWithAgent for now, or just initialize it here with nil and set it later.
+	// Actually, let's initialize it here but we need to be careful about nil pointer.
+	// Wait, dialogueManager is created in InitWithAgent?
+	// Let's check InitWithAgent.
+	
+	handler.mcpDispatcher = components.NewMCPDispatcher(
+		logger,
+		handler,
+		handler.providers.tts,
+		nil, // Will be set in InitWithAgent
+		handler.config,
+		handler,
+		handler.agentID,
+		&handler.closeAfterChat,
+	)
 
 	for key, values := range req.Header {
 		if len(values) > 0 {
@@ -251,10 +293,29 @@ func NewConnectionHandler(
 	// 初始化新架构的 LLM 和 TTS Manager
 	handler.initManagers(config)
 
+	// Register Core Provider
+	if providerSet != nil {
+		coreProvider := core.NewCoreProvider(providerSet.ASR, providerSet.LLM, providerSet.TTS)
+		registry.Register("core", coreProvider)
+	}
+
 	// 初始化对话管理器
 	handler.dialogueManager = chat.NewDialogueManager(handler.logger, nil)
 	handler.dialogueManager.SetSystemMessage(prompt)
 	handler.functionRegister = domainllminfra.NewFunctionRegistry()
+	
+	// Re-initialize MCP Dispatcher with initialized dependencies
+	handler.mcpDispatcher = components.NewMCPDispatcher(
+		logger,
+		handler,
+		handler.providers.tts,
+		handler.dialogueManager,
+		handler.config,
+		handler,
+		handler.agentID,
+		&handler.closeAfterChat,
+	)
+	
 	handler.initMCPResultHandlers()
 
 	return handler
@@ -476,6 +537,25 @@ func (h *ConnectionHandler) Handle(conn Connection) {
 	defer conn.Close()
 
 	h.conn = conn
+	h.responseSender = components.NewResponseSender(conn, h.logger, h.sessionID)
+
+	// Initialize ConversationLoop
+	h.conversationLoop = components.NewConversationLoop(
+		h.logger,
+		h.sessionID,
+		h.dialogueManager,
+		h.llmManager,
+		h.providers.llm,
+		h.ttsManager,
+		h.responseSender,
+		h.mcpDispatcher,
+		h.config,
+		h.functionRegister,
+		h,
+		h.config.Selected.TTS,
+	)
+	h.conversationLoop.Start()
+	defer h.conversationLoop.Stop()
 
 	// 启动消息处理协程
 	go h.processClientAudioMessagesCoroutine() // 添加客户端音频消息处理协程
@@ -587,27 +667,18 @@ func (h *ConnectionHandler) processClientAudioMessagesCoroutine() {
 		case <-h.stopChan:
 			h.LogDebug("[协程] [音频队列] 收到停止信号，退出协程")
 			return
-		case audioData := <-h.clientAudioQueue:
+		case data := <-h.clientAudioQueue:
 			// 如果已设置为在播放服务端语音时暂停ASR，则跳过发送到ASR
 			if atomic.LoadInt32(&h.asrPause) == 1 {
 				h.LogDebug("[协程] [音频队列] 当前处于ASR暂停状态，跳过发送客户端音频到ASR")
 				continue
 			}
-			if h.closeAfterChat {
-				h.LogInfo(fmt.Sprintf("[协程] [音频队列] 检测到新音频输入，重新开启对话模式，样本大小=%d", len(audioData)))
-				h.closeAfterChat = false
-				atomic.StoreInt32(&h.asrPause, 0)
-				if h.providers.asr != nil {
-					h.providers.asr.ResetSilenceCount()
-					if err := h.providers.asr.Reset(); err != nil {
-						h.LogError(fmt.Sprintf("重置ASR状态失败: %v", err))
-						continue
-					}
+
+			// 将音频数据发送给ASR提供者
+			if h.providers.asr != nil {
+				if err := h.providers.asr.AddAudio(data); err != nil {
+					h.LogError(fmt.Sprintf("ASR添加音频失败: %v", err))
 				}
-			}
-			h.LogDebug(fmt.Sprintf("[协程] [音频队列] 转发音频到ASR，样本大小=%d", len(audioData)))
-			if err := h.providers.asr.AddAudio(audioData); err != nil {
-				h.LogError(fmt.Sprintf("处理音频数据失败: %v", err))
 			}
 		}
 	}
@@ -623,7 +694,7 @@ func (h *ConnectionHandler) sendAudioMessageCoroutine() {
 			h.LogDebug("[协程] [音频发送] 收到停止信号，退出协程")
 			return
 		case task := <-h.audioMessagesQueue:
-			h.sendAudioMessage(task.filepath, task.text, task.textIndex, task.round)
+			h.SendAudioMessage(task.filepath, task.text, task.textIndex, task.round)
 		}
 	}
 }
@@ -791,7 +862,29 @@ clearedAudioQueue:
 }
 
 func (h *ConnectionHandler) genResponseByLLM(ctx context.Context, messages []providers.Message, round int) error {
+	atomic.StoreInt32(&h.llmGenerating, 1)
+	// h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM start, set llmGenerating=1, round=%d", round))
 	defer func() {
+		atomic.StoreInt32(&h.llmGenerating, 0)
+		// h.LogInfo(fmt.Sprintf("[DEBUG] genResponseByLLM end, set llmGenerating=0, round=%d", round))
+
+		// 检查是否需要清除讲话状态
+		// 如果TTS队列为空，说明所有音频都已发送完毕（或者根本没有音频）
+		// 此时如果SendAudioMessage已经执行完毕（pending=0），它可能因为当时llmGenerating=1而没有清除状态
+		// 所以这里需要补救
+		pending := atomic.LoadInt32(&h.ttsPending)
+		if pending == 0 {
+			h.LogInfo("[LLM] 生成结束且无待播放音频，清除讲话状态")
+			h.sendTTSMessage("stop", "", h.tts_last_text_index)
+			// 恢复ASR接收移至 clearSpeakStatus 中处理
+			// atomic.StoreInt32(&h.asrPause, 0)
+			if h.closeAfterChat {
+				h.Close()
+			} else {
+				h.clearSpeakStatus()
+			}
+		}
+
 		if r := recover(); r != nil {
 			h.LogError(fmt.Sprintf("genResponseByLLM发生panic: %v", r))
 			errorMsg := "抱歉，处理您的请求时发生了错误"
@@ -1193,10 +1286,12 @@ func (h *ConnectionHandler) addToolCallMessage(toolResultText string, functionCa
 	functionID := functionCallData["id"].(string)
 	functionName := functionCallData["name"].(string)
 	functionArguments := functionCallData["arguments"].(string)
-	if len(toolResultText) > 20 {
-		toolResultText = toolResultText[:20] + "..."
+	
+	logText := toolResultText
+	if len(logText) > 20 {
+		logText = logText[:20] + "..."
 	}
-	h.LogInfo(fmt.Sprintf("函数调用结果: %s", toolResultText))
+	h.LogInfo(fmt.Sprintf("函数调用结果: %s", logText))
 	h.LogInfo(fmt.Sprintf("函数调用参数: %s", functionArguments))
 	h.LogInfo(fmt.Sprintf("函数调用名称: %s", functionName))
 	h.LogInfo(fmt.Sprintf("函数调用ID: %s", functionID))
@@ -1333,6 +1428,11 @@ func (h *ConnectionHandler) deleteAudioFileIfNeeded(filepath string, reason stri
 	}
 }
 
+// AddTTSPending 增加或减少TTS待处理任务计数
+func (h *ConnectionHandler) AddTTSPending(delta int32) {
+	atomic.AddInt32(&h.ttsPending, delta)
+}
+
 // processTTSTask 处理单个TTS任务
 func (h *ConnectionHandler) processTTSTask(text string, textIndex int, round int, filepath string) {
 	hasAudio := false
@@ -1375,11 +1475,62 @@ func (h *ConnectionHandler) processTTSTask(text string, textIndex int, round int
 	text = cleanText
 	logText := internalutils.SanitizeForLog(text)
 
-	// 生成语音文件
-	generatedFile, err := h.ttsManager.ToTTS(text)
-	if err != nil {
-		h.LogError(fmt.Sprintf("TTS转换失败:text(%s) %v", logText, err))
-		return
+	// 尝试使用插件系统
+	var generatedFile string
+	var err error
+
+	if h.registry != nil {
+		// 获取配置的TTS提供者
+		ttsProviderName := h.config.Selected.TTS
+		if ttsProviderName == "" {
+			ttsProviderName = "builtin_tts"
+		}
+
+		// 尝试获取执行器
+		executor, err := h.registry.GetExecutor(ttsProviderName)
+		if err == nil {
+			// 准备配置
+			config := map[string]interface{}{}
+			
+			// 注入全局配置
+			if h.config != nil && h.config.TTS != nil {
+				if ttsConfig, ok := h.config.TTS[ttsProviderName]; ok {
+					config["app_id"] = ttsConfig.AppID
+					config["token"] = ttsConfig.Token
+					config["api_key"] = ttsConfig.Token // Map Token to api_key
+					config["cluster"] = ttsConfig.Cluster
+					config["voice"] = ttsConfig.Voice
+					// 如果需要更多字段，可能需要扩展TTSConfig或使用Extra字段
+				}
+			}
+			
+			// 如果是builtin_tts，需要指定engine
+			if ttsProviderName == "builtin_tts" {
+				config["engine"] = "doubao" // 默认
+			}
+
+			inputs := map[string]interface{}{
+				"text": text,
+			}
+
+			outputs, execErr := executor.Execute(context.Background(), config, inputs)
+			if execErr == nil {
+				if path, ok := outputs["file_path"].(string); ok {
+					generatedFile = path
+				}
+			} else {
+				h.LogError(fmt.Sprintf("插件TTS执行失败(%s): %v，回退到旧版管理器", ttsProviderName, execErr))
+			}
+		}
+	}
+
+	// 如果插件执行失败或未启用，回退到旧版管理器
+	if generatedFile == "" {
+		generatedFile, err = h.ttsManager.ToTTS(text)
+		if err != nil {
+			h.LogError(fmt.Sprintf("TTS转换失败:text(%s) %v", logText, err))
+			return
+		}
 	}
 
 	filepath = generatedFile
@@ -1688,3 +1839,5 @@ func (h *ConnectionHandler) initManagers(config *config.Config) {
 func (h *ConnectionHandler) GetDeviceID() string {
 	return h.deviceID
 }
+
+

@@ -1,6 +1,7 @@
 package image
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -8,20 +9,19 @@ import (
 	"io"
 
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // Pipeline orchestrates streaming ingestion, validation, and encoding of image payloads.
 type Pipeline struct {
 	validator *SecurityValidator
-	logger    *utils.Logger
+	logger    *logging.Logger
 	security  *config.SecurityConfig
 }
 
 // Options configures the pipeline behaviour.
 type Options struct {
 	Security *config.SecurityConfig
-	Logger   *utils.Logger
+	Logger   *logging.Logger
 }
 
 // Input describes a streaming image payload.
@@ -46,7 +46,7 @@ func NewPipeline(opts Options) (*Pipeline, error) {
 		return nil, fmt.Errorf("security config is required")
 	}
 	if opts.Logger == nil {
-		opts.Logger = utils.DefaultLogger
+		opts.Logger = logging.DefaultLogger
 	}
 
 	validator := NewSecurityValidator(opts.Security, opts.Logger)
@@ -117,3 +117,6 @@ func (p *Pipeline) Process(ctx context.Context, input Input) (*Output, error) {
 		Validation:   validation,
 	}, nil
 }
+
+
+

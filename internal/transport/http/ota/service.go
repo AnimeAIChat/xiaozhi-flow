@@ -1,6 +1,7 @@
 package ota
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -16,7 +17,6 @@ import (
 	"xiaozhi-server-go/internal/domain/device/service"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
-	"xiaozhi-server-go/internal/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +26,7 @@ type Service struct {
 	updateURL     string
 	config        *config.Config
 	deviceService *service.DeviceService
-	logger        *utils.Logger
+	logger        *logging.Logger
 }
 
 // NewService 创建新的OTA服务实例
@@ -34,7 +34,7 @@ func NewService(
 	updateURL string,
 	config *config.Config,
 	deviceService *service.DeviceService,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) (*Service, error) {
 	if config == nil {
 		return nil, errors.Wrap(errors.KindConfig, "ota.new", "config is required", nil)
@@ -468,3 +468,5 @@ func (s *Service) respondError(c *gin.Context, statusCode int, message string) {
 		"message": message,
 	})
 }
+
+

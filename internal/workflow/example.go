@@ -6,7 +6,11 @@ import (
 	"log"
 	"strings"
 	"time"
+
+	"xiaozhi-server-go/internal/plugin/capability"
 )
+
+var logger = &SimpleLogger{}
 
 // SimpleLogger 简单日志实现
 type SimpleLogger struct{}
@@ -401,21 +405,21 @@ func RunExample() {
 	logger := &SimpleLogger{}
 
 	// 创建组件
-	pluginManager := NewHTTPPluginManager(logger)
+	registry := capability.NewRegistry()
 	dagEngine := NewDAGEngine(logger)
 	dataFlow := NewDataFlowEngine(dagEngine, logger)
-	executor := NewWorkflowExecutor(pluginManager, dagEngine, dataFlow, logger)
+	executor := NewWorkflowExecutor(nil, registry, dagEngine, dataFlow, logger)
 
 	// 启动插件
-	plugins := []string{"http-plugin-1", "http-plugin-2", "http-plugin-3", "http-plugin-4"}
-	for _, pluginID := range plugins {
-		plugin, err := pluginManager.StartPlugin(context.Background(), pluginID)
-		if err != nil {
-			logger.Error("Failed to start plugin", "plugin_id", pluginID, "error", err)
-			return
-		}
-		logger.Info("Plugin started", "plugin_id", pluginID, "name", plugin.Name)
-	}
+	// plugins := []string{"http-plugin-1", "http-plugin-2", "http-plugin-3", "http-plugin-4"}
+	// for _, pluginID := range plugins {
+	// 	plugin, err := pluginManager.StartPlugin(context.Background(), pluginID)
+	// 	if err != nil {
+	// 		logger.Error("Failed to start plugin", "plugin_id", pluginID, "error", err)
+	// 		return
+	// 	}
+	// 	logger.Info("Plugin started", "plugin_id", pluginID, "name", plugin.Name)
+	// }
 
 	// 创建工作流
 	workflow := CreateExampleWorkflow()
@@ -468,7 +472,7 @@ func RunExample() {
 
 // monitorExecution 监控执行状态
 func monitorExecution(executor WorkflowExecutor, executionID string) {
-	ctx := context.Background()
+	// ctx := context.Background() // Unused
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 

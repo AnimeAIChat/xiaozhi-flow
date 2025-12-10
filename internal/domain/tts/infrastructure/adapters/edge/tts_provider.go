@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"os"
@@ -9,9 +10,8 @@ import (
 	"time"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
-	"xiaozhi-server-go/internal/utils"
 
-	"github.com/wujunwei928/edge-tts-go/edge_tts"
+	// "github.com/wujunwei928/edge-tts-go/edge_tts"
 )
 
 // EdgeTTSProvider Edge TTS提供者的新架构实现
@@ -20,7 +20,7 @@ type EdgeTTSProvider struct {
 	sessionID     string
 	providerType  string
 	isInitialized bool
-	logger        *utils.Logger
+	logger        *logging.Logger
 
 	// Edge TTS特有配置
 	voice       string
@@ -89,9 +89,9 @@ type CircuitBreaker struct {
 }
 
 // NewEdgeTTSProvider 创建新的Edge TTS提供者
-func NewEdgeTTSProvider(config Config, logger *utils.Logger) *EdgeTTSProvider {
+func NewEdgeTTSProvider(config Config, logger *logging.Logger) *EdgeTTSProvider {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	provider := &EdgeTTSProvider{
@@ -387,23 +387,19 @@ func (p *EdgeTTSProvider) performSynthesis(ctx context.Context, text string, opt
 	}
 
 	// 创建Edge TTS通信
-	communicate, err := edge_tts.New(voice)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Edge TTS communicator: %w", err)
-	}
-	defer communicate.Close()
+	// communicate, err := edge_tts.NewCommunicate(voice)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to create Edge TTS communicator: %w", err)
+	// }
+	// defer communicate.Close()
 
-	// 执行语音合成
-	startTime := time.Now()
-	audioData, err := communicate.Output(text)
-	if err != nil {
-		return nil, fmt.Errorf("Edge TTS synthesis failed: %w", err)
-	}
-
-	duration := time.Since(startTime)
-	p.logger.DebugTag("EdgeTTS", "语音合成耗时: %v, SessionID: %s", duration, p.sessionID)
-
-	return audioData, nil
+	// // 执行语音合成
+	// startTime := time.Now()
+	// audioData, err := communicate.Output(text)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Edge TTS synthesis failed: %w", err)
+	// }
+	return nil, fmt.Errorf("edge-tts implementation pending")
 }
 
 // mergeOptions 合并选项
@@ -568,3 +564,5 @@ func (cb *CircuitBreaker) recordFailure() {
 		cb.state = 1 // open
 	}
 }
+
+

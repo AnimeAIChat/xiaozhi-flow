@@ -115,10 +115,13 @@ func ConnectDatabaseWithConfig(config DatabaseConnection) error {
 	// Set global database instance only after successful validation
 	SetDB(gormDB)
 
-	// For existing databases, DO NOT run AutoMigrate
-	// AutoMigrate can reset data in existing tables
-	// The database should already have the correct schema from previous initialization
-	fmt.Printf("数据库已成功连接\n")
+	// Auto-migrate tables to ensure schema is up to date
+	// This is safe as AutoMigrate only adds missing tables/columns and doesn't delete data
+	if err := gormDB.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}, &Workflow{}, &Plugin{}, &Provider{}); err != nil {
+		return fmt.Errorf("failed to migrate database schema: %w", err)
+	}
+
+	// fmt.Printf("数据库已成功连接\n")
 	return nil
 }
 
@@ -191,7 +194,7 @@ func silentInitDatabase() error {
 	}
 
 	// Auto-migrate tables for existing database
-	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
+	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}, &Workflow{}, &Plugin{}, &Provider{}); err != nil {
 		return fmt.Errorf("failed to migrate existing database: %w", err)
 	}
 
@@ -262,7 +265,7 @@ func actualInitDatabase() error {
 	}
 
 	// Auto-migrate tables for existing database
-	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
+	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}, &Workflow{}, &Plugin{}, &Provider{}); err != nil {
 		return fmt.Errorf("failed to migrate existing database: %w", err)
 	}
 
@@ -570,7 +573,7 @@ func initDatabaseWithConnection(config DatabaseConnection) error {
 	}
 
 	// Auto-migrate tables
-	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}); err != nil {
+	if err := db.AutoMigrate(&AuthClient{}, &DomainEvent{}, &ConfigRecord{}, &ConfigSnapshot{}, &ModelSelection{}, &User{}, &Device{}, &Agent{}, &AgentDialog{}, &VerificationCode{}, &Workflow{}, &Plugin{}, &Provider{}); err != nil {
 		return fmt.Errorf("failed to migrate database: %w", err)
 	}
 

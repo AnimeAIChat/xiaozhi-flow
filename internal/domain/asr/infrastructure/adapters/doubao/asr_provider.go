@@ -1,21 +1,13 @@
 package doubao
 
 import (
-	"bytes"
-	"compress/gzip"
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
-	"encoding/binary"
-	"encoding/json"
 	"fmt"
-	"net/http"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
-	"xiaozhi-server-go/internal/utils"
 	"xiaozhi-server-go/internal/transport/ws"
 
 	"github.com/gorilla/websocket"
@@ -56,7 +48,7 @@ type DoubaoASRProvider struct {
 	isInitialized  bool
 	isListening    bool
 	eventListener  contractProviders.ASREventListener
-	logger         *utils.Logger
+	logger         *logging.Logger
 
 	// 豆包特有配置
 	appID         string
@@ -133,9 +125,9 @@ type CircuitBreaker struct {
 }
 
 // NewDoubaoASRProvider 创建新的Doubao ASR提供者
-func NewDoubaoASRProvider(config Config, logger *utils.Logger) *DoubaoASRProvider {
+func NewDoubaoASRProvider(config Config, logger *logging.Logger) *DoubaoASRProvider {
 	if logger == nil {
-		logger = utils.DefaultLogger
+		logger = logging.DefaultLogger
 	}
 
 	provider := &DoubaoASRProvider{
@@ -463,3 +455,5 @@ func (cb *CircuitBreaker) recordFailure() {
 		cb.state = 1 // open
 	}
 }
+
+

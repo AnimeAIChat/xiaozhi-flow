@@ -1,25 +1,25 @@
 package factory
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"sync"
 
 	contractProviders "xiaozhi-server-go/internal/contracts/providers"
 	"xiaozhi-server-go/internal/contracts/manager"
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // ProviderFactory 提供者工厂接口
 type ProviderFactory interface {
 	// CreateASRProvider 创建ASR提供者
-	CreateASRProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.ASRProvider, error)
+	CreateASRProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.ASRProvider, error)
 
 	// CreateLLMProvider 创建LLM提供者
-	CreateLLMProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.LLMProvider, error)
+	CreateLLMProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.LLMProvider, error)
 
 	// CreateTTSProvider 创建TTS提供者
-	CreateTTSProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.TTSProvider, error)
+	CreateTTSProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.TTSProvider, error)
 
 	// GetSupportedProviders 获取支持的提供者类型
 	GetSupportedProviders() map[string][]string
@@ -32,11 +32,11 @@ type ProviderFactory interface {
 type DefaultProviderFactory struct {
 	registry contractProviders.ProviderRegistry
 	config   *config.Config
-	logger   *utils.Logger
+	logger   *logging.Logger
 }
 
 // NewDefaultProviderFactory 创建默认提供者工厂
-func NewDefaultProviderFactory(cfg *config.Config, logger *utils.Logger) ProviderFactory {
+func NewDefaultProviderFactory(cfg *config.Config, logger *logging.Logger) ProviderFactory {
 	factory := &DefaultProviderFactory{
 		registry: contractProviders.NewDefaultProviderRegistry(),
 		config:   cfg,
@@ -61,7 +61,7 @@ func (f *DefaultProviderFactory) registerBuiltinProviders() {
 }
 
 // CreateASRProvider 创建ASR提供者
-func (f *DefaultProviderFactory) CreateASRProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.ASRProvider, error) {
+func (f *DefaultProviderFactory) CreateASRProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.ASRProvider, error) {
 	if f == nil {
 		return nil, fmt.Errorf("provider factory not initialized")
 	}
@@ -78,7 +78,7 @@ func (f *DefaultProviderFactory) CreateASRProvider(providerType string, cfg *con
 }
 
 // CreateLLMProvider 创建LLM提供者
-func (f *DefaultProviderFactory) CreateLLMProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.LLMProvider, error) {
+func (f *DefaultProviderFactory) CreateLLMProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.LLMProvider, error) {
 	if f == nil {
 		return nil, fmt.Errorf("provider factory not initialized")
 	}
@@ -95,7 +95,7 @@ func (f *DefaultProviderFactory) CreateLLMProvider(providerType string, cfg *con
 }
 
 // CreateTTSProvider 创建TTS提供者
-func (f *DefaultProviderFactory) CreateTTSProvider(providerType string, cfg *config.Config, logger *utils.Logger) (contractProviders.TTSProvider, error) {
+func (f *DefaultProviderFactory) CreateTTSProvider(providerType string, cfg *config.Config, logger *logging.Logger) (contractProviders.TTSProvider, error) {
 	if f == nil {
 		return nil, fmt.Errorf("provider factory not initialized")
 	}
@@ -148,7 +148,7 @@ var (
 )
 
 // GetProviderFactory 获取全局提供者工厂（单例模式）
-func GetProviderFactory(cfg *config.Config, logger *utils.Logger) ProviderFactory {
+func GetProviderFactory(cfg *config.Config, logger *logging.Logger) ProviderFactory {
 	once.Do(func() {
 		holder = &ProviderFactoryHolder{
 			factory: NewDefaultProviderFactory(cfg, logger),
@@ -162,3 +162,5 @@ func ResetProviderFactory() {
 	once = sync.Once{}
 	holder = nil
 }
+
+

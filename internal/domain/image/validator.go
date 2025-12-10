@@ -1,6 +1,7 @@
 package image
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -14,19 +15,18 @@ import (
 	_ "golang.org/x/image/webp"
 
 	"xiaozhi-server-go/internal/platform/config"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // SecurityValidator performs layered security checks against incoming image payloads.
 type SecurityValidator struct {
 	config *config.SecurityConfig
-	logger *utils.Logger
+	logger *logging.Logger
 }
 
 // NewSecurityValidator constructs a new validator instance.
 func NewSecurityValidator(
 	config *config.SecurityConfig,
-	logger *utils.Logger,
+	logger *logging.Logger,
 ) *SecurityValidator {
 	return &SecurityValidator{
 		config: config,
@@ -277,3 +277,6 @@ func min(a, b int) int {
 	}
 	return b
 }
+
+
+

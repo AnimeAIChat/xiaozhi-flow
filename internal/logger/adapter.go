@@ -1,22 +1,22 @@
 package logger
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"io"
 	"log"
 	"os"
 
 	"github.com/hashicorp/go-hclog"
-	"xiaozhi-server-go/internal/utils"
 )
 
-// HCLogAdapter 是将 utils.Logger 适配到 hclog.Logger 接口的适配器
+// HCLogAdapter 是将 logging.Logger 适配到 hclog.Logger 接口的适配器
 type HCLogAdapter struct {
-	logger *utils.Logger
+	logger *logging.Logger
 	name   string
 }
 
 // NewHCLogAdapter 创建一个新的 HCLog 适配器
-func NewHCLogAdapter(logger *utils.Logger) *HCLogAdapter {
+func NewHCLogAdapter(logger *logging.Logger) *HCLogAdapter {
 	return &HCLogAdapter{
 		logger: logger,
 	}
@@ -103,7 +103,7 @@ func (h *HCLogAdapter) With(args ...interface{}) hclog.Logger {
 		name:   h.name,
 	}
 	// 注意：args 参数在当前的实现中被忽略，
-	// 因为 utils.Logger 不支持动态字段
+	// 因为 logging.Logger 不支持动态字段
 	return newAdapter
 }
 
@@ -136,7 +136,7 @@ func (h *HCLogAdapter) ResetNamed(name string) hclog.Logger {
 
 // SetLevel 实现 hclog.Logger 接口
 func (h *HCLogAdapter) SetLevel(level hclog.Level) {
-	// utils.Logger 的级别通过配置管理，这里不做处理
+	// logging.Logger 的级别通过配置管理，这里不做处理
 }
 
 // GetLevel 实现 hclog.Logger 接口
@@ -156,3 +156,5 @@ func (h *HCLogAdapter) StandardLogger(opts *hclog.StandardLoggerOptions) *log.Lo
 func (h *HCLogAdapter) StandardWriter(opts *hclog.StandardLoggerOptions) io.Writer {
 	return os.Stderr
 }
+
+

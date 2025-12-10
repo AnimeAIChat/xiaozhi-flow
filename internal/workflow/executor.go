@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"xiaozhi-server-go/internal/platform/config"
+	"xiaozhi-server-go/internal/plugin/capability"
 )
 
 // WorkflowExecutorImpl 工作流执行器实现
 type WorkflowExecutorImpl struct {
-	pluginManager PluginManager
+	config        *config.Config
+	registry      *capability.Registry
 	dagEngine     DAGEngine
 	dataFlow      DataFlow
 	logger        Logger
@@ -22,9 +26,10 @@ type WorkflowExecutorImpl struct {
 }
 
 // NewWorkflowExecutor 创建工作流执行器
-func NewWorkflowExecutor(pluginManager PluginManager, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
+func NewWorkflowExecutor(config *config.Config, registry *capability.Registry, dagEngine DAGEngine, dataFlow DataFlow, logger Logger) WorkflowExecutor {
 	return &WorkflowExecutorImpl{
-		pluginManager: pluginManager,
+		config:        config,
+		registry:      registry,
 		dagEngine:     dagEngine,
 		dataFlow:      dataFlow,
 		logger:        logger,
@@ -94,7 +99,7 @@ func (e *WorkflowExecutorImpl) executeWorkflow(ctx context.Context, workflow *Wo
 	}
 
 	// 拓扑排序获取执行顺序
-	sortedNodes, err := e.dagEngine.TopologicalSort(workflow.Nodes, workflow.Edges)
+	_, err := e.dagEngine.TopologicalSort(workflow.Nodes, workflow.Edges)
 	if err != nil {
 		e.markExecutionFailed(execution, fmt.Sprintf("Topological sort failed: %w", err))
 		return
@@ -278,14 +283,32 @@ func (e *WorkflowExecutorImpl) executeTaskNode(ctx context.Context, workflow *Wo
 	result.Inputs = inputs
 
 	// 调用插件
-	if node.Plugin == "" {
-		e.markNodeFailed(execution, node.ID, "No plugin specified")
+	// 假设 node.Plugin 存储的是 capabilityID (例如 "openai_chat")
+	// 如果 node.Plugin 为空，尝试使用 node.Type 或其他元数据
+	capabilityID := node.Plugin
+	if capabilityID == "" {
+		e.markNodeFailed(execution, node.ID, "No plugin/capability specified")
 		return
 	}
 
-	pluginOutputs, err := e.pluginManager.CallPlugin(ctx, node.Plugin, node.Method, inputs)
+	executor, err := e.registry.GetExecutor(capabilityID)
 	if err != nil {
-		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin call failed: %w", err))
+		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Failed to get executor for capability %s: %v", capabilityID, err))
+		return
+	}
+	// 准备配置
+	// 这里的 node.Config 是 map[string]interface{}，直接传递给 Executor
+	config := node.Config
+	if config == nil {
+		config = make(map[string]interface{})
+	}
+
+	// 合并全局配置
+	config = e.mergeGlobalConfig(capabilityID, config)
+
+	pluginOutputs, err := executor.Execute(ctx, config, inputs)
+	if err != nil {
+		e.markNodeFailed(execution, node.ID, fmt.Sprintf("Plugin execution failed: %w", err))
 		return
 	}
 
@@ -550,4 +573,37 @@ func (e *WorkflowExecutorImpl) GetExecutionLogs(executionID string) ([]Execution
 	copy(logs, execution.Logs)
 
 	return logs, nil
+}
+
+// mergeGlobalConfig 合并全局配置到节点配置
+func (e *WorkflowExecutorImpl) mergeGlobalConfig(capabilityID string, nodeConfig map[string]interface{}) map[string]interface{} {
+	if e.config == nil {
+		return nodeConfig
+	}
+
+	// 复制节点配置
+	newConfig := make(map[string]interface{})
+	for k, v := range nodeConfig {
+		newConfig[k] = v
+	}
+
+	// 根据 capabilityID 注入配置
+	// 目前主要处理 LLM 配置
+	if capabilityID == "openai_chat" {
+		if llmConfig, ok := e.config.LLM["openai"]; ok {
+			if _, exists := newConfig["api_key"]; !exists || newConfig["api_key"] == "" {
+				newConfig["api_key"] = llmConfig.APIKey
+			}
+			if _, exists := newConfig["base_url"]; !exists || newConfig["base_url"] == "" {
+				newConfig["base_url"] = llmConfig.BaseURL
+			}
+			if _, exists := newConfig["model"]; !exists || newConfig["model"] == "" {
+				newConfig["model"] = llmConfig.ModelName
+			}
+		}
+	}
+
+	// TODO: 处理其他类型的配置注入
+
+	return newConfig
 }

@@ -1,19 +1,18 @@
 package ws
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"sync"
-
-	"xiaozhi-server-go/internal/utils"
 )
 
 // Hub tracks the active websocket sessions for a transport instance.
 type Hub struct {
-	logger   *utils.Logger
+	logger   *logging.Logger
 	sessions sync.Map // map[string]*Session
 }
 
 // NewHub builds a fresh session hub.
-func NewHub(logger *utils.Logger) *Hub {
+func NewHub(logger *logging.Logger) *Hub {
 	return &Hub{
 		logger: logger,
 	}
@@ -76,3 +75,6 @@ func (h *Hub) Counts() (clients int, sessions int) {
 	})
 	return clients, clients
 }
+
+
+

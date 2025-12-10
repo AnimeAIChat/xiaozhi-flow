@@ -89,7 +89,7 @@ func NewManager(opts Options) (*Manager, error) {
 	manager.localClient = localClient
 
 	// Pre-create XiaoZhi client (will be bound to connection later)
-	xiaozhiClient, err := NewXiaoZhiMCPClient(opts.Logger, opts.Config, nil) // auth will be set during binding
+	xiaozhiClient, err := NewXiaoZhiMCPClient(opts.Logger, opts.Config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create XiaoZhi client: %w", err)
 	}

@@ -1,6 +1,7 @@
 package vision
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"net/http"
@@ -8,13 +9,11 @@ import (
 	"strings"
 	"time"
 
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/platform/config"
 	"xiaozhi-server-go/internal/platform/errors"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/core/providers/vlllm"
-	"xiaozhi-server-go/internal/utils"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
+	"xiaozhi-server-go/internal/domain/providers/vlllm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,17 +25,16 @@ const (
 
 // Service Vision服务的HTTP传输层实现
 type Service struct {
-	logger       *utils.Logger
+	logger       *logging.Logger
 	config       *config.Config
 	imagePipeline *domainimage.Pipeline
 	vlllmMap     map[string]*vlllm.Provider
-	authToken    *domainauth.AuthToken
 }
 
 // NewService 创建新的Vision服务实例
 func NewService(
 	config *config.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	imagePipeline *domainimage.Pipeline,
 ) (*Service, error) {
 	if config == nil {
@@ -55,9 +53,6 @@ func NewService(
 		imagePipeline:  imagePipeline,
 		vlllmMap:       make(map[string]*vlllm.Provider),
 	}
-
-	// 初始化认证工具
-	service.authToken = domainauth.NewAuthToken(config.Server.Token)
 
 	// 初始化VLLLM providers
 	if err := service.initVLLMProviders(); err != nil {
@@ -88,20 +83,8 @@ func (s *Service) initVLLMProviders() error {
 
 	vlllmConfig := s.config.VLLLM[selectedVLLLM]
 
-	// 创建VLLLM provider配置
-	providerConfig := &vlllm.Config{
-		Type:        vlllmConfig.Type,
-		ModelName:   vlllmConfig.ModelName,
-		BaseURL:     vlllmConfig.BaseURL,
-		APIKey:      vlllmConfig.APIKey,
-		Temperature: vlllmConfig.Temperature,
-		MaxTokens:   vlllmConfig.MaxTokens,
-		TopP:        vlllmConfig.TopP,
-		Security:    vlllmConfig.Security,
-	}
-
 	// 创建provider实例
-	provider, err := vlllm.NewProvider(providerConfig, s.logger)
+	provider, err := vlllm.Create(vlllmConfig.Type, &vlllmConfig, s.logger)
 	if err != nil {
 		s.logger.WarnTag("VLLLM", "创建 provider 失败: %v", err)
 		return errors.Wrap(errors.KindDomain, "init_vlllm", "failed to create VLLLM provider", err)
@@ -231,21 +214,16 @@ func (s *Service) verifyAuth(c *gin.Context) (*AuthVerifyResult, error) {
 	s.logger.Debug("收到认证token: %s", token)
 
 	// 验证token
-	isValid, deviceID, err := s.authToken.VerifyToken(token)
-	if err != nil || !isValid {
-		s.logger.Warn("认证token验证失败: %v", err)
-		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "token verification failed", err)
+	if token != s.config.Server.Token {
+		s.logger.Warn("认证token验证失败")
+		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "token verification failed", nil)
 	}
 
-	// 检查设备ID匹配
-	requestDeviceID := c.GetHeader("Device-Id")
-	if requestDeviceID != deviceID {
-		s.logger.Warn(
-			"设备ID与token不匹配: 请求设备ID=%s, token设备ID=%s",
-			requestDeviceID,
-			deviceID,
-		)
-		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "device ID mismatch", nil)
+	// 获取设备ID
+	deviceID := c.GetHeader("Device-Id")
+	if deviceID == "" {
+		s.logger.Warn("缺少Device-Id header")
+		return nil, errors.Wrap(errors.KindTransport, "verify_auth", "missing device id", nil)
 	}
 
 	return &AuthVerifyResult{
@@ -445,3 +423,5 @@ func (s *Service) Cleanup() error {
 	s.logger.InfoTag("Vision", "服务清理完成")
 	return nil
 }
+
+

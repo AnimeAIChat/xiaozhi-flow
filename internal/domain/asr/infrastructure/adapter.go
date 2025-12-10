@@ -1,6 +1,7 @@
 package infrastructure
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	"context"
 	"fmt"
 	"sync"
@@ -8,8 +9,7 @@ import (
 
 	"xiaozhi-server-go/internal/domain/asr/inter"
 	"xiaozhi-server-go/internal/domain/asr/repository"
-	"xiaozhi-server-go/internal/core/providers"
-	"xiaozhi-server-go/internal/utils"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 	"xiaozhi-server-go/internal/platform/errors"
 )
 
@@ -17,11 +17,11 @@ import (
 type asrAdapter struct {
 	mu       sync.RWMutex
 	provider providers.ASRProvider
-	logger   *utils.Logger
+	logger   *logging.Logger
 }
 
 // NewASRAdapter 创建ASR适配器
-func NewASRAdapter(providerType string, config inter.ASRConfig, logger *utils.Logger) (repository.ASRRepository, error) {
+func NewASRAdapter(providerType string, config inter.ASRConfig, logger *logging.Logger) (repository.ASRRepository, error) {
 	// 注意：这里需要一个工厂方法来创建ASRProvider
 	// 暂时返回nil，后面需要实现
 	return &asrAdapter{
@@ -213,3 +213,5 @@ func (l *asrStreamEventListener) OnAsrError(err error) {
 	default:
 	}
 }
+
+

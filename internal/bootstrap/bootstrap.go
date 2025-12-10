@@ -14,9 +14,23 @@ import (
 	"time"
 
 	domainimage "xiaozhi-server-go/internal/domain/image"
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	domainmcp "xiaozhi-server-go/internal/domain/mcp"
-	authstore "xiaozhi-server-go/internal/domain/auth/store"
+	domainllm "xiaozhi-server-go/internal/domain/llm"
+	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
+	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
+	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/plugin/providers/chatglm"
+	"xiaozhi-server-go/internal/plugin/providers/coze"
+	"xiaozhi-server-go/internal/plugin/providers/deepgram"
+	"xiaozhi-server-go/internal/plugin/providers/doubao"
+	"xiaozhi-server-go/internal/plugin/providers/edge"
+	"xiaozhi-server-go/internal/plugin/providers/gosherpa"
+	"xiaozhi-server-go/internal/plugin/providers/ollama"
+		"xiaozhi-server-go/internal/plugin/providers/openai"
+	"xiaozhi-server-go/internal/platform/logging"
+	"xiaozhi-server-go/internal/plugin/providers/stepfun"
+	"xiaozhi-server-go/internal/plugin/providers/webrtc"
+	llmadapters "xiaozhi-server-go/internal/core/adapters"
 	configmanager "xiaozhi-server-go/internal/domain/config/manager"
 	"xiaozhi-server-go/internal/domain/config/types"
 	"xiaozhi-server-go/internal/domain/device/service"
@@ -31,16 +45,12 @@ import (
 	httpvision "xiaozhi-server-go/internal/transport/http/vision"
 	httpwebapi "xiaozhi-server-go/internal/transport/http/webapi"
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
-	httpstartup "xiaozhi-server-go/internal/transport/http/startup"
-	authv1 "xiaozhi-server-go/internal/transport/http/v1"
 	systemv1 "xiaozhi-server-go/internal/transport/http/v1"
 	devicev1 "xiaozhi-server-go/internal/transport/http/v1"
 	"xiaozhi-server-go/internal/core/transport"
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
 	"xiaozhi-server-go/internal/utils"
-	pluginmanager "xiaozhi-server-go/internal/plugin/manager"
-	"xiaozhi-server-go/internal/logger"
 
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
@@ -49,12 +59,6 @@ import (
 	// 注意：移除了对src/core的直接依赖，将通过适配器层来访问
 	// 提供者注册将延迟到第二阶段进行
 )
-
-// PluginManager 插件管理器接口
-type PluginManager interface {
-	Start(ctx context.Context) error
-	Stop(ctx context.Context) error
-}
 
 const scalarHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -88,15 +92,14 @@ type appState struct {
 	configPath            string
 	configRepo            types.Repository
 	logProvider           *platformlogging.Logger
-	logger                *utils.Logger
+	logger                *platformlogging.Logger
 	slogger               *slog.Logger
 	observabilityShutdown platformobservability.ShutdownFunc
-	authManager           *domainauth.AuthManager
 	domainMCPManager      *domainmcp.Manager   // New domain MCP manager
-	bootstrapManager      *adapters.BootstrapManager // 新增：引导管理器
-	componentContainer    *adapters.ComponentContainer // 新增：组件容器
 	configIntegrator      *integration.ConfigIntegrator   // 新增：配置集成器
-	pluginManager         PluginManager // 新增：插件管理器
+	llmManager            llmrepo.LLMRepository // 新增：LLM管理器
+	llmService            domainllm.Service     // 新增：LLM服务
+	registry              *capability.Registry  // 新增：插件注册表
 }
 
 // Run 启动整个服务生命周期，负责加载配置、初始化依赖和优雅关停。
@@ -116,16 +119,6 @@ func Run(ctx context.Context) error {
 			"bootstrap state validation",
 			"config/logger not initialised",
 			errors.New("config/logger not initialised"),
-		)
-	}
-
-	authManager := state.authManager
-	if authManager == nil {
-		return platformerrors.Wrap(
-			platformerrors.KindBootstrap,
-			"bootstrap state validation",
-			"auth manager not initialised",
-			errors.New("auth manager not initialised"),
 		)
 	}
 
@@ -150,19 +143,6 @@ func Run(ctx context.Context) error {
 		}()
 	}
 
-	defer func() {
-		if authManager != nil {
-			if closeErr := authManager.Close(); closeErr != nil {
-				logger.ErrorTag("认证", "认证管理器未正常关闭: %v", closeErr)
-			}
-		}
-		if state.pluginManager != nil {
-			if closeErr := state.pluginManager.Stop(context.Background()); closeErr != nil {
-				logger.WarnTag("插件", "插件管理器未正常关闭: %v", closeErr)
-			}
-		}
-	}()
-
 	rootCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -171,23 +151,7 @@ func Run(ctx context.Context) error {
 
 	group, groupCtx := errgroup.WithContext(rootCtx)
 
-	// 启动插件管理器
-	if state.pluginManager != nil {
-		group.Go(func() error {
-			if err := state.pluginManager.Start(groupCtx); err != nil {
-				if groupCtx.Err() != nil {
-					return nil // context cancelled
-				}
-				logger.ErrorTag("插件", "插件管理器启动失败: %v", err)
-				return err
-			}
-			<-groupCtx.Done()
-			logger.InfoTag("插件", "插件管理器已关闭")
-			return nil
-		})
-	}
-
-	if err := startServices(state.config, logger, authManager, state.configRepo, state.domainMCPManager, state.componentContainer, group, groupCtx); err != nil {
+	if err := startServices(state.config, logger, state.configRepo, state.domainMCPManager, state.registry, group, groupCtx); err != nil {
 		cancel()
 		return err
 	}
@@ -201,7 +165,7 @@ func Run(ctx context.Context) error {
 	return nil
 }
 
-func logBootstrapGraph(steps []initStep, logger *utils.Logger) {
+func logBootstrapGraph(steps []initStep, logger *platformlogging.Logger) {
 	if logger == nil {
 		return
 	}
@@ -295,6 +259,13 @@ func InitGraph() []initStep {
 			Execute:   loadDefaultConfigStep,
 		},
 		{
+			ID:        "llm:init-manager",
+			Title:     "Initialise LLM manager",
+			DependsOn: []string{"config:load-default"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initLLMManagerStep,
+		},
+		{
 			ID:        "logging:init-provider",
 			Title:     "Initialise logging provider",
 			DependsOn: []string{"config:load-default"},
@@ -316,34 +287,57 @@ func InitGraph() []initStep {
 			Execute:   setupObservabilityStep,
 		},
 		{
-			ID:        "components:init-container",
-			Title:     "Initialise component container",
-			DependsOn: []string{"logging:init-provider"},
-			Kind:      platformerrors.KindBootstrap,
-			Execute:   initComponentsStep,
-		},
-		{
 			ID:        "config:init-integrator",
 			Title:     "Initialise config integrator",
-			DependsOn: []string{"logging:init-provider", "components:init-container"},
+			DependsOn: []string{"logging:init-provider"},
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initConfigIntegratorStep,
 		},
-		{
-			ID:        "auth:init-manager",
-			Title:     "Initialise auth manager",
-			DependsOn: []string{"observability:setup-hooks", "storage:init-database", "components:init-container"},
-			Kind:      platformerrors.KindBootstrap,
-			Execute:   initAuthStep,
-		},
-		{
-			ID:        "plugin:init-manager",
-			Title:     "Initialise plugin manager",
-			DependsOn: []string{"logging:init-provider"},
-			Kind:      platformerrors.KindBootstrap,
-			Execute:   initPluginManagerStep,
-		},
 	}
+}
+
+func initLLMManagerStep(_ context.Context, state *appState) error {
+	if state == nil || state.config == nil {
+		return platformerrors.New(
+			platformerrors.KindBootstrap,
+			"llm:init-manager",
+			"config not loaded",
+		)
+	}
+
+	// Initialize Capability Registry
+	registry := capability.NewRegistry()
+	
+	// Register Plugins
+	registry.Register("chatglm", chatglm.NewProvider())
+	registry.Register("coze", coze.NewProvider())
+	registry.Register("deepgram", deepgram.NewProvider())
+	registry.Register("doubao", doubao.NewProvider())
+	registry.Register("edge", edge.NewProvider())
+	registry.Register("gosherpa", gosherpa.NewProvider())
+	registry.Register("ollama", ollama.NewProvider())
+	registry.Register("openai", openai.NewProvider())
+	registry.Register("stepfun", stepfun.NewProvider())
+	registry.Register("webrtc", webrtc.NewProvider())
+
+	// Register Legacy Adapters
+	llmadapters.RegisterLegacyAdapters()
+
+	state.registry = registry
+
+	manager, err := llminfra.NewLLMManager(state.config, registry)
+	if err != nil {
+		return platformerrors.Wrap(platformerrors.KindBootstrap, "llm:init-manager", "failed to create LLM manager", err)
+	}
+
+	state.llmManager = manager
+	state.llmService = domainllm.NewService(manager)
+	
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "LLM管理器初始化完成 (Plugin System Enabled)")
+	}
+
+	return nil
 }
 
 func initStorageStep(_ context.Context, _ *appState) error {
@@ -423,7 +417,7 @@ func initLoggingStep(_ context.Context, state *appState) error {
 	state.logProvider = logProvider
 	state.logger = logProvider.Legacy()
 	state.slogger = logProvider.Slog()
-	utils.DefaultLogger = state.logger
+	logging.DefaultLogger = state.logger
 
 	if state.logger != nil {
 		state.logger.InfoTag(
@@ -467,38 +461,6 @@ func setupObservabilityStep(ctx context.Context, state *appState) error {
 	return nil
 }
 
-func initComponentsStep(_ context.Context, state *appState) error {
-	if state == nil || state.config == nil || state.logger == nil {
-		return platformerrors.New(
-			platformerrors.KindBootstrap,
-			"components:init-container",
-			"missing config/logger",
-		)
-	}
-
-	// 创建引导管理器
-	state.bootstrapManager = adapters.NewBootstrapManager(state.config, state.logger)
-
-	// 初始化组件容器
-	container, err := state.bootstrapManager.InitializeComponents()
-	if err != nil {
-		return platformerrors.Wrap(
-			platformerrors.KindBootstrap,
-			"components:init-container",
-			"failed to initialize component container",
-			err,
-		)
-	}
-
-	state.componentContainer = container
-
-	if state.logger != nil {
-		state.logger.InfoTag("引导", "组件容器初始化完成")
-	}
-
-	return nil
-}
-
 func initConfigIntegratorStep(_ context.Context, state *appState) error {
 	if state == nil || state.config == nil || state.logger == nil {
 		return platformerrors.New(
@@ -538,22 +500,7 @@ func initConfigIntegratorStep(_ context.Context, state *appState) error {
 	return nil
 }
 
-func initAuthStep(_ context.Context, state *appState) error {
-	if state == nil || state.config == nil || state.logger == nil {
-		return platformerrors.New(
-			platformerrors.KindBootstrap,
-			"auth:init-manager",
-			"missing config/logger",
-		)
-	}
 
-	authManager, err := initAuthManager(state.config, state.logger)
-	if err != nil {
-		return err
-	}
-	state.authManager = authManager
-	return nil
-}
 
 func initMCPManagerStep(_ context.Context, state *appState) error {
 	if state == nil || state.config == nil || state.logger == nil {
@@ -583,125 +530,11 @@ func initMCPManagerStep(_ context.Context, state *appState) error {
 	return nil
 }
 
-func initPluginManagerStep(_ context.Context, state *appState) error {
-	if state == nil || state.config == nil || state.logger == nil {
-		return platformerrors.New(
-			platformerrors.KindBootstrap,
-			"plugin:init-manager",
-			"missing config/logger",
-		)
-	}
 
-	// 创建简化的插件管理器配置
-	config := &pluginmanager.PluginConfig{
-		Enabled: true,
-		Discovery: &pluginmanager.DiscoveryConfig{
-			Enabled:      true,
-			ScanInterval: 30 * time.Second,
-			Paths:        []string{"./plugins", "./plugins/examples"},
-		},
-		Registry: &pluginmanager.RegistryConfig{
-			Type: "memory",
-			TTL:  5 * time.Minute,
-		},
-		HealthCheck: &pluginmanager.HealthCheckConfig{
-			Interval:         10 * time.Second,
-			Timeout:          5 * time.Second,
-			FailureThreshold: 3,
-		},
-	}
 
-	// 创建插件管理器 (使用统一日志系统)
-	hclogger := logger.NewHCLogAdapter(state.logger).Named("plugin-manager")
-	pluginMgr, err := pluginmanager.NewPluginManager(config, hclogger)
-	if err != nil {
-		state.logger.WarnTag("引导", "插件管理器初始化失败: %v", err)
-		// Continue anyway, plugin system is optional
-		return nil
-	}
 
-	state.pluginManager = pluginMgr
-	state.logger.InfoTag("引导", "插件管理器初始化完成")
 
-	return nil
-}
-
-func initAuthManager(config *platformconfig.Config, logger *utils.Logger) (*domainauth.AuthManager, error) {
-	storeType := strings.ToLower(strings.TrimSpace(config.Server.Auth.Store.Type))
-	storeCfg := authstore.Config{
-		Driver: storeType,
-		TTL:    config.Server.Auth.Store.Expiry,
-	}
-
-	if storeCfg.Driver == "" || storeCfg.Driver == "database" || storeCfg.Driver == "sqlite" {
-		storeCfg.Driver = authstore.DriverSQLite
-	}
-
-	cleanupInterval := config.Server.Auth.Store.Cleanup
-	if cleanupInterval <= 0 {
-		cleanupInterval = 10 * time.Minute // default cleanup interval
-	}
-
-	switch storeCfg.Driver {
-	case authstore.DriverMemory:
-		if config.Server.Auth.Store.Memory.Cleanup > 0 {
-			cleanupInterval = config.Server.Auth.Store.Memory.Cleanup
-		}
-		storeCfg.Memory = &authstore.MemoryConfig{
-			GCInterval: cleanupInterval,
-		}
-	case authstore.DriverSQLite:
-		storeCfg.SQLite = &authstore.SQLiteConfig{
-			DSN: config.Server.Auth.Store.SQLite.DSN,
-		}
-	case authstore.DriverRedis:
-		storeCfg.Redis = &authstore.RedisConfig{
-			Addr:     config.Server.Auth.Store.Redis.Addr,
-			Username: config.Server.Auth.Store.Redis.Username,
-			Password: config.Server.Auth.Store.Redis.Password,
-			DB:       config.Server.Auth.Store.Redis.DB,
-			Prefix:   config.Server.Auth.Store.Redis.Prefix,
-		}
-		if storeCfg.Redis.Addr == "" {
-			return nil, platformerrors.Wrap(
-				platformerrors.KindBootstrap,
-				"auth:init-manager",
-				"redis store addr is required",
-				errors.New("redis store addr is required"),
-			)
-		}
-	default:
-		logger.WarnTag("认证", "不支持的存储类型 %s，已自动回退至内存模式", storeType)
-		storeCfg.Driver = authstore.DriverMemory
-		storeCfg.Memory = &authstore.MemoryConfig{GCInterval: cleanupInterval}
-	}
-
-	storeDeps := authstore.Dependencies{
-		SQLiteDB: platformstorage.GetDB(),
-	}
-	authStore, err := authstore.New(storeCfg, storeDeps)
-	if err != nil {
-		return nil, platformerrors.Wrap(platformerrors.KindBootstrap, "auth:init-manager", "failed to create auth store", err)
-	}
-
-	crypto := domainauth.NewMemoryCryptoManager(logger, storeCfg.TTL)
-	opts := domainauth.Options{
-		Store:           authStore,
-		Logger:          logger,
-		Crypto:          crypto,
-		SessionTTL:      storeCfg.TTL,
-		CleanupInterval: cleanupInterval,
-	}
-
-	authManager, err := domainauth.NewManager(opts)
-	if err != nil {
-		return nil, platformerrors.Wrap(platformerrors.KindBootstrap, "auth:init-manager", "failed to create auth manager", err)
-	}
-
-	return authManager, nil
-}
-
-func parseDurationOrWarn(logger *utils.Logger, value string, field string) time.Duration {
+func parseDurationOrWarn(logger *logging.Logger, value string, field string) time.Duration {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return 0
@@ -720,24 +553,15 @@ func parseDurationOrWarn(logger *utils.Logger, value string, field string) time.
 
 func startTransportServer(
 	config *platformconfig.Config,
-	logger *utils.Logger,
-	authManager *domainauth.AuthManager,
+	logger *logging.Logger,
 	domainMCPManager *domainmcp.Manager,
-	componentContainer *adapters.ComponentContainer,
 	deviceRepo repository.DeviceRepository,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (adapters.TransportManager, error) {
-	// 使用适配器来避免循环依赖
-	if componentContainer == nil {
-		return nil, fmt.Errorf("component container is required")
-	}
-
-	// 获取旧版适配器
-	legacyAdapter := componentContainer.GetLegacyAdapter()
-
 	// 创建传输适配器
-	transportAdapter := adapters.NewTransportAdapter(config, logger, legacyAdapter, deviceRepo)
+	transportAdapter := adapters.NewTransportAdapter(config, logger, deviceRepo, registry)
 
 	// 创建真正的传输管理器
 	transportManager := transport.NewTransportManager(config, logger)
@@ -748,7 +572,7 @@ func startTransportServer(
 	}
 
 	// 启动传输服务器
-	if err := transportAdapter.StartTransportServer(groupCtx, authManager, domainMCPManager); err != nil {
+	if err := transportAdapter.StartTransportServer(groupCtx, domainMCPManager); err != nil {
 		return nil, platformerrors.Wrap(
 			platformerrors.KindTransport,
 			"transport:start-server",
@@ -786,10 +610,11 @@ func startTransportServer(
 
 func startHTTPServer(
 	config *platformconfig.Config,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	configRepo types.Repository,
 	transportManager adapters.TransportManager,
 	deviceRepo repository.DeviceRepository,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (*http.Server, error) {
@@ -805,6 +630,7 @@ func startHTTPServer(
 		Config:         config,
 		Logger:         logger,
 		AuthMiddleware: webapiService.AuthMiddleware(),
+		Registry:       registry,
 	})
 	if err != nil {
 		return nil, err
@@ -853,19 +679,6 @@ func startHTTPServer(
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "ota:new-service", "failed to create ota service", err)
 	}
 
-	startupService, err := httpstartup.NewService(config, logger)
-	if err != nil {
-		logger.ErrorTag("Startup", "启动流程服务初始化失败: %v", err)
-		return nil, platformerrors.Wrap(platformerrors.KindTransport, "startup:new-service", "failed to create startup service", err)
-	}
-
-	// 初始化V1认证服务
-	authServiceV1, err := authv1.NewAuthServiceV1(config, logger)
-	if err != nil {
-		logger.ErrorTag("API", "V1认证服务初始化失败: %v", err)
-		return nil, platformerrors.Wrap(platformerrors.KindTransport, "auth-v1:new-service", "failed to create auth v1 service", err)
-	}
-
 	// 初始化V1系统服务
 	systemServiceV1, err := systemv1.NewSystemServiceV1(config, logger)
 	if err != nil {
@@ -884,14 +697,9 @@ func startHTTPServer(
 	visionService.Register(groupCtx, apiGroup)
 	webapiService.Register(groupCtx, apiGroup)
 	otaService.Register(groupCtx, apiGroup)
-	startupService.Register(groupCtx, apiGroup)
-
-	// 注册V1 API服务路由
-	authServiceV1.Register(httpRouter.V1)        // 公开的认证接口
 
 	// 如果有认证中间件，注册需要认证的接口到V1Secure
 	if httpRouter.V1Secure != nil {
-		authServiceV1.RegisterSecure(httpRouter.V1Secure) // 需要认证的接口
 		systemServiceV1.Register(httpRouter.V1Secure)     // 系统管理需要认证
 		deviceServiceV1.Register(httpRouter.V1Secure)     // 设备管理需要认证
 	} else {
@@ -965,7 +773,7 @@ func startHTTPServer(
 func waitForShutdown(
 	ctx context.Context,
 	cancel context.CancelFunc,
-	logger *utils.Logger,
+	logger *logging.Logger,
 	g *errgroup.Group,
 ) error {
 	<-ctx.Done()
@@ -995,11 +803,10 @@ func waitForShutdown(
 
 func startServices(
 	config *platformconfig.Config,
-	logger *utils.Logger,
-	authManager *domainauth.AuthManager,
+	logger *logging.Logger,
 	configRepo types.Repository,
 	domainMCPManager *domainmcp.Manager,
-	componentContainer *adapters.ComponentContainer,
+	registry *capability.Registry,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) error {
@@ -1007,12 +814,12 @@ func startServices(
 	db := platformstorage.GetDB()
 	deviceRepo := platformstorage.NewDeviceRepository(db)
 
-	transportManager, err := startTransportServer(config, logger, authManager, domainMCPManager, componentContainer, deviceRepo, g, groupCtx)
+	transportManager, err := startTransportServer(config, logger, domainMCPManager, deviceRepo, registry, g, groupCtx)
 	if err != nil {
 		return fmt.Errorf("启动 Transport 服务失败: %w", err)
 	}
 
-	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, g, groupCtx); err != nil {
+	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, registry, g, groupCtx); err != nil {
 		return fmt.Errorf("启动 Http 服务失败: %w", err)
 	}
 
@@ -1020,7 +827,7 @@ func startServices(
 }
 
 // loadConfigAndLogger 加载配置和日志记录器（用于测试）
-func loadConfigAndLogger() (*platformconfig.Config, *utils.Logger, error) {
+func loadConfigAndLogger() (*platformconfig.Config, *logging.Logger, error) {
 	state := &appState{}
 
 	// 执行必要的初始化步骤
@@ -1093,3 +900,4 @@ func setupStaticFiles(router *gin.Engine, config *platformconfig.Config) {
 		}
 	})
 }
+

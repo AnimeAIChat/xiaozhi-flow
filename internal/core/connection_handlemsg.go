@@ -7,8 +7,7 @@ import (
 	"strings"
 	domainimage "xiaozhi-server-go/internal/domain/image"
 	"xiaozhi-server-go/internal/domain/chat"
-	"xiaozhi-server-go/internal/core/providers"
-	internalutils "xiaozhi-server-go/internal/utils"
+	providers "xiaozhi-server-go/internal/domain/providers/types"
 )
 
 // handleMessage 处理接收到的消息
@@ -18,29 +17,13 @@ func (h *ConnectionHandler) handleMessage(messageType int, message []byte) error
 		h.clientTextQueue <- string(message)
 		return nil
 	case 2: // 二进制消息（音频数据）
-		if h.clientAudioFormat == "pcm" {
-			// 直接将PCM数据放入队列
+		processedData, err := h.audioProcessor.ProcessAudio(message)
+		if err != nil {
+			h.logger.Error("处理音频数据失败: %v", err)
+			// 即使失败，也尝试将原始数据传递给ASR处理 (AudioProcessor logic might already handle this fallback, but let's be safe)
 			h.clientAudioQueue <- message
-		} else if h.clientAudioFormat == "opus" {
-			// 检查是否初始化了opus解码器
-			if h.opusDecoder != nil {
-				// 解码opus数据为PCM
-				decodedData, err := h.opusDecoder.Decode(message)
-				if err != nil {
-					h.logger.Error("解码Opus音频失败: %v", err)
-					// 即使解码失败，也尝试将原始数据传递给ASR处理
-					h.clientAudioQueue <- message
-				} else {
-					// 解码成功，将PCM数据放入队列
-					h.logger.Debug("Opus解码成功: %d bytes -> %d bytes", len(message), len(decodedData))
-					if len(decodedData) > 0 {
-						h.clientAudioQueue <- decodedData
-					}
-				}
-			} else {
-				// 没有解码器，直接传递原始数据
-				h.clientAudioQueue <- message
-			}
+		} else if len(processedData) > 0 {
+			h.clientAudioQueue <- processedData
 		}
 		return nil
 	default:
@@ -54,12 +37,12 @@ func (h *ConnectionHandler) processClientTextMessage(ctx context.Context, text s
 	// 解析JSON消息
 	var msgJSON interface{}
 	if err := json.Unmarshal([]byte(text), &msgJSON); err != nil {
-		return h.conn.WriteMessage(1, []byte(text))
+		return h.responseSender.SendRawText(text)
 	}
 
 	// 检查是否为整数类型
 	if _, ok := msgJSON.(float64); ok {
-		return h.conn.WriteMessage(1, []byte(text))
+		return h.responseSender.SendRawText(text)
 	}
 
 	// 解析为map类型处理具体消息
@@ -84,7 +67,7 @@ func (h *ConnectionHandler) processClientTextMessage(ctx context.Context, text s
 	case "iot":
 		return h.handleIotMessage(msgMap)
 	case "chat":
-		return h.handleChatMessage(ctx, text)
+		return h.conversationLoop.HandleChatMessage(ctx, text)
 	case "vision":
 		return h.handleVisionMessage(msgMap)
 	case "image":
@@ -137,18 +120,10 @@ func (h *ConnectionHandler) handleHelloMessage(msgMap map[string]interface{}) er
 			h.clientAudioFormat, h.clientAudioSampleRate, h.clientAudioChannels, h.clientAudioFrameDuration))
 	}
 	h.sendHelloMessage()
-	h.closeOpusDecoder()
-	// 初始化opus解码器
-	opusDecoder, err := internalutils.NewOpusDecoder(&internalutils.OpusDecoderConfig{
-		SampleRate:  h.clientAudioSampleRate, // 客户端使用24kHz采样率
-		MaxChannels: h.clientAudioChannels,   // 单声道音频
-	})
-	if err != nil {
-		h.logger.Error("初始化Opus解码器失败: %v", err)
-	} else {
-		h.opusDecoder = opusDecoder
-		h.LogInfo("[Opus] [解码器] 初始化成功")
-	}
+	
+	// Update AudioProcessor
+	h.audioProcessor.UpdateFormat(h.clientAudioFormat, h.clientAudioSampleRate, h.clientAudioChannels)
+	h.LogInfo("[AudioProcessor] Updated format")
 
 	return nil
 }
@@ -220,7 +195,7 @@ func (h *ConnectionHandler) handleImageMessage(ctx context.Context, msgMap map[s
 	// 检查是否有VLLLM Provider
 	if h.providers.vlllm == nil {
 		h.logger.Warn("未配置VLLLM服务，图片消息将被忽略")
-		return h.conn.WriteMessage(1, []byte("系统暂不支持图片处理功能"))
+		return h.responseSender.SendRawText("系统暂不支持图片处理功能")
 	}
 
 	// 解析文本内容

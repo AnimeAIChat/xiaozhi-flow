@@ -1,8 +1,8 @@
 package eventbus
 
 import (
+	"xiaozhi-server-go/internal/platform/logging"
 	internalutils "xiaozhi-server-go/internal/utils"
-	"xiaozhi-server-go/internal/utils"
 )
 
 // EventHandler 事件处理器接口
@@ -30,7 +30,7 @@ func (h *DefaultEventHandler) Handle(eventType string, data interface{}) {
 	case EventASRError, EventLLMError, EventTTSError:
 		h.handleError(data.(SystemEventData))
 	default:
-		utils.DefaultLogger.InfoTag("事件处理器", "未处理的事件类型: %s", eventType)
+		logging.DefaultLogger.InfoTag("事件处理器", "未处理的事件类型: %s", eventType)
 	}
 }
 
@@ -38,32 +38,32 @@ func (h *DefaultEventHandler) Handle(eventType string, data interface{}) {
 func (h *DefaultEventHandler) handleASRResult(data ASREventData) {
 	// ASR结果现在直接通过listener.OnAsrResult处理，不再通过事件总线
 	// 这里保留日志记录用于调试
-	utils.DefaultLogger.InfoASR("[事件处理器] ASR结果: 文本=%s, 最终=%v", data.Text, data.IsFinal)
+	logging.DefaultLogger.InfoASR("[事件处理器] ASR结果: 文本=%s, 最终=%v", data.Text, data.IsFinal)
 }
 
 // handleLLMResponse 处理LLM响应事件
 func (h *DefaultEventHandler) handleLLMResponse(data LLMEventData) {
 	if data.IsFinal {
-		utils.DefaultLogger.InfoLLM("[事件处理器] [轮次 %d] %s (最终)", data.Round, internalutils.SanitizeForLog(data.Content))
+		logging.DefaultLogger.InfoLLM("[事件处理器] [轮次 %d] %s (最终)", data.Round, internalutils.SanitizeForLog(data.Content))
 	} else {
 		if data.TextIndex == 1 && data.SpentTime != "" {
-			utils.DefaultLogger.InfoLLM("[事件处理器] [回复 %s/%d] 第一句话: %s", data.SpentTime, data.Round, internalutils.SanitizeForLog(data.Content))
+			logging.DefaultLogger.InfoLLM("[事件处理器] [回复 %s/%d] 第一句话: %s", data.SpentTime, data.Round, internalutils.SanitizeForLog(data.Content))
 		} else if data.TextIndex > 1 {
-			utils.DefaultLogger.InfoLLM("[事件处理器] [分段 %d/%d] %s", data.TextIndex, data.Round, internalutils.SanitizeForLog(data.Content))
+			logging.DefaultLogger.InfoLLM("[事件处理器] [分段 %d/%d] %s", data.TextIndex, data.Round, internalutils.SanitizeForLog(data.Content))
 		} else {
-			utils.DefaultLogger.InfoLLM("[事件处理器] [轮次 %d] %s", data.Round, internalutils.SanitizeForLog(data.Content))
+			logging.DefaultLogger.InfoLLM("[事件处理器] [轮次 %d] %s", data.Round, internalutils.SanitizeForLog(data.Content))
 		}
 	}
 }
 
 // handleTTSSpeak 处理TTS说话事件
 func (h *DefaultEventHandler) handleTTSSpeak(data TTSEventData) {
-	utils.DefaultLogger.InfoTTS("[事件处理器] [轮次 %d] [文本索引 %d] TTS说话: %s", data.Round, data.TextIndex, data.Text)
+	logging.DefaultLogger.InfoTTS("[事件处理器] [轮次 %d] [文本索引 %d] TTS说话: %s", data.Round, data.TextIndex, data.Text)
 }
 
 // handleError 处理错误事件
 func (h *DefaultEventHandler) handleError(data SystemEventData) {
-	utils.DefaultLogger.InfoTag("事件处理器", "系统错误: 级别=%s, 消息=%s", data.Level, data.Message)
+	logging.DefaultLogger.InfoTag("事件处理器", "系统错误: 级别=%s, 消息=%s", data.Level, data.Message)
 }
 
 // SetupEventHandlers 设置事件处理器
@@ -107,3 +107,4 @@ func SetupEventHandlers() {
 		}
 	})
 }
+

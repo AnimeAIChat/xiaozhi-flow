@@ -129,6 +129,7 @@ type ExecutionStatus string
 const (
 	ExecutionStatusPending   ExecutionStatus = "pending"   // 待执行
 	ExecutionStatusRunning   ExecutionStatus = "running"   // 执行中
+	ExecutionStatusPaused    ExecutionStatus = "paused"    // 已暂停
 	ExecutionStatusCompleted ExecutionStatus = "completed" // 已完成
 	ExecutionStatusFailed    ExecutionStatus = "failed"    // 执行失败
 	ExecutionStatusCancelled ExecutionStatus = "cancelled" // 已取消
@@ -259,6 +260,8 @@ type DAGEngine interface {
 	GetExecutableNodes(execution *Execution, workflow *Workflow) ([]string, error)
 	// 获取节点依赖
 	GetNodeDependencies(nodeID string, edges []Edge) []string
+	// 验证工作流
+	ValidateWorkflow(workflow *Workflow) error
 }
 
 // DataFlow 数据流传递接口
@@ -269,4 +272,12 @@ type DataFlow interface {
 	GetNodeInputs(execution *Execution, node *Node, workflow *Workflow) (map[string]interface{}, error)
 	// 合并并行节点数据
 	MergeParallelData(execution *Execution, nodeIDs []string) (map[string]interface{}, error)
+}
+
+// Logger 日志接口
+type Logger interface {
+	Debug(msg string, args ...interface{})
+	Info(msg string, args ...interface{})
+	Warn(msg string, args ...interface{})
+	Error(msg string, args ...interface{})
 }

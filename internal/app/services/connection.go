@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	domainauth "xiaozhi-server-go/internal/domain/auth"
 	"xiaozhi-server-go/internal/domain/config/service"
 	domainllm "xiaozhi-server-go/internal/domain/llm"
 	domainllminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
@@ -20,7 +19,7 @@ import (
 	"xiaozhi-server-go/internal/platform/errors"
 	"xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/transport/ws"
-	"xiaozhi-server-go/internal/core/pool"
+	providers "xiaozhi-server-go/internal/domain/providers"
 	"xiaozhi-server-go/internal/utils"
 )
 
@@ -28,7 +27,6 @@ import (
 type ConnectionService struct {
 	config        *config.Config
 	logger        *logging.Logger
-	authManager   *domainauth.AuthManager
 	llmManager    *domainllm.Manager
 	ttsManager    *domaintts.Manager
 	mcpManager    *domainmcp.Manager
@@ -38,7 +36,7 @@ type ConnectionService struct {
 	conversationService *ConversationService
 	speechService       *SpeechService
 	messageQueueService *MessageQueueService
-	providerSet         *pool.ProviderSet
+	providerSet         *providers.Set
 
 	// 连接状态
 	conn             ws.Connection
@@ -77,7 +75,6 @@ type ConnectionService struct {
 type ConnectionConfig struct {
 	Config              *config.Config
 	Logger              *logging.Logger
-	AuthManager         *domainauth.AuthManager
 	LLMManager          *domainllm.Manager
 	TTSManager          *domaintts.Manager
 	MCPManager          *domainmcp.Manager
@@ -85,7 +82,7 @@ type ConnectionConfig struct {
 	ConversationService *ConversationService
 	SpeechService       *SpeechService
 	MessageQueueService *MessageQueueService
-	ProviderSet         *pool.ProviderSet
+	ProviderSet         *providers.Set
 }
 
 // NewConnectionService 创建新的连接服务
@@ -93,7 +90,6 @@ func NewConnectionService(config *ConnectionConfig) *ConnectionService {
 	service := &ConnectionService{
 		config:              config.Config,
 		logger:              config.Logger,
-		authManager:         config.AuthManager,
 		llmManager:          config.LLMManager,
 		ttsManager:          config.TTSManager,
 		mcpManager:          config.MCPManager,
