@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
+import { useProviders as useProvidersFromStore } from '../stores/useAppStore';
 import {
   apiService,
   type ServerConfig,
@@ -212,8 +213,7 @@ export default {
   useInitializeProject,
   useSystemStatus,
   useSystemLogs,
-  useProviders,
-  useTestProvider,
+  useProviders: useProvidersFromStore,
   useUpdateProvider,
   useSystemConfig,
   useUpdateSystemConfig,

@@ -606,26 +606,6 @@ export class ApiService {
     }
   }
 
-
-    if (error?.response?.status === 409) {
-      const errorData = error.response.data;
-      if (errorData?.message) {
-        return errorData.message;
-      }
-      return '用户名或邮箱已存在';
-    }
-
-    if (error?.response?.data?.message) {
-      return error.response.data.message;
-    }
-
-    if (error?.message) {
-      return error.message;
-    }
-
-    return defaultMessage;
-  }
-
   /**
    * 获取基础URL
    */
@@ -700,19 +680,6 @@ if (typeof window !== 'undefined' && envConfig.debug) {
   if (!validation.valid) {
     console.warn('⚠️ API配置问题:', validation.issues);
   }
-}
-
-  }, 100);
-}
-
-// 开发环境下的配置检查（简化版）
-if (typeof window !== 'undefined' && envConfig.debug && envConfig.isDevelopment) {
-  setTimeout(() => {
-    const validation = apiService.validateConfig();
-    if (!validation.valid) {
-      console.warn('⚠️ API配置问题:', validation.issues);
-    }
-  }, 200);
 }
 
 export default apiService;
