@@ -1,0 +1,4 @@
+version: v1
+name: buf.build/xiaozhi/plugin
+deps:
+  - buf.build/googleapis/googleapis

@@ -16,6 +16,8 @@ import (
 	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
 	v1 "xiaozhi-server-go/internal/transport/http/v1"
 	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/plugin/ports"
+	"xiaozhi-server-go/internal/plugin/status"
 )
 
 // Options configures the HTTP router builder.
@@ -25,6 +27,10 @@ type Options struct {
 	AuthMiddleware gin.HandlerFunc
 	StaticRoot     string
 	Registry       *capability.Registry
+	// 新增：插件状态和端口管理器
+	PluginStatusManager *status.PluginStatusManager
+	PortManager         *ports.PortManager
+	// Note: PluginAPIRegistry is deprecated in gRPC architecture
 }
 
 // Router bundles together the gin engine and common route groups.
@@ -80,6 +86,19 @@ func Build(opts Options) (*Router, error) {
 		workflowService := v1.NewWorkflowService(opts.Config, logger, opts.Registry)
 		workflowService.RegisterRoutes(v1Group)
 	}
+
+	// Initialize Plugin List Controller
+	if opts.PluginStatusManager != nil {
+		logger.InfoTag("HTTP", "初始化插件列表控制器")
+		pluginListController := v1.NewPluginListController(opts.PluginStatusManager, logger)
+		pluginListController.Register(v1Group)
+		logger.InfoTag("HTTP", "插件列表控制器路由注册完成")
+	} else {
+		logger.InfoTag("HTTP", "插件状态管理器未初始化，跳过插件列表控制器")
+	}
+
+	// Note: Old HTTP Plugin API Registry is deprecated in gRPC architecture
+	// Plugin management is now handled by the new gRPC-based plugin management controller
 
 	var v1Secure *gin.RouterGroup
 	if opts.AuthMiddleware != nil {

@@ -3,15 +3,32 @@ package doubao
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"xiaozhi-server-go/internal/plugin/capability"
 	"xiaozhi-server-go/internal/platform/logging"
+	"xiaozhi-server-go/internal/plugin/grpc/server"
 )
 
-type Provider struct{}
+type Provider struct {
+	logger        *logging.Logger
+	grpcServer    *server.GRPCServer
+	grpcService   *GRPCServer
+	serviceAddress string
+	mu           sync.RWMutex
+}
 
 func NewProvider() *Provider {
-	return &Provider{}
+	return NewProviderWithLogger(nil)
+}
+
+func NewProviderWithLogger(logger *logging.Logger) *Provider {
+	if logger == nil {
+		logger = logging.DefaultLogger
+	}
+	return &Provider{
+		logger: logger,
+	}
 }
 
 func (p *Provider) GetCapabilities() []capability.Definition {
@@ -394,4 +411,87 @@ func getString(m map[string]interface{}, key string) string {
 		}
 	}
 	return ""
+}
+
+// GetPluginID 返回插件ID
+func (p *Provider) GetPluginID() string {
+	return "doubao"
+}
+
+// StartGRPCServer 启动Doubao插件的gRPC服务
+func (p *Provider) StartGRPCServer(address string) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.grpcServer != nil {
+		return fmt.Errorf("Doubao gRPC server already started at %s", p.serviceAddress)
+	}
+
+	if p.logger != nil {
+		p.logger.InfoTag("gRPC", "启动Doubao插件gRPC服务器",
+			"address", address)
+	}
+
+	// 创建gRPC服务器
+	p.grpcServer = server.NewGRPCServer(address, p.logger)
+
+	// 创建gRPC服务实例
+	p.grpcService = NewGRPCServer(p, p.logger)
+
+	// 注册服务
+	p.grpcServer.RegisterPluginService(p.grpcService)
+
+	// 启用反射（用于调试）
+	p.grpcServer.EnableReflection()
+
+	// 启动服务器
+	go func() {
+		if err := p.grpcServer.Start(); err != nil {
+			if p.logger != nil {
+				p.logger.ErrorTag("gRPC", "Doubao gRPC服务器启动失败",
+					"address", address,
+					"error", err.Error())
+			}
+		} else {
+			p.mu.Lock()
+			p.serviceAddress = address
+			p.mu.Unlock()
+			if p.logger != nil {
+				p.logger.InfoTag("gRPC", "Doubao插件gRPC服务器启动成功",
+					"address", address)
+			}
+		}
+	}()
+
+	return nil
+}
+
+// StopGRPCServer 停止Doubao插件的gRPC服务器
+func (p *Provider) StopGRPCServer() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.grpcServer == nil {
+		return fmt.Errorf("Doubao gRPC server not started")
+	}
+
+	if p.logger != nil {
+		p.logger.InfoTag("gRPC", "停止Doubao插件gRPC服务器",
+			"address", p.serviceAddress)
+	}
+
+	p.grpcServer.Stop()
+
+	p.grpcServer = nil
+	p.grpcService = nil
+	p.serviceAddress = ""
+
+	return nil
+}
+
+// GetServiceAddress 获取gRPC服务地址
+func (p *Provider) GetServiceAddress() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.serviceAddress
 }

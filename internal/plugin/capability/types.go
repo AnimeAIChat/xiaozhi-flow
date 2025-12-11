@@ -62,7 +62,32 @@ type StreamExecutor interface {
 type Provider interface {
 	// GetCapabilities returns all capabilities provided by this plugin
 	GetCapabilities() []Definition
-	
+
 	// CreateExecutor creates an executor for a specific capability
 	CreateExecutor(capabilityID string) (Executor, error)
+}
+
+// GRPCProvider extends Provider to support gRPC service
+type GRPCProvider interface {
+	Provider
+
+	// StartGRPCServer starts the gRPC server for this plugin
+	StartGRPCServer(address string) error
+
+	// StopGRPCServer stops the gRPC server for this plugin
+	StopGRPCServer() error
+
+	// GetServiceAddress returns the gRPC server address
+	GetServiceAddress() string
+
+	// GetPluginID returns the plugin ID
+	GetPluginID() string
+}
+
+// ConfigurableProvider extends Provider to support configuration-based execution
+type ConfigurableProvider interface {
+	Provider
+
+	// GetCapabilityExecutor creates an executor with specific configuration
+	GetCapabilityExecutor(capabilityID string, config map[string]interface{}) (Executor, error)
 }

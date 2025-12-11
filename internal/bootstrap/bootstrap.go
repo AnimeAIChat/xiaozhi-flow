@@ -19,6 +19,8 @@ import (
 	llminfra "xiaozhi-server-go/internal/domain/llm/infrastructure"
 	llmrepo "xiaozhi-server-go/internal/domain/llm/repository"
 	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/plugin/grpc/discovery"
+	"xiaozhi-server-go/internal/plugin/grpc/lifecycle"
 	"xiaozhi-server-go/internal/plugin/providers/chatglm"
 	"xiaozhi-server-go/internal/plugin/providers/coze"
 	"xiaozhi-server-go/internal/plugin/providers/deepgram"
@@ -34,7 +36,7 @@ import (
 	"xiaozhi-server-go/internal/domain/config/types"
 	"xiaozhi-server-go/internal/domain/device/service"
 	"xiaozhi-server-go/internal/domain/device/repository"
-	"xiaozhi-server-go/internal/domain/eventbus"
+		"xiaozhi-server-go/internal/domain/eventbus"
 	platformerrors "xiaozhi-server-go/internal/platform/errors"
 	platformlogging "xiaozhi-server-go/internal/platform/logging"
 	platformobservability "xiaozhi-server-go/internal/platform/observability"
@@ -46,6 +48,8 @@ import (
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
 	systemv1 "xiaozhi-server-go/internal/transport/http/v1"
 	devicev1 "xiaozhi-server-go/internal/transport/http/v1"
+	"xiaozhi-server-go/internal/plugin/ports"
+	"xiaozhi-server-go/internal/plugin/status"
 	"xiaozhi-server-go/internal/core/transport"
 	"xiaozhi-server-go/internal/contracts/adapters"
 	"xiaozhi-server-go/internal/contracts/config/integration"
@@ -99,6 +103,11 @@ type appState struct {
 	llmManager            llmrepo.LLMRepository // 新增：LLM管理器
 	llmService            domainllm.Service     // 新增：LLM服务
 	registry              *capability.Registry  // 新增：插件注册表
+		pluginDiscovery       *discovery.DiscoveryService // 新增：插件发现服务
+		pluginLifecycle       *lifecycle.LifecycleManager // 新增：插件生命周期管理器
+	// 新增：动态端口和状态管理器
+	portManager           *ports.PortManager         // 动态端口管理器
+	pluginStatusManager   *status.PluginStatusManager // 插件状态管理器
 }
 
 // Run 启动整个服务生命周期，负责加载配置、初始化依赖和优雅关停。
@@ -150,7 +159,7 @@ func Run(ctx context.Context) error {
 
 	group, groupCtx := errgroup.WithContext(rootCtx)
 
-	if err := startServices(state.config, logger, state.configRepo, state.domainMCPManager, state.registry, group, groupCtx); err != nil {
+	if err := startServices(state, group, groupCtx); err != nil {
 		cancel()
 		return err
 	}
@@ -172,16 +181,18 @@ func logBootstrapGraph(steps []initStep, logger *platformlogging.Logger) {
 
 	// 阶段名称映射
 	stepNames := map[string]string{
-		"storage:init-config-store": "初始化配置存储",
-		"storage:init-database":     "初始化数据库",
-		"config:load-default":       "加载默认配置",
-		"logging:init-provider":     "初始化日志提供者",
-		"mcp:init-manager":          "初始化MCP管理器",
-		"observability:setup-hooks": "设置可观测性钩子",
-		"components:init-container": "初始化组件容器",
-		"config:init-integrator":    "初始化配置集成器",
-		"auth:init-manager":         "初始化认证管理器",
-		"plugin:init-manager":       "初始化插件管理器",
+		"storage:init-config-store":     "初始化配置存储",
+		"storage:init-database":         "初始化数据库",
+		"config:load-default":           "加载默认配置",
+		"logging:init-provider":         "初始化日志提供者",
+		"plugin:init-port-manager":      "初始化插件端口管理器",
+		"plugin:init-status-manager":    "初始化插件状态管理器",
+		"mcp:init-manager":              "初始化MCP管理器",
+		"observability:setup-hooks":     "设置可观测性钩子",
+		"components:init-container":     "初始化组件容器",
+		"config:init-integrator":        "初始化配置集成器",
+		"auth:init-manager":             "初始化认证管理器",
+		"plugin:init-manager":           "初始化插件管理器",
 	}
 
 	for _, step := range steps {
@@ -272,11 +283,25 @@ func InitGraph() []initStep {
 			Execute:   initLoggingStep,
 		},
 		{
+			ID:        "plugin:init-port-manager",
+			Title:     "Initialise plugin port manager",
+			DependsOn: []string{"logging:init-provider"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initPluginPortManagerStep,
+		},
+		{
 			ID:        "mcp:init-manager",
 			Title:     "Initialise MCP manager",
 			DependsOn: []string{"logging:init-provider"},
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initMCPManagerStep,
+		},
+	{
+			ID:        "plugin:init-status-manager",
+			Title:     "Initialise plugin status manager",
+			DependsOn: []string{"plugin:init-port-manager", "llm:init-manager"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initPluginStatusManagerStep,
 		},
 		{
 			ID:        "observability:setup-hooks",
@@ -292,7 +317,7 @@ func InitGraph() []initStep {
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initConfigIntegratorStep,
 		},
-	}
+		}
 }
 
 func initLLMManagerStep(_ context.Context, state *appState) error {
@@ -306,7 +331,7 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 
 	// Initialize Capability Registry
 	registry := capability.NewRegistry()
-	
+
 	// Register Plugins
 	registry.Register("chatglm", chatglm.NewProvider())
 	registry.Register("coze", coze.NewProvider())
@@ -322,6 +347,57 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 	llmadapters.RegisterLegacyAdapters()
 
 	state.registry = registry
+
+	// Plugin API Registry is no longer needed in gRPC architecture
+	// Plugins are now managed through discovery and lifecycle services
+
+	// Create plugin instances with logger
+	pluginLogger := state.logger
+	if pluginLogger == nil {
+		pluginLogger = platformlogging.DefaultLogger
+	}
+
+	// Register plugins directly with capability registry for gRPC architecture
+	plugins := map[string]capability.Provider{
+		"chatglm": chatglm.NewProviderWithLogger(pluginLogger),
+		"coze":     coze.NewProviderWithLogger(pluginLogger),
+		"deepgram": deepgram.NewProviderWithLogger(pluginLogger),
+		"doubao":   doubao.NewProviderWithLogger(pluginLogger),
+		"edge":     edge.NewProviderWithLogger(pluginLogger),
+		"gosherpa": gosherpa.NewProviderWithLogger(pluginLogger),
+		"ollama":   ollama.NewProviderWithLogger(pluginLogger),
+		"openai":   openai.NewProviderWithLogger(pluginLogger),
+		"stepfun":  stepfun.NewProviderWithLogger(pluginLogger),
+	}
+
+	// Register plugins with capability registry
+	for pluginID, provider := range plugins {
+		registry.Register(pluginID, provider)
+	}
+
+	// Initialize Plugin Discovery Service
+	pluginDiscovery := discovery.NewDiscoveryService(state.logger)
+	state.pluginDiscovery = pluginDiscovery
+
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "插件发现服务初始化完成")
+	}
+
+	// Initialize Plugin Lifecycle Manager
+	pluginLifecycle := lifecycle.NewLifecycleManager(registry, pluginDiscovery, state.logger)
+	state.pluginLifecycle = pluginLifecycle
+
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "插件生命周期管理器初始化完成")
+	}
+
+	// Auto-discover plugins
+	if err := pluginLifecycle.AutoDiscoverPlugins(context.Background()); err != nil {
+		return platformerrors.Wrap(platformerrors.KindBootstrap, "plugin:auto-discover", "failed to auto-discover plugins", err)
+	}
+
+	// Start plugin health check loop
+	go pluginDiscovery.StartHealthCheckLoop(context.Background(), 30*time.Second)
 
 	manager, err := llminfra.NewLLMManager(state.config, registry)
 	if err != nil {
@@ -613,9 +689,14 @@ func startHTTPServer(
 	transportManager adapters.TransportManager,
 	deviceRepo repository.DeviceRepository,
 	registry *capability.Registry,
+	portManager *ports.PortManager,
+	pluginStatusManager *status.PluginStatusManager,
+	pluginLifecycle *lifecycle.LifecycleManager,
+	pluginDiscovery *discovery.DiscoveryService,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) (*http.Server, error) {
+
 	// 首先初始化webapi服务以获取认证中间件
 	webapiService, err := httpwebapi.NewService(config, logger)
 	if err != nil {
@@ -623,12 +704,14 @@ func startHTTPServer(
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "webapi:new-service", "failed to create webapi service", err)
 	}
 
-	// 构建HTTP路由器，传入认证中间件
+	// 构建HTTP路由器，传入认证中间件和新的管理器
 	httpRouter, err := httptransport.Build(httptransport.Options{
-		Config:         config,
-		Logger:         logger,
-		AuthMiddleware: webapiService.AuthMiddleware(),
-		Registry:       registry,
+		Config:               config,
+		Logger:               logger,
+		AuthMiddleware:       webapiService.AuthMiddleware(),
+		Registry:             registry,
+		PortManager:          portManager,
+		PluginStatusManager:  pluginStatusManager,
 	})
 	if err != nil {
 		return nil, err
@@ -705,8 +788,6 @@ func startHTTPServer(
 		systemServiceV1.Register(httpRouter.V1)
 		deviceServiceV1.Register(httpRouter.V1)
 	}
-
-	// Note: System config service removed as we no longer use database-backed configuration
 
 	// 自动分配可用端口
 	port, err := utils.GetAvailablePort(config.Web.Port)
@@ -800,11 +881,7 @@ func waitForShutdown(
 }
 
 func startServices(
-	config *platformconfig.Config,
-	logger *logging.Logger,
-	configRepo types.Repository,
-	domainMCPManager *domainmcp.Manager,
-	registry *capability.Registry,
+	state *appState,
 	g *errgroup.Group,
 	groupCtx context.Context,
 ) error {
@@ -812,12 +889,12 @@ func startServices(
 	db := platformstorage.GetDB()
 	deviceRepo := platformstorage.NewDeviceRepository(db)
 
-	transportManager, err := startTransportServer(config, logger, domainMCPManager, deviceRepo, registry, g, groupCtx)
+	transportManager, err := startTransportServer(state.config, state.logger, state.domainMCPManager, deviceRepo, state.registry, g, groupCtx)
 	if err != nil {
 		return fmt.Errorf("启动 Transport 服务失败: %w", err)
 	}
 
-	if _, err := startHTTPServer(config, logger, configRepo, transportManager, deviceRepo, registry, g, groupCtx); err != nil {
+	if _, err := startHTTPServer(state.config, state.logger, state.configRepo, transportManager, deviceRepo, state.registry, state.portManager, state.pluginStatusManager, state.pluginLifecycle, state.pluginDiscovery, g, groupCtx); err != nil {
 		return fmt.Errorf("启动 Http 服务失败: %w", err)
 	}
 
@@ -898,4 +975,113 @@ func setupStaticFiles(router *gin.Engine, config *platformconfig.Config) {
 		}
 	})
 }
+
+// startGRPCPlugins 启动支持gRPC的插件服务器，使用动态端口分配
+func startGRPCPlugins(plugins map[string]capability.Provider, portManager *ports.PortManager, logger *platformlogging.Logger) error {
+	for pluginID, provider := range plugins {
+		// 检查插件是否支持gRPC
+		if grpcProvider, ok := provider.(capability.GRPCProvider); ok {
+			// 使用动态端口分配
+			port, err := portManager.AllocatePortWithRetry(pluginID, 3, 1*time.Second)
+			if err != nil {
+				if logger != nil {
+					logger.ErrorTag("gRPC", "插件端口分配失败，跳过gRPC启动",
+						"plugin_id", pluginID,
+						"error", err.Error())
+				}
+				continue
+			}
+
+			address := fmt.Sprintf("0.0.0.0:%d", port)
+			if logger != nil {
+				logger.InfoTag("gRPC", "启动插件gRPC服务器",
+					"plugin_id", pluginID,
+					"address", address)
+			}
+
+			// 启动gRPC服务器
+			if err := grpcProvider.StartGRPCServer(address); err != nil {
+				if logger != nil {
+					logger.ErrorTag("gRPC", "插件gRPC服务器启动失败",
+						"plugin_id", pluginID,
+						"address", address,
+						"error", err.Error())
+				}
+				// 释放已分配的端口
+				portManager.ReleasePort(port)
+				return fmt.Errorf("failed to start gRPC server for plugin %s: %w", pluginID, err)
+			}
+
+			if logger != nil {
+				logger.InfoTag("gRPC", "插件gRPC服务器启动成功",
+					"plugin_id", pluginID,
+					"address", address)
+			}
+		}
+	}
+
+	return nil
+}
+
+// initPluginPortManagerStep 初始化插件端口管理器
+func initPluginPortManagerStep(_ context.Context, state *appState) error {
+	if state == nil || state.logger == nil {
+		return platformerrors.New(
+			platformerrors.KindBootstrap,
+			"plugin:init-port-manager",
+			"logger not initialised",
+		)
+	}
+
+	// 创建端口管理器，使用默认端口范围 20000-29999
+	portManager := ports.NewDefaultPortManager(state.logger)
+	state.portManager = portManager
+
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "插件端口管理器初始化完成")
+	}
+
+	return nil
+}
+
+// initPluginStatusManagerStep 初始化插件状态管理器
+func initPluginStatusManagerStep(_ context.Context, state *appState) error {
+	if state == nil || state.logger == nil || state.registry == nil || state.portManager == nil {
+		return platformerrors.New(
+			platformerrors.KindBootstrap,
+			"plugin:init-status-manager",
+			"required dependencies not initialised (registry, portManager, logger)",
+		)
+	}
+
+	// 创建插件状态管理器
+	pluginStatusManager := status.NewPluginStatusManager(
+		state.registry,
+		state.portManager,
+		state.logger,
+	)
+	state.pluginStatusManager = pluginStatusManager
+
+	if state.logger != nil {
+		state.logger.InfoTag("引导", "插件状态管理器初始化完成")
+	}
+
+	// 启动gRPC服务器
+	allProviders := state.registry.GetAllProviders()
+	plugins := make(map[string]capability.Provider)
+	for pluginID, providerList := range allProviders {
+		if len(providerList) > 0 {
+			plugins[pluginID] = providerList[0]
+		}
+	}
+	if err := startGRPCPlugins(plugins, state.portManager, state.logger); err != nil {
+		return platformerrors.Wrap(platformerrors.KindBootstrap, "plugin:start-grpc", "failed to start gRPC plugins", err)
+	}
+
+	// 启动健康检查任务
+	go pluginStatusManager.StartHealthCheck(context.Background(), 30*time.Second)
+
+	return nil
+}
+
 

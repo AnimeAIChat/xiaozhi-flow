@@ -4,13 +4,32 @@ import (
 	"context"
 	"fmt"
 
+	pluginpb "xiaozhi-server-go/gen/go/api/proto"
 	"xiaozhi-server-go/internal/plugin/capability"
+	"xiaozhi-server-go/internal/platform/logging"
+	"xiaozhi-server-go/internal/plugin/grpc/server"
 )
 
-type Provider struct{}
+type Provider struct {
+	*server.BaseGRPCProvider
+	logger *logging.Logger
+}
 
 func NewProvider() *Provider {
-	return &Provider{}
+	return NewProviderWithLogger(nil)
+}
+
+func NewProviderWithLogger(logger *logging.Logger) *Provider {
+	if logger == nil {
+		logger = logging.DefaultLogger
+	}
+	p := &Provider{
+		logger: logger,
+	}
+	p.BaseGRPCProvider = server.NewBaseGRPCProvider("gosherpa", logger, func() pluginpb.PluginServiceServer {
+		return NewGRPCServer(p, logger)
+	})
+	return p
 }
 
 func (p *Provider) GetCapabilities() []capability.Definition {

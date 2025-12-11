@@ -51,6 +51,27 @@ func (r *Registry) GetExecutor(capabilityID string) (Executor, error) {
 	return provider.CreateExecutor(capabilityID)
 }
 
+// GetProvider 获取指定ID的提供者
+func (r *Registry) GetProvider(providerID string) (Provider, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	provider, ok := r.providers[providerID]
+	return provider, ok
+}
+
+// GetAllProviders 获取所有提供者
+func (r *Registry) GetAllProviders() map[string][]Provider {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string][]Provider)
+	for providerID, provider := range r.providers {
+		result[providerID] = []Provider{provider}
+	}
+	return result
+}
+
 func (r *Registry) ListCapabilities() []Definition {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

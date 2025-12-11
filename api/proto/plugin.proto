@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package plugin;
+option go_package = "xiaozhi-server-go/api/proto/plugin";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/timestamp.proto";
+
+// 插件服务定义
+service PluginService {
+  // 获取插件信息和能力
+  rpc GetPluginInfo(GetPluginInfoRequest) returns (GetPluginInfoResponse);
+
+  // 执行插件能力（非流式）
+  rpc ExecuteCapability(ExecuteCapabilityRequest) returns (ExecuteCapabilityResponse);
+
+  // 执行插件能力（流式）
+  rpc ExecuteCapabilityStream(ExecuteCapabilityRequest) returns (stream ExecuteCapabilityResponse);
+
+  // 健康检查
+  rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// 插件信息请求
+message GetPluginInfoRequest {
+  string plugin_id = 1;
+}
+
+// 插件能力定义
+message CapabilityDefinition {
+  string id = 1;
+  string type = 2;
+  string name = 3;
+  string description = 4;
+  google.protobuf.Struct config_schema = 5;
+  google.protobuf.Struct input_schema = 6;
+  google.protobuf.Struct output_schema = 7;
+  bool enabled = 8;
+}
+
+// 插件信息
+message PluginInfo {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string description = 4;
+  string version = 5;
+  string status = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// 插件信息响应
+message GetPluginInfoResponse {
+  PluginInfo plugin_info = 1;
+  repeated CapabilityDefinition capabilities = 2;
+}
+
+// 执行能力请求
+message ExecuteCapabilityRequest {
+  string capability_id = 1;
+  google.protobuf.Struct config = 2;
+  google.protobuf.Struct inputs = 3;
+}
+
+// 执行能力响应
+message ExecuteCapabilityResponse {
+  bool success = 1;
+  google.protobuf.Struct outputs = 2;
+  string error_message = 3;
+  bool stream_finished = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+// 健康检查请求
+message HealthCheckRequest {
+  string plugin_id = 1;
+}
+
+// 健康检查响应
+message HealthCheckResponse {
+  string status = 1; // "healthy", "unhealthy", "unknown"
+  string message = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  map<string, string> details = 4;
+}
+
+// 插件管理相关消息
+
+// 安装插件请求
+message InstallPluginRequest {
+  string plugin_id = 1;
+  string plugin_type = 2;
+  string version = 3;
+  google.protobuf.Struct config = 4;
+}
+
+// 安装插件响应
+message InstallPluginResponse {
+  bool success = 1;
+  string message = 2;
+  string assigned_port = 3;
+}
+
+// 卸载插件请求
+message UninstallPluginRequest {
+  string plugin_id = 1;
+  bool force = 2;
+}
+
+// 卸载插件响应
+message UninstallPluginResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 启用/禁用插件请求
+message SetPluginStatusRequest {
+  string plugin_id = 1;
+  bool enabled = 2;
+}
+
+// 启用/禁用插件响应
+message SetPluginStatusResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// 插件列表请求
+message ListPluginsRequest {
+  string type_filter = 1; // 可选，按类型过滤
+  string status_filter = 2; // 可选，按状态过滤
+}
+
+// 插件状态
+message PluginStatus {
+  string plugin_id = 1;
+  string name = 2;
+  string type = 3;
+  string status = 4; // "active", "inactive", "error"
+  string version = 5;
+  string service_address = 6;
+  google.protobuf.Timestamp last_updated = 7;
+  repeated string capabilities = 8;
+}
+
+// 插件列表响应
+message ListPluginsResponse {
+  repeated PluginStatus plugins = 1;
+  int32 total_count = 2;
+}
