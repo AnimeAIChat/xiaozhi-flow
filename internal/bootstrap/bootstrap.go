@@ -46,7 +46,6 @@ import (
 	httpvision "xiaozhi-server-go/internal/transport/http/vision"
 	httpwebapi "xiaozhi-server-go/internal/transport/http/webapi"
 	httpota "xiaozhi-server-go/internal/transport/http/ota"
-	systemv1 "xiaozhi-server-go/internal/transport/http/v1"
 	devicev1 "xiaozhi-server-go/internal/transport/http/v1"
 	"xiaozhi-server-go/internal/plugin/ports"
 	"xiaozhi-server-go/internal/plugin/status"
@@ -760,13 +759,6 @@ func startHTTPServer(
 		return nil, platformerrors.Wrap(platformerrors.KindTransport, "ota:new-service", "failed to create ota service", err)
 	}
 
-	// 初始化V1系统服务
-	systemServiceV1, err := systemv1.NewSystemServiceV1(config, logger)
-	if err != nil {
-		logger.ErrorTag("API", "V1系统服务初始化失败: %v", err)
-		return nil, platformerrors.Wrap(platformerrors.KindTransport, "system-v1:new-service", "failed to create system v1 service", err)
-	}
-
 	// 初始化V1设备服务
 	deviceServiceV1, err := devicev1.NewDeviceServiceV1(config, logger, transportManager)
 	if err != nil {
@@ -781,13 +773,14 @@ func startHTTPServer(
 
 	// 如果有认证中间件，注册需要认证的接口到V1Secure
 	if httpRouter.V1Secure != nil {
-		systemServiceV1.Register(httpRouter.V1Secure)     // 系统管理需要认证
 		deviceServiceV1.Register(httpRouter.V1Secure)     // 设备管理需要认证
 	} else {
 		// 没有认证中间件时，注册到普通V1路由
-		systemServiceV1.Register(httpRouter.V1)
 		deviceServiceV1.Register(httpRouter.V1)
 	}
+
+	// 注意: 旧的systemServiceV1已被移除，现在使用新的动态插件管理系统
+	// 新API路径: /api/v1/plugins/
 
 	// 自动分配可用端口
 	port, err := utils.GetAvailablePort(config.Web.Port)

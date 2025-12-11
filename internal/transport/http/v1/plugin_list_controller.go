@@ -28,6 +28,100 @@ type APIResponse struct {
 	RequestID string      `json:"request_id,omitempty"`
 }
 
+// PluginListResponse 插件列表响应结构
+type PluginListResponse struct {
+	Total      int           `json:"total"`
+	Page       int           `json:"page"`
+	PageSize   int           `json:"page_size"`
+	TotalPages int           `json:"total_pages"`
+	Plugins    []PluginStatus `json:"plugins"`
+}
+
+// PluginControlResponse 插件控制响应结构
+type PluginControlResponse struct {
+	Success    bool        `json:"success"`
+	Message    string      `json:"message"`
+	OldStatus  string      `json:"old_status,omitempty"`
+	NewStatus  string      `json:"new_status,omitempty"`
+	OldPort    int         `json:"old_port,omitempty"`
+	NewPort    int         `json:"new_port,omitempty"`
+	ProcessTime string      `json:"process_time"`
+}
+
+// PluginStats 插件统计信息结构
+type PluginStats struct {
+	Total        int                             `json:"total"`
+	Running      int                             `json:"running"`
+	Stopped      int                             `json:"stopped"`
+	Enabled      int                             `json:"enabled"`
+	Disabled     int                             `json:"disabled"`
+	Error        int                             `json:"error"`
+	Healthy      int                             `json:"healthy"`
+	Unhealthy    int                             `json:"unknown"`
+	ByCapability map[string]int                 `json:"by_capability"`
+	ByType       map[string]int                 `json:"by_type"`
+	LastUpdated  time.Time                      `json:"last_updated"`
+}
+
+// PluginControlRequest 插件控制请求结构
+type PluginControlRequest struct {
+	Action string `json:"action" binding:"required,oneof=start stop restart reallocate_port"`
+	Config map[string]interface{} `json:"config,omitempty"`
+}
+
+// PluginStatus 插件状态结构 (用于Swagger文档)
+type PluginStatus struct {
+	ID             string                    `json:"id"`
+	Name           string                    `json:"name"`
+	Type           string                    `json:"type"`
+	Description    string                    `json:"description"`
+	Version        string                    `json:"version"`
+	Status         string                    `json:"status"`
+	Address        string                    `json:"address"`
+	Port           int                       `json:"port"`
+	Capabilities   []CapabilityDef           `json:"capabilities"`
+	HealthStatus   string                    `json:"health_status"`
+	LastHealthCheck time.Time                 `json:"last_health_check"`
+	CreatedAt      time.Time                 `json:"created_at"`
+	UpdatedAt      time.Time                 `json:"updated_at"`
+}
+
+// CapabilityDef 能力定义结构 (用于Swagger文档)
+type CapabilityDef struct {
+	ID          string              `json:"id"`
+	Type        string              `json:"type"`
+	Name        string              `json:"name"`
+	Description string              `json:"description"`
+	ConfigSchema CapabilitySchema  `json:"config_schema"`
+	InputSchema  CapabilitySchema  `json:"input_schema"`
+	OutputSchema CapabilitySchema  `json:"output_schema"`
+	Enabled     bool                `json:"enabled"`
+}
+
+// CapabilitySchema 能力Schema结构 (用于Swagger文档)
+type CapabilitySchema struct {
+	Type       string                    `json:"type"`
+	Properties map[string]CapabilityProperty `json:"properties"`
+	Required   []string                  `json:"required"`
+}
+
+// CapabilityProperty 能力属性结构 (用于Swagger文档)
+type CapabilityProperty struct {
+	Type        string `json:"type"`
+	Default     interface{} `json:"default,omitempty"`
+	Description string      `json:"description,omitempty"`
+	Secret      bool     `json:"secret"`
+}
+
+// PortStats 端口统计信息结构 (用于Swagger文档)
+type PortStats struct {
+	TotalPorts     int     `json:"total_ports"`
+	AllocatedPorts int     `json:"allocated_ports"`
+	AvailablePorts int     `json:"available_ports"`
+	ReservedPorts  int     `json:"reserved_ports"`
+	UsagePercent   float64 `json:"usage_percent"`
+}
+
 // APIError API错误结构
 type APIError struct {
 	Code    string `json:"code"`
@@ -93,8 +187,8 @@ func (c *PluginListController) Register(router *gin.RouterGroup) {
 // @Param sort_order query string false "排序方向" Enums(asc,desc) default(desc)
 // @Param search query string false "搜索关键词"
 // @Produce json
-// @Success 200 {object} APIResponse{data=status.PluginListResponse}
-// @Router /api/v1/plugins [get]
+// @Success 200 {object} APIResponse{data=PluginListResponse}
+// @Router /v1/plugins [get]
 func (c *PluginListController) ListPlugins(ctx *gin.Context) {
 	// 解析查询参数
 	filter := status.DefaultPluginFilter()
@@ -175,8 +269,8 @@ func (c *PluginListController) ListPlugins(ctx *gin.Context) {
 // @Description 获取插件的数量、状态分布、健康状态等统计信息
 // @Tags plugins
 // @Produce json
-// @Success 200 {object} APIResponse{data=status.PluginStats}
-// @Router /api/v1/plugins/stats [get]
+// @Success 200 {object} APIResponse{data=PluginStats}
+// @Router /v1/plugins/stats [get]
 func (c *PluginListController) GetPluginStats(ctx *gin.Context) {
 	stats := c.statusManager.GetStats()
 
@@ -202,8 +296,8 @@ func (c *PluginListController) GetPluginStats(ctx *gin.Context) {
 // @Description 获取端口使用情况统计
 // @Tags plugins
 // @Produce json
-// @Success 200 {object} APIResponse{data=ports.PortStats}
-// @Router /api/v1/plugins/ports [get]
+// @Success 200 {object} APIResponse{data=PortStats}
+// @Router /v1/plugins/ports [get]
 func (c *PluginListController) GetPortStats(ctx *gin.Context) {
 	// 这里需要访问PortManager，需要扩展StatusManager
 	// 暂时返回模拟数据
@@ -236,9 +330,9 @@ func (c *PluginListController) GetPortStats(ctx *gin.Context) {
 // @Tags plugins
 // @Param id path string true "插件ID"
 // @Produce json
-// @Success 200 {object} APIResponse{data=status.PluginStatus}
+// @Success 200 {object} APIResponse{data=PluginStatus}
 // @Failure 404 {object} APIResponse
-// @Router /api/v1/plugins/{id} [get]
+// @Router /v1/plugins/{id} [get]
 func (c *PluginListController) GetPlugin(ctx *gin.Context) {
 	pluginID := ctx.Param("id")
 	if pluginID == "" {
@@ -300,12 +394,12 @@ func (c *PluginListController) GetPlugin(ctx *gin.Context) {
 // @Description 对插件进行启动、停止、重启、重新分配端口等操作
 // @Tags plugins
 // @Param id path string true "插件ID"
-// @Param body body status.PluginControlRequest true "控制请求"
+// @Param body body PluginControlRequest true "控制请求"
 // @Produce json
-// @Success 200 {object} APIResponse{data=status.PluginControlResponse}
+// @Success 200 {object} APIResponse{data=PluginControlResponse}
 // @Failure 400 {object} APIResponse
 // @Failure 404 {object} APIResponse
-// @Router /api/v1/plugins/{id}/control [post]
+// @Router /v1/plugins/{id}/control [post]
 func (c *PluginListController) ControlPlugin(ctx *gin.Context) {
 	pluginID := ctx.Param("id")
 	if pluginID == "" {
@@ -487,7 +581,7 @@ func (c *PluginListController) ControlPlugin(ctx *gin.Context) {
 // @Produce json
 // @Success 200 {object} APIResponse
 // @Failure 404 {object} APIResponse
-// @Router /api/v1/plugins/{id}/health [post]
+// @Router /v1/plugins/{id}/health [post]
 func (c *PluginListController) CheckPluginHealth(ctx *gin.Context) {
 	pluginID := ctx.Param("id")
 	if pluginID == "" {
@@ -564,7 +658,7 @@ func (c *PluginListController) CheckPluginHealth(ctx *gin.Context) {
 // @Produce json
 // @Success 200 {object} APIResponse
 // @Failure 404 {object} APIResponse
-// @Router /api/v1/plugins/{id}/reallocate-port [post]
+// @Router /v1/plugins/{id}/reallocate-port [post]
 func (c *PluginListController) ReallocatePort(ctx *gin.Context) {
 	pluginID := ctx.Param("id")
 	if pluginID == "" {
@@ -647,7 +741,7 @@ func (c *PluginListController) ReallocatePort(ctx *gin.Context) {
 // @Tags plugins
 // @Produce json
 // @Success 200 {object} APIResponse
-// @Router /api/v1/plugins/capabilities [get]
+// @Router /v1/plugins/capabilities [get]
 func (c *PluginListController) GetCapabilities(ctx *gin.Context) {
 	// 获取所有插件
 	response, err := c.statusManager.ListPlugins(status.DefaultPluginFilter())
@@ -706,7 +800,7 @@ func (c *PluginListController) GetCapabilities(ctx *gin.Context) {
 // @Param type path string true "能力类型"
 // @Produce json
 // @Success 200 {object} APIResponse
-// @Router /api/v1/plugins/capabilities/{type} [get]
+// @Router /v1/plugins/capabilities/{type} [get]
 func (c *PluginListController) GetCapabilitiesByType(ctx *gin.Context) {
 	capabilityType := ctx.Param("type")
 	if capabilityType == "" {

@@ -70,94 +70,6 @@
                 }
             }
         },
-        "/system": {
-            "get": {
-                "description": "获取系统状态信息，根据用户权限返回不同级别的信息",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "获取系统信息",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Bearer token",
-                        "name": "Authorization",
-                        "in": "header"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.UnifiedSystemInfo"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "执行系统健康检查、重启等操作",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "执行系统操作",
-                "parameters": [
-                    {
-                        "description": "系统操作请求",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.SystemOperationRequest"
-                        }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Bearer token",
-                        "name": "Authorization",
-                        "in": "header"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {}
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
         "/v1/devices": {
             "get": {
                 "description": "获取设备列表，支持分页和过滤",
@@ -560,123 +472,300 @@
                 }
             }
         },
-        "/v1/providers": {
+        "/v1/plugins": {
             "get": {
-                "description": "获取所有配置的AI服务供应商",
+                "description": "获取所有插件的信息，支持分页、筛选和排序",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "plugins"
                 ],
-                "summary": "获取供应商列表",
+                "summary": "获取插件列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            "LLM",
+                            "TTS",
+                            "ASR",
+                            "Tool"
+                        ],
+                        "type": "string",
+                        "description": "插件类型",
+                        "name": "type",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "installed",
+                            "enabled",
+                            "disabled",
+                            "running",
+                            "stopped",
+                            "error"
+                        ],
+                        "type": "string",
+                        "description": "插件状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "healthy",
+                            "unhealthy",
+                            "unknown"
+                        ],
+                        "type": "string",
+                        "description": "健康状态",
+                        "name": "health_status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页大小",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "updated_at",
+                        "description": "排序字段",
+                        "name": "sort_by",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "asc",
+                            "desc"
+                        ],
+                        "type": "string",
+                        "default": "desc",
+                        "description": "排序方向",
+                        "name": "sort_order",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键词",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                    "$ref": "#/definitions/v1.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/v1.ProviderList"
+                                            "$ref": "#/definitions/v1.PluginListResponse"
                                         }
                                     }
                                 }
                             ]
-                        }
-                    }
-                }
-            },
-            "post": {
-                "description": "创建新的AI服务供应商配置",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Providers"
-                ],
-                "summary": "创建供应商配置",
-                "parameters": [
-                    {
-                        "description": "供应商配置",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/v1.ProviderConfigRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/v1.Provider"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
                         }
                     }
                 }
             }
         },
-        "/v1/providers/{type}/{name}": {
-            "put": {
-                "description": "更新指定供应商的配置信息",
-                "consumes": [
-                    "application/json"
-                ],
+        "/v1/plugins/capabilities": {
+            "get": {
+                "description": "获取所有插件的能力定义",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "plugins"
                 ],
-                "summary": "更新供应商配置",
+                "summary": "获取所有插件能力",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/capabilities/{type}": {
+            "get": {
+                "description": "根据类型筛选插件能力",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "按类型获取插件能力",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "供应商类型",
+                        "description": "能力类型",
                         "name": "type",
                         "in": "path",
                         "required": true
-                    },
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/ports": {
+            "get": {
+                "description": "获取端口使用情况统计",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "获取端口统计信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.PortStats"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/stats": {
+            "get": {
+                "description": "获取插件的数量、状态分布、健康状态等统计信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "获取插件统计信息",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.PluginStats"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/{id}": {
+            "get": {
+                "description": "根据插件ID获取详细信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "获取插件详情",
+                "parameters": [
                     {
                         "type": "string",
-                        "description": "供应商名称",
-                        "name": "name",
+                        "description": "插件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/v1.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.PluginStatus"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/{id}/control": {
+            "post": {
+                "description": "对插件进行启动、停止、重启、重新分配端口等操作",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "控制插件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     },
                     {
-                        "description": "供应商配置",
-                        "name": "request",
+                        "description": "控制请求",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/v1.ProviderConfigRequest"
+                            "$ref": "#/definitions/v1.PluginControlRequest"
                         }
                     }
                 ],
@@ -686,13 +775,13 @@
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                    "$ref": "#/definitions/v1.APIResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/v1.Provider"
+                                            "$ref": "#/definitions/v1.PluginControlResponse"
                                         }
                                     }
                                 }
@@ -702,38 +791,33 @@
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
+                            "$ref": "#/definitions/v1.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
+                            "$ref": "#/definitions/v1.APIResponse"
                         }
                     }
                 }
-            },
-            "delete": {
-                "description": "删除指定的供应商配置",
+            }
+        },
+        "/v1/plugins/{id}/health": {
+            "post": {
+                "description": "手动触发插件健康检查",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Providers"
+                    "plugins"
                 ],
-                "summary": "删除供应商配置",
+                "summary": "检查插件健康状态",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "供应商类型",
-                        "name": "type",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "供应商名称",
-                        "name": "name",
+                        "description": "插件ID",
+                        "name": "id",
                         "in": "path",
                         "required": true
                     }
@@ -742,13 +826,48 @@
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
+                            "$ref": "#/definitions/v1.APIResponse"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/httptransport.APIResponse"
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/v1/plugins/{id}/reallocate-port": {
+            "post": {
+                "description": "为插件分配新的端口",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "重新分配插件端口",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "插件ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/v1.APIResponse"
                         }
                     }
                 }
@@ -968,20 +1087,99 @@
                 }
             }
         },
-        "v1.DatabaseConfigInfo": {
+        "v1.APIError": {
             "type": "object",
             "properties": {
-                "database": {
+                "code": {
                     "type": "string"
                 },
-                "host": {
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.APIResponse": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/v1.APIError"
+                },
+                "message": {
                     "type": "string"
                 },
-                "port": {
+                "request_id": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                },
+                "timestamp": {
                     "type": "integer"
                 },
-                "status": {
+                "version": {
                     "type": "string"
+                }
+            }
+        },
+        "v1.CapabilityDef": {
+            "type": "object",
+            "properties": {
+                "config_schema": {
+                    "$ref": "#/definitions/v1.CapabilitySchema"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "input_schema": {
+                    "$ref": "#/definitions/v1.CapabilitySchema"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "output_schema": {
+                    "$ref": "#/definitions/v1.CapabilitySchema"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.CapabilityProperty": {
+            "type": "object",
+            "properties": {
+                "default": {},
+                "description": {
+                    "type": "string"
+                },
+                "secret": {
+                    "type": "boolean"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "v1.CapabilitySchema": {
+            "type": "object",
+            "properties": {
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/v1.CapabilityProperty"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "type": {
                     "type": "string"
@@ -1236,23 +1434,6 @@
                 }
             }
         },
-        "v1.HealthComponent": {
-            "type": "object",
-            "properties": {
-                "error": {
-                    "type": "string"
-                },
-                "latency": {
-                    "type": "integer"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
         "v1.Pagination": {
             "type": "object",
             "properties": {
@@ -1276,297 +1457,184 @@
                 }
             }
         },
-        "v1.Provider": {
+        "v1.PluginControlRequest": {
             "type": "object",
+            "required": [
+                "action"
+            ],
             "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": [
+                        "start",
+                        "stop",
+                        "restart",
+                        "reallocate_port"
+                    ]
+                },
                 "config": {
                     "type": "object",
                     "additionalProperties": true
+                }
+            }
+        },
+        "v1.PluginControlResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "new_port": {
+                    "type": "integer"
+                },
+                "new_status": {
+                    "type": "string"
+                },
+                "old_port": {
+                    "type": "integer"
+                },
+                "old_status": {
+                    "type": "string"
+                },
+                "process_time": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "v1.PluginListResponse": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "plugins": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.PluginStatus"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "total_pages": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.PluginStats": {
+            "type": "object",
+            "properties": {
+                "by_capability": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "by_type": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "disabled": {
+                    "type": "integer"
+                },
+                "enabled": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "integer"
+                },
+                "healthy": {
+                    "type": "integer"
+                },
+                "last_updated": {
+                    "type": "string"
+                },
+                "running": {
+                    "type": "integer"
+                },
+                "stopped": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "unknown": {
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.PluginStatus": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string"
+                },
+                "capabilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.CapabilityDef"
+                    }
                 },
                 "created_at": {
                     "type": "string"
                 },
-                "enabled": {
-                    "type": "boolean"
+                "description": {
+                    "type": "string"
                 },
-                "metadata": {
-                    "type": "object",
-                    "additionalProperties": true
+                "health_status": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "last_health_check": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
                 },
+                "port": {
+                    "type": "integer"
+                },
                 "status": {
-                    "description": "active, inactive, error",
                     "type": "string"
                 },
                 "type": {
-                    "description": "llm, tts, asr, vllm",
                     "type": "string"
                 },
                 "updated_at": {
                     "type": "string"
-                }
-            }
-        },
-        "v1.ProviderConfigRequest": {
-            "type": "object",
-            "required": [
-                "config",
-                "name",
-                "type"
-            ],
-            "properties": {
-                "config": {
-                    "type": "object",
-                    "additionalProperties": true
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "v1.ProviderList": {
-            "type": "object",
-            "properties": {
-                "providers": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.Provider"
-                    }
-                }
-            }
-        },
-        "v1.SystemAdminInfo": {
-            "type": "object",
-            "properties": {
-                "config": {
-                    "description": "配置信息",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemConfigInfo"
-                        }
-                    ]
-                },
-                "cpu": {
-                    "description": "CPU使用率",
-                    "type": "number"
-                },
-                "disk": {
-                    "description": "磁盘使用",
-                    "type": "string"
-                },
-                "load": {
-                    "description": "系统负载",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemLoadInfo"
-                        }
-                    ]
-                },
-                "logs": {
-                    "description": "日志信息",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemLogsInfo"
-                        }
-                    ]
-                },
-                "memory": {
-                    "description": "内存使用率",
-                    "type": "string"
-                },
-                "services": {
-                    "description": "服务列表",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
-        "v1.SystemBasicInfo": {
-            "type": "object",
-            "properties": {
-                "status": {
-                    "description": "系统状态",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "时间戳",
-                    "type": "string"
-                },
-                "uptime": {
-                    "description": "运行时间（秒）",
-                    "type": "integer"
                 },
                 "version": {
-                    "description": "版本号",
                     "type": "string"
                 }
             }
         },
-        "v1.SystemConfigInfo": {
+        "v1.PortStats": {
             "type": "object",
             "properties": {
-                "config_path": {
-                    "description": "配置文件路径",
-                    "type": "string"
-                },
-                "database": {
-                    "description": "数据库配置",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.DatabaseConfigInfo"
-                        }
-                    ]
-                },
-                "initialized": {
-                    "description": "是否已初始化",
-                    "type": "boolean"
-                },
-                "needs_setup": {
-                    "description": "是否需要设置",
-                    "type": "boolean"
-                }
-            }
-        },
-        "v1.SystemHealthInfo": {
-            "type": "object",
-            "properties": {
-                "components": {
-                    "description": "组件状态",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/v1.HealthComponent"
-                    }
-                },
-                "overall": {
-                    "description": "整体状态",
-                    "type": "string"
-                },
-                "timestamp": {
-                    "description": "检查时间",
-                    "type": "string"
-                }
-            }
-        },
-        "v1.SystemLoadInfo": {
-            "type": "object",
-            "properties": {
-                "cpu": {
-                    "description": "CPU负载",
-                    "type": "number"
-                },
-                "disk": {
-                    "description": "磁盘负载",
-                    "type": "number"
-                },
-                "memory": {
-                    "description": "内存负载",
-                    "type": "number"
-                },
-                "network": {
-                    "description": "网络负载",
-                    "type": "number"
-                }
-            }
-        },
-        "v1.SystemLogsInfo": {
-            "type": "object",
-            "properties": {
-                "count": {
-                    "description": "日志数量",
+                "allocated_ports": {
                     "type": "integer"
                 },
-                "last_log": {
-                    "description": "最后日志内容",
-                    "type": "string"
-                },
-                "level": {
-                    "description": "日志级别",
-                    "type": "string"
-                },
-                "total_lines": {
-                    "description": "总日志行数",
+                "available_ports": {
                     "type": "integer"
-                }
-            }
-        },
-        "v1.SystemOperationRequest": {
-            "type": "object",
-            "required": [
-                "operation"
-            ],
-            "properties": {
-                "operation": {
-                    "description": "操作类型",
-                    "type": "string"
                 },
-                "options": {
-                    "description": "操作选项",
-                    "type": "object",
-                    "additionalProperties": true
-                }
-            }
-        },
-        "v1.SystemTimeInfo": {
-            "type": "object",
-            "properties": {
-                "current_time": {
-                    "description": "当前时间",
-                    "type": "string"
-                },
-                "timezone": {
-                    "description": "时区",
-                    "type": "string"
-                },
-                "uptime": {
-                    "description": "运行时间（秒）",
+                "reserved_ports": {
                     "type": "integer"
-                }
-            }
-        },
-        "v1.UnifiedSystemInfo": {
-            "type": "object",
-            "properties": {
-                "admin": {
-                    "description": "管理员专用",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemAdminInfo"
-                        }
-                    ]
                 },
-                "basic": {
-                    "description": "普通用户可见",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemBasicInfo"
-                        }
-                    ]
+                "total_ports": {
+                    "type": "integer"
                 },
-                "health": {
-                    "description": "所有用户可见",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemHealthInfo"
-                        }
-                    ]
-                },
-                "time": {
-                    "description": "所有用户可见",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/v1.SystemTimeInfo"
-                        }
-                    ]
+                "usage_percent": {
+                    "type": "number"
                 }
             }
         },

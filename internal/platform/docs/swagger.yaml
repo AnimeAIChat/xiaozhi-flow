@@ -80,16 +80,68 @@ definitions:
         example: wss://your-server/ws
         type: string
     type: object
-  v1.DatabaseConfigInfo:
+  v1.APIError:
     properties:
-      database:
+      code:
         type: string
-      host:
+      message:
         type: string
-      port:
+    type: object
+  v1.APIResponse:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/v1.APIError'
+      message:
+        type: string
+      request_id:
+        type: string
+      success:
+        type: boolean
+      timestamp:
         type: integer
-      status:
+      version:
         type: string
+    type: object
+  v1.CapabilityDef:
+    properties:
+      config_schema:
+        $ref: '#/definitions/v1.CapabilitySchema'
+      description:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      input_schema:
+        $ref: '#/definitions/v1.CapabilitySchema'
+      name:
+        type: string
+      output_schema:
+        $ref: '#/definitions/v1.CapabilitySchema'
+      type:
+        type: string
+    type: object
+  v1.CapabilityProperty:
+    properties:
+      default: {}
+      description:
+        type: string
+      secret:
+        type: boolean
+      type:
+        type: string
+    type: object
+  v1.CapabilitySchema:
+    properties:
+      properties:
+        additionalProperties:
+          $ref: '#/definitions/v1.CapabilityProperty'
+        type: object
+      required:
+        items:
+          type: string
+        type: array
       type:
         type: string
     type: object
@@ -259,17 +311,6 @@ definitions:
       version:
         type: string
     type: object
-  v1.HealthComponent:
-    properties:
-      error:
-        type: string
-      latency:
-        type: integer
-      name:
-        type: string
-      status:
-        type: string
-    type: object
   v1.Pagination:
     properties:
       has_next:
@@ -285,198 +326,125 @@ definitions:
       total_pages:
         type: integer
     type: object
-  v1.Provider:
+  v1.PluginControlRequest:
     properties:
+      action:
+        enum:
+        - start
+        - stop
+        - restart
+        - reallocate_port
+        type: string
       config:
         additionalProperties: true
         type: object
+    required:
+    - action
+    type: object
+  v1.PluginControlResponse:
+    properties:
+      message:
+        type: string
+      new_port:
+        type: integer
+      new_status:
+        type: string
+      old_port:
+        type: integer
+      old_status:
+        type: string
+      process_time:
+        type: string
+      success:
+        type: boolean
+    type: object
+  v1.PluginListResponse:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      plugins:
+        items:
+          $ref: '#/definitions/v1.PluginStatus'
+        type: array
+      total:
+        type: integer
+      total_pages:
+        type: integer
+    type: object
+  v1.PluginStats:
+    properties:
+      by_capability:
+        additionalProperties:
+          type: integer
+        type: object
+      by_type:
+        additionalProperties:
+          type: integer
+        type: object
+      disabled:
+        type: integer
+      enabled:
+        type: integer
+      error:
+        type: integer
+      healthy:
+        type: integer
+      last_updated:
+        type: string
+      running:
+        type: integer
+      stopped:
+        type: integer
+      total:
+        type: integer
+      unknown:
+        type: integer
+    type: object
+  v1.PluginStatus:
+    properties:
+      address:
+        type: string
+      capabilities:
+        items:
+          $ref: '#/definitions/v1.CapabilityDef'
+        type: array
       created_at:
         type: string
-      enabled:
-        type: boolean
-      metadata:
-        additionalProperties: true
-        type: object
+      description:
+        type: string
+      health_status:
+        type: string
+      id:
+        type: string
+      last_health_check:
+        type: string
       name:
         type: string
+      port:
+        type: integer
       status:
-        description: active, inactive, error
         type: string
       type:
-        description: llm, tts, asr, vllm
         type: string
       updated_at:
         type: string
-    type: object
-  v1.ProviderConfigRequest:
-    properties:
-      config:
-        additionalProperties: true
-        type: object
-      enabled:
-        type: boolean
-      name:
-        type: string
-      type:
-        type: string
-    required:
-    - config
-    - name
-    - type
-    type: object
-  v1.ProviderList:
-    properties:
-      providers:
-        items:
-          $ref: '#/definitions/v1.Provider'
-        type: array
-    type: object
-  v1.SystemAdminInfo:
-    properties:
-      config:
-        allOf:
-        - $ref: '#/definitions/v1.SystemConfigInfo'
-        description: 配置信息
-      cpu:
-        description: CPU使用率
-        type: number
-      disk:
-        description: 磁盘使用
-        type: string
-      load:
-        allOf:
-        - $ref: '#/definitions/v1.SystemLoadInfo'
-        description: 系统负载
-      logs:
-        allOf:
-        - $ref: '#/definitions/v1.SystemLogsInfo'
-        description: 日志信息
-      memory:
-        description: 内存使用率
-        type: string
-      services:
-        description: 服务列表
-        items:
-          type: string
-        type: array
-    type: object
-  v1.SystemBasicInfo:
-    properties:
-      status:
-        description: 系统状态
-        type: string
-      timestamp:
-        description: 时间戳
-        type: string
-      uptime:
-        description: 运行时间（秒）
-        type: integer
       version:
-        description: 版本号
         type: string
     type: object
-  v1.SystemConfigInfo:
+  v1.PortStats:
     properties:
-      config_path:
-        description: 配置文件路径
-        type: string
-      database:
-        allOf:
-        - $ref: '#/definitions/v1.DatabaseConfigInfo'
-        description: 数据库配置
-      initialized:
-        description: 是否已初始化
-        type: boolean
-      needs_setup:
-        description: 是否需要设置
-        type: boolean
-    type: object
-  v1.SystemHealthInfo:
-    properties:
-      components:
-        description: 组件状态
-        items:
-          $ref: '#/definitions/v1.HealthComponent'
-        type: array
-      overall:
-        description: 整体状态
-        type: string
-      timestamp:
-        description: 检查时间
-        type: string
-    type: object
-  v1.SystemLoadInfo:
-    properties:
-      cpu:
-        description: CPU负载
-        type: number
-      disk:
-        description: 磁盘负载
-        type: number
-      memory:
-        description: 内存负载
-        type: number
-      network:
-        description: 网络负载
-        type: number
-    type: object
-  v1.SystemLogsInfo:
-    properties:
-      count:
-        description: 日志数量
+      allocated_ports:
         type: integer
-      last_log:
-        description: 最后日志内容
-        type: string
-      level:
-        description: 日志级别
-        type: string
-      total_lines:
-        description: 总日志行数
+      available_ports:
         type: integer
-    type: object
-  v1.SystemOperationRequest:
-    properties:
-      operation:
-        description: 操作类型
-        type: string
-      options:
-        additionalProperties: true
-        description: 操作选项
-        type: object
-    required:
-    - operation
-    type: object
-  v1.SystemTimeInfo:
-    properties:
-      current_time:
-        description: 当前时间
-        type: string
-      timezone:
-        description: 时区
-        type: string
-      uptime:
-        description: 运行时间（秒）
+      reserved_ports:
         type: integer
-    type: object
-  v1.UnifiedSystemInfo:
-    properties:
-      admin:
-        allOf:
-        - $ref: '#/definitions/v1.SystemAdminInfo'
-        description: 管理员专用
-      basic:
-        allOf:
-        - $ref: '#/definitions/v1.SystemBasicInfo'
-        description: 普通用户可见
-      health:
-        allOf:
-        - $ref: '#/definitions/v1.SystemHealthInfo'
-        description: 所有用户可见
-      time:
-        allOf:
-        - $ref: '#/definitions/v1.SystemTimeInfo'
-        description: 所有用户可见
+      total_ports:
+        type: integer
+      usage_percent:
+        type: number
     type: object
   vision.VisionAnalysisData:
     properties:
@@ -535,58 +503,6 @@ paths:
       summary: OTA设备注册和固件更新
       tags:
       - OTA
-  /system:
-    get:
-      description: 获取系统状态信息，根据用户权限返回不同级别的信息
-      parameters:
-      - description: Bearer token
-        in: header
-        name: Authorization
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/v1.UnifiedSystemInfo'
-              type: object
-      summary: 获取系统信息
-      tags:
-      - System
-    post:
-      consumes:
-      - application/json
-      description: 执行系统健康检查、重启等操作
-      parameters:
-      - description: 系统操作请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/v1.SystemOperationRequest'
-      - description: Bearer token
-        in: header
-        name: Authorization
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
-            - properties:
-                data: {}
-              type: object
-      summary: 执行系统操作
-      tags:
-      - System
   /v1/devices:
     get:
       description: 获取设备列表，支持分页和过滤
@@ -836,9 +752,65 @@ paths:
       summary: 管理员激活/禁用设备
       tags:
       - Devices
-  /v1/providers:
+  /v1/plugins:
     get:
-      description: 获取所有配置的AI服务供应商
+      description: 获取所有插件的信息，支持分页、筛选和排序
+      parameters:
+      - description: 插件类型
+        enum:
+        - LLM
+        - TTS
+        - ASR
+        - Tool
+        in: query
+        name: type
+        type: string
+      - description: 插件状态
+        enum:
+        - installed
+        - enabled
+        - disabled
+        - running
+        - stopped
+        - error
+        in: query
+        name: status
+        type: string
+      - description: 健康状态
+        enum:
+        - healthy
+        - unhealthy
+        - unknown
+        in: query
+        name: health_status
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页大小
+        in: query
+        name: page_size
+        type: integer
+      - default: updated_at
+        description: 排序字段
+        in: query
+        name: sort_by
+        type: string
+      - default: desc
+        description: 排序方向
+        enum:
+        - asc
+        - desc
+        in: query
+        name: sort_order
+        type: string
+      - description: 搜索关键词
+        in: query
+        name: search
+        type: string
       produces:
       - application/json
       responses:
@@ -846,56 +818,87 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
+            - $ref: '#/definitions/v1.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/v1.ProviderList'
+                  $ref: '#/definitions/v1.PluginListResponse'
               type: object
-      summary: 获取供应商列表
+      summary: 获取插件列表
       tags:
-      - Providers
+      - plugins
+  /v1/plugins/{id}:
+    get:
+      description: 根据插件ID获取详细信息
+      parameters:
+      - description: 插件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/v1.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.PluginStatus'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 获取插件详情
+      tags:
+      - plugins
+  /v1/plugins/{id}/control:
     post:
-      consumes:
-      - application/json
-      description: 创建新的AI服务供应商配置
+      description: 对插件进行启动、停止、重启、重新分配端口等操作
       parameters:
-      - description: 供应商配置
+      - description: 插件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 控制请求
         in: body
-        name: request
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/v1.ProviderConfigRequest'
+          $ref: '#/definitions/v1.PluginControlRequest'
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
+            - $ref: '#/definitions/v1.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/v1.Provider'
+                  $ref: '#/definitions/v1.PluginControlResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 创建供应商配置
+            $ref: '#/definitions/v1.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 控制插件
       tags:
-      - Providers
-  /v1/providers/{type}/{name}:
-    delete:
-      description: 删除指定的供应商配置
+      - plugins
+  /v1/plugins/{id}/health:
+    post:
+      description: 手动触发插件健康检查
       parameters:
-      - description: 供应商类型
+      - description: 插件ID
         in: path
-        name: type
-        required: true
-        type: string
-      - description: 供应商名称
-        in: path
-        name: name
+        name: id
         required: true
         type: string
       produces:
@@ -904,35 +907,72 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/httptransport.APIResponse'
+            $ref: '#/definitions/v1.APIResponse'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 删除供应商配置
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 检查插件健康状态
       tags:
-      - Providers
-    put:
-      consumes:
-      - application/json
-      description: 更新指定供应商的配置信息
+      - plugins
+  /v1/plugins/{id}/reallocate-port:
+    post:
+      description: 为插件分配新的端口
       parameters:
-      - description: 供应商类型
+      - description: 插件ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 重新分配插件端口
+      tags:
+      - plugins
+  /v1/plugins/capabilities:
+    get:
+      description: 获取所有插件的能力定义
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 获取所有插件能力
+      tags:
+      - plugins
+  /v1/plugins/capabilities/{type}:
+    get:
+      description: 根据类型筛选插件能力
+      parameters:
+      - description: 能力类型
         in: path
         name: type
         required: true
         type: string
-      - description: 供应商名称
-        in: path
-        name: name
-        required: true
-        type: string
-      - description: 供应商配置
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/v1.ProviderConfigRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/v1.APIResponse'
+      summary: 按类型获取插件能力
+      tags:
+      - plugins
+  /v1/plugins/ports:
+    get:
+      description: 获取端口使用情况统计
       produces:
       - application/json
       responses:
@@ -940,22 +980,32 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/httptransport.APIResponse'
+            - $ref: '#/definitions/v1.APIResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/v1.Provider'
+                  $ref: '#/definitions/v1.PortStats'
               type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/httptransport.APIResponse'
-      summary: 更新供应商配置
+      summary: 获取端口统计信息
       tags:
-      - Providers
+      - plugins
+  /v1/plugins/stats:
+    get:
+      description: 获取插件的数量、状态分布、健康状态等统计信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/v1.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.PluginStats'
+              type: object
+      summary: 获取插件统计信息
+      tags:
+      - plugins
   /vision:
     get:
       description: 获取Vision服务的运行状态和可用模型信息
