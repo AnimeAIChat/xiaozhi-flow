@@ -6,8 +6,6 @@ import { QueryProvider } from './components/QueryProvider';
 import SystemInitializer from './components/SystemInitializer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import DevTools from './components/DevTools';
-import { AuthProvider } from './contexts/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
 import SmartRootRoute from './components/SmartRootRoute';
 import { log } from './utils/logger';
 
@@ -15,8 +13,6 @@ import { log } from './utils/logger';
 const Setup = React.lazy(() => import('./pages/Setup'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Config = React.lazy(() => import('./pages/Config'));
-const Login = React.lazy(() => import('./pages/Login'));
-const Register = React.lazy(() => import('./pages/Register/index.tsx'));
 
 // 加载组件
 const LoadingSpinner: React.FC = () => (
@@ -52,7 +48,6 @@ const App: React.FC = () => {
   return (
     <ErrorBoundary onError={handleGlobalError} componentName="App">
       <QueryProvider>
-        <AuthProvider>
           <Router>
             <ConfigProvider>
               <AntApp>
@@ -87,38 +82,15 @@ const App: React.FC = () => {
                     }
                   />
 
-                  {/* 认证路由 - 也需要系统初始化检查 */}
-                  <Route
-                    path="/login"
-                    element={
-                      <SystemRoute>
-                        <ErrorBoundary componentName="Login">
-                          <Login />
-                        </ErrorBoundary>
-                      </SystemRoute>
-                    }
-                  />
-                  <Route
-                    path="/register"
-                    element={
-                      <SystemRoute>
-                        <ErrorBoundary componentName="Register">
-                          <Register />
-                        </ErrorBoundary>
-                      </SystemRoute>
-                    }
-                  />
-
-                  {/* 需要认证和系统初始化的路由 */}
+                  
+                  {/* 系统初始化后可直接访问的路由 */}
                   <Route
                     path="/dashboard"
                     element={
                       <SystemRoute>
-                        <ProtectedRoute>
-                          <ErrorBoundary componentName="Dashboard">
-                            <Dashboard />
-                          </ErrorBoundary>
-                        </ProtectedRoute>
+                        <ErrorBoundary componentName="Dashboard">
+                          <Dashboard />
+                        </ErrorBoundary>
                       </SystemRoute>
                     }
                   />
@@ -126,11 +98,9 @@ const App: React.FC = () => {
                     path="/flow"
                     element={
                       <SystemRoute>
-                        <ProtectedRoute>
-                          <ErrorBoundary componentName="Dashboard">
-                            <Dashboard />
-                          </ErrorBoundary>
-                        </ProtectedRoute>
+                        <ErrorBoundary componentName="Dashboard">
+                          <Dashboard />
+                        </ErrorBoundary>
                       </SystemRoute>
                     }
                   />
@@ -154,7 +124,6 @@ const App: React.FC = () => {
               </AntApp>
             </ConfigProvider>
           </Router>
-        </AuthProvider>
       </QueryProvider>
     </ErrorBoundary>
   );

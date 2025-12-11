@@ -56,7 +56,6 @@ export interface ASRConfig extends ProviderConfig {
   channels?: number;
   encoding?: string;
   maxDuration?: number;
-  vad?: boolean;
   punctuation?: boolean;
   confidence?: number;
 }

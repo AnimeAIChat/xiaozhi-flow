@@ -1,7 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import { log } from '../utils/logger';
 import { envConfig } from '../utils/envConfig';
-import { AUTH_KEYS, TOKEN_CONFIG, LoginRequest, RegisterRequest, AuthResponse, User } from '../types/auth';
 
 // 基础API响应类型
 export interface ApiResponse<T = any> {
@@ -153,12 +152,7 @@ export class ApiService {
         // 添加请求开始时间到配置中
         (config as any).metadata = { startTime };
 
-        // 在这里可以添加认证token
-        const token = localStorage.getItem('auth_token');
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-
+        
         // 创建API调用记录
         const callInfo: ApiCallInfo = {
           id: this.generateApiCallId(),
@@ -612,238 +606,6 @@ export class ApiService {
     }
   }
 
-  // === 认证相关方法 ===
-
-  /**
-   * 用户登录
-   */
-  async login(credentials: LoginRequest): Promise<AuthResponse> {
-    try {
-      const response = await this.client.post<ApiResponse<AuthResponse>>('/auth/login', credentials);
-
-      if (response.data.success) {
-        // 自动设置token到本地存储
-        this.setAuthToken(response.data.data.token);
-        return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Login failed');
-      }
-    } catch (error) {
-      const message = this.handleAuthError(error, '登录失败');
-      throw new Error(message);
-    }
-  }
-
-  /**
-   * 用户注册
-   */
-  async register(userData: RegisterRequest): Promise<AuthResponse> {
-    try {
-      const response = await this.client.post<ApiResponse<AuthResponse>>('/auth/register', userData);
-
-      if (response.data.success) {
-        // 自动设置token到本地存储
-        this.setAuthToken(response.data.data.token);
-        return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Registration failed');
-      }
-    } catch (error) {
-      const message = this.handleAuthError(error, '注册失败');
-      throw new Error(message);
-    }
-  }
-
-  /**
-   * 获取当前用户信息
-   */
-  async getCurrentUser(): Promise<User> {
-    try {
-      const response = await this.client.get<ApiResponse<{ user: User }>>('/auth/me');
-
-      if (response.data.success) {
-        return response.data.data.user;
-      } else {
-        throw new Error(response.data.message || 'Failed to get user info');
-      }
-    } catch (error) {
-      const message = this.handleAuthError(error, '获取用户信息失败');
-      throw new Error(message);
-    }
-  }
-
-  /**
-   * 刷新访问令牌
-   */
-  async refreshToken(): Promise<{ token: string; expires_at: number }> {
-    try {
-      const response = await this.client.post<ApiResponse<{ token: string; expires_at: number }>>('/auth/refresh');
-
-      if (response.data.success) {
-        // 自动更新token到本地存储
-        this.setAuthToken(response.data.data.token);
-        return response.data.data;
-      } else {
-        throw new Error(response.data.message || 'Token refresh failed');
-      }
-    } catch (error) {
-      const message = this.handleAuthError(error, '令牌刷新失败');
-      // 清除无效的token
-      this.clearAuthToken();
-      throw new Error(message);
-    }
-  }
-
-  /**
-   * 用户登出
-   */
-  async logout(): Promise<void> {
-    try {
-      await this.client.delete('/auth/logout');
-    } catch (error) {
-      // 即使登出API调用失败，也要清除本地token
-      log.warn('登出API调用失败', { error: error.message }, 'api', 'ApiService');
-    } finally {
-      // 总是清除本地token
-      this.clearAuthToken();
-    }
-  }
-
-  /**
-   * 登出所有设备
-   */
-  async logoutAll(): Promise<void> {
-    try {
-      await this.client.delete('/auth/logout-all');
-    } catch (error) {
-      log.warn('登出所有设备API调用失败', { error: error.message }, 'api', 'ApiService');
-    } finally {
-      this.clearAuthToken();
-    }
-  }
-
-  /**
-   * 设置认证令牌
-   */
-  setAuthToken(token: string): void {
-    localStorage.setItem(AUTH_KEYS.TOKEN, token);
-    // 更新axios默认头部
-    this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  }
-
-  /**
-   * 清除认证令牌
-   */
-  clearAuthToken(): void {
-    localStorage.removeItem(AUTH_KEYS.TOKEN);
-    localStorage.removeItem(AUTH_KEYS.USER);
-    localStorage.removeItem(AUTH_KEYS.EXPIRES_AT);
-    // 清除axios默认头部
-    delete this.client.defaults.headers.common['Authorization'];
-  }
-
-  /**
-   * 检查是否有有效的认证令牌
-   */
-  hasValidToken(): boolean {
-    const token = localStorage.getItem(AUTH_KEYS.TOKEN);
-    const expiresAt = localStorage.getItem(AUTH_KEYS.EXPIRES_AT);
-
-    if (!token || !expiresAt) {
-      return false;
-    }
-
-    const expirationTime = parseInt(expiresAt, 10);
-    return Date.now() < expirationTime;
-  }
-
-  /**
-   * 检查是否需要刷新令牌
-   */
-  shouldRefreshToken(): boolean {
-    const expiresAt = localStorage.getItem(AUTH_KEYS.EXPIRES_AT);
-
-    if (!expiresAt) {
-      return false;
-    }
-
-    const expirationTime = parseInt(expiresAt, 10);
-    return Date.now() >= (expirationTime - TOKEN_CONFIG.REFRESH_THRESHOLD);
-  }
-
-  /**
-   * 获取存储的用户信息
-   */
-  getStoredUser(): User | null {
-    const userStr = localStorage.getItem(AUTH_KEYS.USER);
-    return userStr ? JSON.parse(userStr) : null;
-  }
-
-  /**
-   * 存储用户信息
-   */
-  setStoredUser(user: User): void {
-    localStorage.setItem(AUTH_KEYS.USER, JSON.stringify(user));
-  }
-
-  /**
-   * 自动刷新令牌（如果需要）
-   */
-  async autoRefreshTokenIfNeeded(): Promise<boolean> {
-    if (!this.hasValidToken()) {
-      return false;
-    }
-
-    if (this.shouldRefreshToken()) {
-      try {
-        await this.refreshToken();
-        return true;
-      } catch (error) {
-        log.error('自动刷新令牌失败', { error: error.message }, 'api', 'ApiService');
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * 初始化认证状态（应用启动时调用）
-   */
-  initializeAuth(): void {
-    const token = localStorage.getItem(AUTH_KEYS.TOKEN);
-
-    if (token) {
-      this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-
-      // 检查token是否即将过期
-      if (this.shouldRefreshToken()) {
-        this.autoRefreshTokenIfNeeded().catch(() => {
-          // 刷新失败，不清除token，让用户在下一次请求时处理
-          log.warn('应用启动时自动刷新令牌失败，将在下一次请求时处理', null, 'api', 'ApiService');
-        });
-      }
-    }
-  }
-
-  /**
-   * 处理认证错误
-   */
-  private handleAuthError(error: any, defaultMessage: string): string {
-    if (error?.response?.status === 401) {
-      // 401错误通常意味着token过期或无效
-      this.clearAuthToken();
-
-      const errorData = error.response.data;
-      if (errorData?.message) {
-        return `认证失败: ${errorData.message}`;
-      }
-      return '登录已过期，请重新登录';
-    }
-
-    if (error?.response?.status === 403) {
-      return '权限不足';
-    }
 
     if (error?.response?.status === 409) {
       const errorData = error.response.data;
@@ -940,12 +702,6 @@ if (typeof window !== 'undefined' && envConfig.debug) {
   }
 }
 
-// 延迟初始化认证状态，避免与 AuthContext 冲突
-// 这个初始化将在 AuthContext 中处理
-if (typeof window !== 'undefined') {
-  // 只在浏览器环境中延迟初始化
-  setTimeout(() => {
-    apiService.initializeAuth();
   }, 100);
 }
 
