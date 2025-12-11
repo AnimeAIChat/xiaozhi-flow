@@ -39,11 +39,6 @@ func NewService(config *config.Config, logger *logging.Logger) (*Service, error)
 
 // Register 注册WebAPI相关的HTTP路由
 func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) error {
-	// 基础路由
-	router.GET("/cfg", s.handleCfgGet)
-	router.POST("/cfg", s.handleCfgPost)
-	router.OPTIONS("/cfg", s.handleOptions)
-
 	// 管理员路由
 	s.registerAdminRoutes(router)
 
@@ -55,22 +50,6 @@ func (s *Service) Register(ctx context.Context, router *gin.RouterGroup) error {
 func (s *Service) registerAdminRoutes(router *gin.RouterGroup) {
 	adminGroup := router.Group("/admin")
 	adminGroup.GET("", s.handleAdminGet)
-}
-
-// handleCfgGet 处理配置获取请求
-// @Summary 检查配置服务状态
-// @Description 检查配置服务的运行状态
-// @Tags Config
-// @Produce json
-// @Success 200 {object} object
-// @Router /cfg [get]
-func (s *Service) handleCfgGet(c *gin.Context) {
-	s.respondSuccess(c, http.StatusOK, nil, "Cfg service is running")
-}
-
-// handleCfgPost 处理配置更新请求
-func (s *Service) handleCfgPost(c *gin.Context) {
-	s.respondSuccess(c, http.StatusOK, nil, "Cfg service is running")
 }
 
 // handleOptions 处理OPTIONS请求
@@ -121,34 +100,10 @@ func (s *Service) AuthMiddleware() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-
-		// 如果没有API Token，继续后续的认证逻辑（如果有）
-		// 这里假设如果没有Token，则视为未认证，或者由后续中间件处理
-		// 但根据原有逻辑，似乎这里主要处理API Token
-		
-		// 如果需要支持其他认证方式，可以在这里添加
-		
-		// 如果没有提供Token，且没有其他认证方式，返回未授权
-		// 但考虑到可能有些接口不需要Token，或者有其他中间件处理
-		// 这里暂时保持原样，或者根据需求修改
-		
-		// 原有逻辑中，如果没有Token，会继续往下执行吗？
-		// 原有逻辑：
-		/*
-		apikey := c.GetHeader("AuthorToken")
-		if apikey != "" {
-			// ...
-			c.Next()
-			return
-		}
-		*/
-		// 看起来如果没有Token，它会继续执行下面的代码。
-		// 但下面的代码是什么？
-		// 原有代码截断了，我需要读更多。
-		
 		c.Next()
 	}
 }
+
 
 
 
@@ -171,6 +126,3 @@ func (s *Service) respondError(c *gin.Context, statusCode int, message string) {
 		"code":    statusCode,
 	})
 }
-
-
-
