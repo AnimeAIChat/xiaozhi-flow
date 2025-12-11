@@ -96,6 +96,94 @@ const docTemplate = `{
                 }
             }
         },
+        "/system": {
+            "get": {
+                "description": "获取系统状态信息，根据用户权限返回不同级别的信息",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "获取系统信息",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/v1.UnifiedSystemInfo"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "执行系统健康检查、重启等操作",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "执行系统操作",
+                "parameters": [
+                    {
+                        "description": "系统操作请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/v1.SystemOperationRequest"
+                        }
+                    },
+                    {
+                        "type": "string",
+                        "description": "Bearer token",
+                        "name": "Authorization",
+                        "in": "header"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/httptransport.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {}
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        },
         "/v1/devices": {
             "get": {
                 "description": "获取设备列表，支持分页和过滤",
@@ -1130,6 +1218,26 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.DatabaseConfigInfo": {
+            "type": "object",
+            "properties": {
+                "database": {
+                    "type": "string"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "port": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
         "v1.DatabaseStatus": {
             "type": "object",
             "properties": {
@@ -1492,6 +1600,23 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.HealthComponent": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "latency": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
         "v1.Pagination": {
             "type": "object",
             "properties": {
@@ -1630,6 +1755,100 @@ const docTemplate = `{
                 }
             }
         },
+        "v1.SystemAdminInfo": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "description": "配置信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemConfigInfo"
+                        }
+                    ]
+                },
+                "cpu": {
+                    "description": "CPU使用率",
+                    "type": "number"
+                },
+                "disk": {
+                    "description": "磁盘使用",
+                    "type": "string"
+                },
+                "load": {
+                    "description": "系统负载",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemLoadInfo"
+                        }
+                    ]
+                },
+                "logs": {
+                    "description": "日志信息",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemLogsInfo"
+                        }
+                    ]
+                },
+                "memory": {
+                    "description": "内存使用率",
+                    "type": "string"
+                },
+                "services": {
+                    "description": "服务列表",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "v1.SystemBasicInfo": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "description": "系统状态",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "时间戳",
+                    "type": "string"
+                },
+                "uptime": {
+                    "description": "运行时间（秒）",
+                    "type": "integer"
+                },
+                "version": {
+                    "description": "版本号",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.SystemConfigInfo": {
+            "type": "object",
+            "properties": {
+                "config_path": {
+                    "description": "配置文件路径",
+                    "type": "string"
+                },
+                "database": {
+                    "description": "数据库配置",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.DatabaseConfigInfo"
+                        }
+                    ]
+                },
+                "initialized": {
+                    "description": "是否已初始化",
+                    "type": "boolean"
+                },
+                "needs_setup": {
+                    "description": "是否需要设置",
+                    "type": "boolean"
+                }
+            }
+        },
         "v1.SystemConfigRequest": {
             "type": "object",
             "properties": {
@@ -1656,6 +1875,85 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "value": {}
+            }
+        },
+        "v1.SystemHealthInfo": {
+            "type": "object",
+            "properties": {
+                "components": {
+                    "description": "组件状态",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/v1.HealthComponent"
+                    }
+                },
+                "overall": {
+                    "description": "整体状态",
+                    "type": "string"
+                },
+                "timestamp": {
+                    "description": "检查时间",
+                    "type": "string"
+                }
+            }
+        },
+        "v1.SystemLoadInfo": {
+            "type": "object",
+            "properties": {
+                "cpu": {
+                    "description": "CPU负载",
+                    "type": "number"
+                },
+                "disk": {
+                    "description": "磁盘负载",
+                    "type": "number"
+                },
+                "memory": {
+                    "description": "内存负载",
+                    "type": "number"
+                },
+                "network": {
+                    "description": "网络负载",
+                    "type": "number"
+                }
+            }
+        },
+        "v1.SystemLogsInfo": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "description": "日志数量",
+                    "type": "integer"
+                },
+                "last_log": {
+                    "description": "最后日志内容",
+                    "type": "string"
+                },
+                "level": {
+                    "description": "日志级别",
+                    "type": "string"
+                },
+                "total_lines": {
+                    "description": "总日志行数",
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.SystemOperationRequest": {
+            "type": "object",
+            "required": [
+                "operation"
+            ],
+            "properties": {
+                "operation": {
+                    "description": "操作类型",
+                    "type": "string"
+                },
+                "options": {
+                    "description": "操作选项",
+                    "type": "object",
+                    "additionalProperties": true
+                }
             }
         },
         "v1.SystemStatistics": {
@@ -1726,6 +2024,60 @@ const docTemplate = `{
                 },
                 "version": {
                     "type": "string"
+                }
+            }
+        },
+        "v1.SystemTimeInfo": {
+            "type": "object",
+            "properties": {
+                "current_time": {
+                    "description": "当前时间",
+                    "type": "string"
+                },
+                "timezone": {
+                    "description": "时区",
+                    "type": "string"
+                },
+                "uptime": {
+                    "description": "运行时间（秒）",
+                    "type": "integer"
+                }
+            }
+        },
+        "v1.UnifiedSystemInfo": {
+            "type": "object",
+            "properties": {
+                "admin": {
+                    "description": "管理员专用",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemAdminInfo"
+                        }
+                    ]
+                },
+                "basic": {
+                    "description": "普通用户可见",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemBasicInfo"
+                        }
+                    ]
+                },
+                "health": {
+                    "description": "所有用户可见",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemHealthInfo"
+                        }
+                    ]
+                },
+                "time": {
+                    "description": "所有用户可见",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/v1.SystemTimeInfo"
+                        }
+                    ]
                 }
             }
         },

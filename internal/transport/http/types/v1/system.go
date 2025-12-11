@@ -228,3 +228,101 @@ type ProviderConfigRequest struct {
 	Config   map[string]interface{} `json:"config" binding:"required"`
 	Enabled  bool                   `json:"enabled"`
 }
+
+// ===== 统一系统API相关类型 =====
+
+// UnifiedSystemInfo 统一系统信息响应
+type UnifiedSystemInfo struct {
+	Basic  SystemBasicInfo  `json:"basic"`           // 普通用户可见
+	Admin  SystemAdminInfo  `json:"admin,omitempty"` // 管理员专用
+	Health SystemHealthInfo `json:"health"`            // 所有用户可见
+	Time   SystemTimeInfo   `json:"time"`              // 所有用户可见
+}
+
+// SystemBasicInfo 基础系统信息（所有用户可见）
+type SystemBasicInfo struct {
+	Status    string    `json:"status"`           // 系统状态
+	Uptime    int64     `json:"uptime"`           // 运行时间（秒）
+	Version   string    `json:"version"`          // 版本号
+	Timestamp time.Time `json:"timestamp"`        // 时间戳
+}
+
+// SystemAdminInfo 管理员专用信息
+type SystemAdminInfo struct {
+	Memory     string                 `json:"memory"`      // 内存使用率
+	CPU        float64                `json:"cpu"`         // CPU使用率
+	Disk       string                 `json:"disk"`        // 磁盘使用
+	Services   []string                `json:"services"`    // 服务列表
+	Load       SystemLoadInfo         `json:"load"`        // 系统负载
+	Logs       SystemLogsInfo          `json:"logs"`        // 日志信息
+	Config     SystemConfigInfo        `json:"config"`      // 配置信息
+}
+
+// SystemHealthInfo 健康检查信息
+type SystemHealthInfo struct {
+	Overall    string                `json:"overall"`     // 整体状态
+	Components []HealthComponent     `json:"components"` // 组件状态
+	Timestamp  time.Time             `json:"timestamp"`  // 检查时间
+}
+
+// HealthComponent 单个健康检查组件
+type HealthComponent struct {
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	Latency   int64  `json:"latency"`
+	Error     string `json:"error,omitempty"`
+}
+
+// SystemTimeInfo 系统时间信息
+type SystemTimeInfo struct {
+	CurrentTime time.Time `json:"current_time"` // 当前时间
+	Timezone    string    `json:"timezone"`     // 时区
+	Uptime      int64     `json:"uptime"`       // 运行时间（秒）
+}
+
+// SystemLoadInfo 系统负载信息
+type SystemLoadInfo struct {
+	CPU        float64 `json:"cpu"`        // CPU负载
+	Memory     float64 `json:"memory"`     // 内存负载
+	Disk       float64 `json:"disk"`       // 磁盘负载
+	Network    float64 `json:"network"`    // 网络负载
+}
+
+// SystemLogsInfo 系统日志信息
+type SystemLogsInfo struct {
+	Level      string `json:"level"`       // 日志级别
+	Count      int    `json:"count"`       // 日志数量
+	LastLog    string `json:"last_log"`    // 最后日志内容
+	TotalLines int64  `json:"total_lines"` // 总日志行数
+}
+
+// SystemConfigInfo 系统配置信息
+type SystemConfigInfo struct {
+	Initialized bool                   `json:"initialized"` // 是否已初始化
+	NeedsSetup  bool                   `json:"needs_setup"`  // 是否需要设置
+	ConfigPath  string                 `json:"config_path"`  // 配置文件路径
+	Database    DatabaseConfigInfo      `json:"database"`    // 数据库配置
+}
+
+// DatabaseConfigInfo 数据库配置信息
+type DatabaseConfigInfo struct {
+	Type     string `json:"type"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Database string `json:"database"`
+	Status   string `json:"status"`
+}
+
+// SystemOperationRequest 系统操作请求
+type SystemOperationRequest struct {
+	Operation string                 `json:"operation" binding:"required"` // 操作类型
+	Options   map[string]interface{} `json:"options,omitempty"`     // 操作选项
+}
+
+// 系统操作类型
+const (
+	OperationHealthCheck = "health_check"
+	OperationRestart     = "restart"
+	OperationRefresh     = "refresh"
+	OperationCleanup     = "cleanup"
+)

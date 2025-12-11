@@ -80,6 +80,19 @@ definitions:
         example: wss://your-server/ws
         type: string
     type: object
+  v1.DatabaseConfigInfo:
+    properties:
+      database:
+        type: string
+      host:
+        type: string
+      port:
+        type: integer
+      status:
+        type: string
+      type:
+        type: string
+    type: object
   v1.DatabaseStatus:
     properties:
       connection:
@@ -323,6 +336,17 @@ definitions:
       status:
         type: string
     type: object
+  v1.HealthComponent:
+    properties:
+      error:
+        type: string
+      latency:
+        type: integer
+      name:
+        type: string
+      status:
+        type: string
+    type: object
   v1.Pagination:
     properties:
       has_next:
@@ -416,6 +440,66 @@ definitions:
       uptime:
         type: integer
     type: object
+  v1.SystemAdminInfo:
+    properties:
+      config:
+        allOf:
+        - $ref: '#/definitions/v1.SystemConfigInfo'
+        description: 配置信息
+      cpu:
+        description: CPU使用率
+        type: number
+      disk:
+        description: 磁盘使用
+        type: string
+      load:
+        allOf:
+        - $ref: '#/definitions/v1.SystemLoadInfo'
+        description: 系统负载
+      logs:
+        allOf:
+        - $ref: '#/definitions/v1.SystemLogsInfo'
+        description: 日志信息
+      memory:
+        description: 内存使用率
+        type: string
+      services:
+        description: 服务列表
+        items:
+          type: string
+        type: array
+    type: object
+  v1.SystemBasicInfo:
+    properties:
+      status:
+        description: 系统状态
+        type: string
+      timestamp:
+        description: 时间戳
+        type: string
+      uptime:
+        description: 运行时间（秒）
+        type: integer
+      version:
+        description: 版本号
+        type: string
+    type: object
+  v1.SystemConfigInfo:
+    properties:
+      config_path:
+        description: 配置文件路径
+        type: string
+      database:
+        allOf:
+        - $ref: '#/definitions/v1.DatabaseConfigInfo'
+        description: 数据库配置
+      initialized:
+        description: 是否已初始化
+        type: boolean
+      needs_setup:
+        description: 是否需要设置
+        type: boolean
+    type: object
   v1.SystemConfigRequest:
     properties:
       setting:
@@ -434,6 +518,62 @@ definitions:
       updated_by:
         type: string
       value: {}
+    type: object
+  v1.SystemHealthInfo:
+    properties:
+      components:
+        description: 组件状态
+        items:
+          $ref: '#/definitions/v1.HealthComponent'
+        type: array
+      overall:
+        description: 整体状态
+        type: string
+      timestamp:
+        description: 检查时间
+        type: string
+    type: object
+  v1.SystemLoadInfo:
+    properties:
+      cpu:
+        description: CPU负载
+        type: number
+      disk:
+        description: 磁盘负载
+        type: number
+      memory:
+        description: 内存负载
+        type: number
+      network:
+        description: 网络负载
+        type: number
+    type: object
+  v1.SystemLogsInfo:
+    properties:
+      count:
+        description: 日志数量
+        type: integer
+      last_log:
+        description: 最后日志内容
+        type: string
+      level:
+        description: 日志级别
+        type: string
+      total_lines:
+        description: 总日志行数
+        type: integer
+    type: object
+  v1.SystemOperationRequest:
+    properties:
+      operation:
+        description: 操作类型
+        type: string
+      options:
+        additionalProperties: true
+        description: 操作选项
+        type: object
+    required:
+    - operation
     type: object
   v1.SystemStatistics:
     properties:
@@ -481,6 +621,37 @@ definitions:
         type: integer
       version:
         type: string
+    type: object
+  v1.SystemTimeInfo:
+    properties:
+      current_time:
+        description: 当前时间
+        type: string
+      timezone:
+        description: 时区
+        type: string
+      uptime:
+        description: 运行时间（秒）
+        type: integer
+    type: object
+  v1.UnifiedSystemInfo:
+    properties:
+      admin:
+        allOf:
+        - $ref: '#/definitions/v1.SystemAdminInfo'
+        description: 管理员专用
+      basic:
+        allOf:
+        - $ref: '#/definitions/v1.SystemBasicInfo'
+        description: 普通用户可见
+      health:
+        allOf:
+        - $ref: '#/definitions/v1.SystemHealthInfo'
+        description: 所有用户可见
+      time:
+        allOf:
+        - $ref: '#/definitions/v1.SystemTimeInfo'
+        description: 所有用户可见
     type: object
   vision.VisionAnalysisData:
     properties:
@@ -552,6 +723,58 @@ paths:
       summary: OTA设备注册和固件更新
       tags:
       - OTA
+  /system:
+    get:
+      description: 获取系统状态信息，根据用户权限返回不同级别的信息
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/v1.UnifiedSystemInfo'
+              type: object
+      summary: 获取系统信息
+      tags:
+      - System
+    post:
+      consumes:
+      - application/json
+      description: 执行系统健康检查、重启等操作
+      parameters:
+      - description: 系统操作请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/v1.SystemOperationRequest'
+      - description: Bearer token
+        in: header
+        name: Authorization
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/httptransport.APIResponse'
+            - properties:
+                data: {}
+              type: object
+      summary: 执行系统操作
+      tags:
+      - System
   /v1/devices:
     get:
       description: 获取设备列表，支持分页和过滤
