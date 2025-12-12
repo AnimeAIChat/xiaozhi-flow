@@ -2,6 +2,7 @@ package bootstrap
 
 import (
 	"context"
+	"crypto/md5"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -57,6 +58,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/swaggo/swag"
 	"golang.org/x/sync/errgroup"
+	"gorm.io/gorm"
 
 	// 注意：移除了对src/core的直接依赖，将通过适配器层来访问
 	// 提供者注册将延迟到第二阶段进行
@@ -1122,6 +1124,42 @@ func initPluginStatusManagerStep(_ context.Context, state *appState) error {
 	// 启动健康检查任务
 	go pluginStatusManager.StartHealthCheck(context.Background(), 30*time.Second)
 
+	return nil
+}
+
+// createDefaultAdminUser 创建默认管理员用户
+func createDefaultAdminUser(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("database connection is nil")
+	}
+
+	// 检查是否已存在管理员用户
+	var count int64
+	if err := db.Table("users").Where("role = ?", "admin").Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to check admin user count: %w", err)
+	}
+
+	if count > 0 {
+		// 管理员用户已存在，不需要创建
+		return nil
+	}
+
+	// 创建默认管理员用户
+	hashedPassword := fmt.Sprintf("%x", md5.Sum([]byte("admin123")))
+	adminUser := map[string]interface{}{
+		"username": "admin",
+		"password": hashedPassword,
+		"nickname": "Administrator",
+		"role":     "admin",
+		"email":    "admin@xiaozhi.local",
+		"status":   1,
+	}
+
+	if err := db.Table("users").Create(adminUser).Error; err != nil {
+		return fmt.Errorf("failed to create default admin user: %w", err)
+	}
+
+	fmt.Println("Default admin user created successfully (username: admin, password: admin123)")
 	return nil
 }
 

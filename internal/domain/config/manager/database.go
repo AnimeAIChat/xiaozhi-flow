@@ -137,20 +137,30 @@ func (r *DatabaseRepository) SaveConfig(cfg *config.Config) error {
 	}
 
 	// 3. 保存基础配置 (config_records)
-	// 创建副本并清空已保存到其他表的字段，避免重复保存
-	cfgCopy := *cfg
-	cfgCopy.LLM = nil
-	cfgCopy.TTS = nil
-	cfgCopy.ASR = nil
-	cfgCopy.VLLLM = nil
-	cfgCopy.Plugins = nil
-
 	// 将配置转换为键值对并保存到数据库
-	configMap, err := r.configToMap(&cfgCopy)
+	// 这些配置从专门的 providers 和 plugins 表加载，不在 config_records 表中重复存储
+	data, err := json.Marshal(cfg)
 	if err != nil {
 		tx.Rollback()
-		return errors.Wrap(errors.KindDomain, "config.save", "failed to convert config to map", err)
+		return errors.Wrap(errors.KindDomain, "config.save", "failed to marshal config", err)
 	}
+
+	var configMap map[string]interface{}
+	if err := json.Unmarshal(data, &configMap); err != nil {
+		tx.Rollback()
+		return errors.Wrap(errors.KindDomain, "config.save", "failed to unmarshal config", err)
+	}
+
+	// 移除从专门表加载的字段，避免重复存储
+	delete(configMap, "LLM")
+	delete(configMap, "TTS")
+	delete(configMap, "ASR")
+	delete(configMap, "VLLLM")
+	delete(configMap, "Plugins")
+
+	// 展平嵌套结构为键值对
+	flattened := make(map[string]interface{})
+	r.flattenMap("", configMap, flattened)
 
 	// 先将所有现有配置标记为非活跃
 	if err := tx.Exec("UPDATE config_records SET is_active = ?", false).Error; err != nil {
@@ -165,7 +175,7 @@ func (r *DatabaseRepository) SaveConfig(cfg *config.Config) error {
 	}
 
 	// 保存新的配置记录
-	for key, value := range configMap {
+	for key, value := range flattened {
 		category := r.getCategoryFromKey(key)
 		description := r.getDescriptionFromKey(key)
 
@@ -222,6 +232,9 @@ func (r *DatabaseRepository) IsInitialized() (bool, error) {
 }
 
 // loadConfigFromDB 从数据库加载配置
+// 注意：LLM、TTS、ASR、VLLLM 配置从 providers 表加载
+// 注意：Plugins 配置从 plugins 表加载
+// 上述配置不再存储在 config_records 表中，避免数据冗余
 func (r *DatabaseRepository) loadConfigFromDB() (*config.Config, error) {
 	// 检查数据库是否为nil
 	if r.db == nil {
@@ -344,23 +357,6 @@ func (r *DatabaseRepository) loadConfigFromDB() (*config.Config, error) {
 	return cfg, nil
 }
 
-// configToMap 将配置对象转换为键值对映射
-func (r *DatabaseRepository) configToMap(cfg *config.Config) (map[string]interface{}, error) {
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	var configMap map[string]interface{}
-	if err := json.Unmarshal(data, &configMap); err != nil {
-		return nil, err
-	}
-
-	// 展平嵌套结构为键值对
-	flattened := make(map[string]interface{})
-	r.flattenMap("", configMap, flattened)
-	return flattened, nil
-}
 
 // flattenMap 将嵌套映射展平为键值对
 func (r *DatabaseRepository) flattenMap(prefix string, src map[string]interface{}, dst map[string]interface{}) {

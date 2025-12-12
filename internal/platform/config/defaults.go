@@ -1,17 +1,23 @@
 package config
 
+import (
+	"fmt"
+	"time"
+)
+
 // DefaultConfig 返回默认配置
 func DefaultConfig() *Config {
+	serverIP := "0.0.0.0" // 默认IP地址，用户可以修改
 	return &Config{
 		Server: ServerConfig{
-			IP:    "0.0.0.0",
+			IP:    serverIP,
 			Port:  8000,
-			Token: "your_token",
+			Token: "", // 用户需要设置实际的token
 			Auth: AuthConfig{
 				Enabled: true,
 				Store: StoreConfig{
 					Type:   "database",
-					Expiry: 24 * 60 * 60 * 1000000000, // 24 hours in nanoseconds
+					Expiry: 24 * time.Hour,
 				},
 			},
 			Device: DeviceRegistrationConfig{
@@ -25,31 +31,26 @@ func DefaultConfig() *Config {
 			File:  "server.log",
 		},
 		Web: WebConfig{
-			Enabled: true,
-			Port:    8080,
-			Websocket: "ws://your_ip:8000/ws",
-			VisionURL: "http://your_ip:8080/api/vision",
-			ActivateText: "Anime Chat AI",
+			Enabled:   true,
+			Port:      8080,
+			Websocket: fmt.Sprintf("ws://%s:%d/ws", serverIP, 8000),
+			VisionURL: fmt.Sprintf("http://%s:%d/api/vision", serverIP, 8080),
 		},
 		Transport: TransportConfig{
 			WebSocket: WebSocketConfig{
 				Enabled: true,
-				IP:      "0.0.0.0",
 				Port:    8000,
 			},
 			MQTTUDP: MQTTUDPConfig{
 				Enabled: true,
 				MQTT: MQTTConfig{
-					IP:   "your_ip",
 					Port: 1883,
 					QoS:  1,
 				},
 				UDP: UDPConfig{
-					IP:             "your_ip",
-					ShowPort:       8100,
-					Port:           8100,
-					SessionTimeout: "30s",
-					MaxPacketSize:  65535,
+					Port:             8100,
+					SessionTimeout:   "30s",
+					MaxPacketSize:    65535,
 					EnableReliability: true,
 				},
 			},
@@ -85,22 +86,11 @@ func DefaultConfig() *Config {
 			MusicDir: "data/music",
 		},
 		Audio: AudioConfig{
-			DeleteAudio:   false,
-			SaveTTSAudio:  false,
-			SaveUserAudio: false,
+			DeleteAudio:  false,
+			SaveTTSAudio: false,
 		},
-		Pool: PoolConfig{
-			MinSize:       0,
-			MaxSize:       0,
-			RefillSize:    0,
-			CheckInterval: 30,
-		},
-		McpPool: McpPoolConfig{
-			MinSize:       0,
-			MaxSize:       0,
-			RefillSize:    0,
-			CheckInterval: 30,
-		},
+		Pool:    PoolConfig{},
+		McpPool: McpPoolConfig{},
 		QuickReply: QuickReplyConfig{
 			Enabled: true,
 			Words: []string{

@@ -47,30 +47,17 @@ type AuthConfig struct {
 }
 
 type StoreConfig struct {
-	Type           string
-	Expiry         time.Duration
-	Cleanup        time.Duration
-	Redis          AuthRedisStore
-	SQLite         AuthSQLiteStore
-	Memory         AuthMemoryStore
-	CustomMetadata map[string]interface{}
-	Labels         map[string]string
+	Type   string
+	Expiry time.Duration
+	SQLite AuthSQLiteStore
+	Memory AuthMemoryStore
 }
 
-type AuthRedisStore struct {
-	Addr     string
-	Username string
-	Password string
-	DB       int
-	Prefix   string
-}
 
 type AuthSQLiteStore struct {
-	DSN string
 }
 
 type AuthMemoryStore struct {
-	Cleanup time.Duration
 }
 
 type DeviceRegistrationConfig struct {
@@ -79,19 +66,16 @@ type DeviceRegistrationConfig struct {
 }
 
 type LogConfig struct {
-	Level    string
-	Dir      string
-	File     string
-	Format   string
+	Level string
+	Dir   string
+	File  string
 }
 
 type WebConfig struct {
-	Enabled     bool
-	Port        int
-	StaticDir   string
-	Websocket   string
-	VisionURL   string
-	ActivateText string
+	Enabled   bool
+	Port      int
+	Websocket string
+	VisionURL string
 }
 
 type LLMConfig struct {
@@ -166,7 +150,6 @@ type TransportConfig struct {
 
 type WebSocketConfig struct {
 	Enabled bool
-	IP      string
 	Port    int
 }
 
@@ -177,14 +160,11 @@ type MQTTUDPConfig struct {
 }
 
 type MQTTConfig struct {
-	IP   string
 	Port int
 	QoS  int
 }
 
 type UDPConfig struct {
-	IP                string
-	ShowPort          int
 	Port              int
 	SessionTimeout    string
 	MaxPacketSize     int
@@ -207,24 +187,15 @@ type Role struct {
 
 // AudioConfig 音频配置
 type AudioConfig struct {
-	DeleteAudio   bool
-	SaveTTSAudio  bool
-	SaveUserAudio bool
+	DeleteAudio  bool
+	SaveTTSAudio bool
 }
 
 // PoolConfig 连接池配置
 type PoolConfig struct {
-	MinSize       int
-	MaxSize       int
-	RefillSize    int
-	CheckInterval int
 }
 
 type McpPoolConfig struct {
-	MinSize       int
-	MaxSize       int
-	RefillSize    int
-	CheckInterval int
 }
 
 // QuickReplyConfig 快速回复配置

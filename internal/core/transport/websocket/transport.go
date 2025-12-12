@@ -39,7 +39,7 @@ func NewWebSocketTransport(cfg *config.Config, logger *logging.Logger) *WebSocke
 	// 直接使用internal utils Logger
 	hub := ws.NewHub(logger)
 	router := ws.NewRouter(hub, logger, ws.RouterOptions{})
-	addr := fmt.Sprintf("%s:%d", cfg.Transport.WebSocket.IP, port)
+	addr := fmt.Sprintf("%s:%d", cfg.Server.IP, port)
 	server := ws.NewServer(
 		ws.ServerConfig{
 			Addr: addr,

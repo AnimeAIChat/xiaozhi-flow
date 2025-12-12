@@ -3,12 +3,62 @@ package storage
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 )
 
 // FlexibleJSON 是一个灵活的JSON类型，可以处理格式不规范的数据
 type FlexibleJSON struct {
 	Data interface{}
+}
+
+// convertValue 转换值的类型，去除多余的引号并转换为正确的类型
+func convertValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		// 尝试转换为布尔值
+		lowerValue := strings.ToLower(v)
+		switch lowerValue {
+		case "true", "yes", "1", "on", "enabled":
+			return true
+		case "false", "no", "0", "off", "disabled":
+			return false
+		}
+
+		// 尝试转换为整数
+		if intVal, err := strconv.Atoi(v); err == nil {
+			return intVal
+		}
+
+		// 尝试转换为浮点数
+		if floatVal, err := strconv.ParseFloat(v, 64); err == nil {
+			return floatVal
+		}
+
+		// 保持为字符串
+		return v
+
+	case map[string]interface{}:
+		// 递归转换map中的值
+		result := make(map[string]interface{})
+		for key, val := range v {
+			result[key] = convertValue(val)
+		}
+		return result
+
+	case []interface{}:
+		// 递归转换数组中的值
+		result := make([]interface{}, len(v))
+		for i, val := range v {
+			result[i] = convertValue(val)
+		}
+		return result
+
+	default:
+		// 其他类型直接返回
+		return v
+	}
 }
 
 // Value 实现 driver.Valuer 接口
@@ -57,7 +107,9 @@ func (j *FlexibleJSON) Scan(value interface{}) error {
 
 // MarshalJSON 实现json.Marshaler接口
 func (j FlexibleJSON) MarshalJSON() ([]byte, error) {
-	return json.Marshal(j.Data)
+	// 使用类型转换函数处理数据，去除多余引号
+	converted := convertValue(j.Data)
+	return json.Marshal(converted)
 }
 
 // UnmarshalJSON 实现json.Unmarshaler接口
