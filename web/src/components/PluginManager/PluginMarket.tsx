@@ -1,48 +1,49 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
-  Card,
-  Row,
-  Col,
-  Button,
-  Space,
-  Tag,
-  Rate,
-  Typography,
-  Avatar,
-  Progress,
-  Input,
-  Select,
-  Tabs,
-  Empty,
-  message,
-  Modal,
-  List,
-  Divider,
-  Statistic,
-  Tooltip,
-  Badge
-} from 'antd';
-import {
-  SearchOutlined,
-  StarOutlined,
+  ApiOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloudOutlined,
+  CloudUploadOutlined,
+  DatabaseOutlined,
   DownloadOutlined,
   EyeOutlined,
-  CloudUploadOutlined,
-  CloudOutlined,
-  ApiOutlined,
-  RobotOutlined,
-  DatabaseOutlined,
-  GlobalOutlined,
-  ToolOutlined,
   FilterOutlined,
-  SortAscendingOutlined,
+  GlobalOutlined,
   HeartOutlined,
   MessageOutlined,
+  RobotOutlined,
+  SearchOutlined,
   ShareAltOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined
+  SortAscendingOutlined,
+  StarOutlined,
+  ToolOutlined,
 } from '@ant-design/icons';
-import type { PluginSource, IPlugin } from '../../plugins/types';
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Divider,
+  Empty,
+  Input,
+  List,
+  Modal,
+  message,
+  Progress,
+  Rate,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { IPlugin, PluginSource } from '../../plugins/types';
 
 const { Title, Text, Paragraph } = Typography;
 const { Search } = Input;
@@ -100,7 +101,7 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'MIT',
     fileUrl: 'https://example.com/plugins/openai-connector.zip',
     size: '2.3MB',
-    dependencies: ['openai>=1.0.0', 'requests>=2.0.0']
+    dependencies: ['openai>=1.0.0', 'requests>=2.0.0'],
   },
   {
     id: 'claude-api',
@@ -121,7 +122,7 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'Apache-2.0',
     fileUrl: 'https://example.com/plugins/claude-api.zip',
     size: '1.8MB',
-    dependencies: ['anthropic>=0.8.0', 'asyncio>=3.0.0']
+    dependencies: ['anthropic>=0.8.0', 'asyncio>=3.0.0'],
   },
   {
     id: 'speech-recognition',
@@ -142,7 +143,7 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'MIT',
     fileUrl: 'https://example.com/plugins/speech-recognition.zip',
     size: '15.2MB',
-    dependencies: ['whisper>=1.0.0', 'torch>=2.0.0', 'numpy>=1.24.0']
+    dependencies: ['whisper>=1.0.0', 'torch>=2.0.0', 'numpy>=1.24.0'],
   },
   {
     id: 'text-to-speech',
@@ -163,7 +164,7 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'MIT',
     fileUrl: 'https://example.com/plugins/text-to-speech.zip',
     size: '4.1MB',
-    dependencies: ['edge-tts>=6.0.0', 'pydub>=0.25.0']
+    dependencies: ['edge-tts>=6.0.0', 'pydub>=0.25.0'],
   },
   {
     id: 'redis-connector',
@@ -184,7 +185,7 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'BSD-3-Clause',
     fileUrl: 'https://example.com/plugins/redis-connector.zip',
     size: '1.2MB',
-    dependencies: ['redis>=4.5.0', 'hiredis>=2.0.0']
+    dependencies: ['redis>=4.5.0', 'hiredis>=2.0.0'],
   },
   {
     id: 'custom-llm-server',
@@ -205,7 +206,11 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'Apache-2.0',
     fileUrl: 'https://example.com/plugins/custom-llm-server.zip',
     size: '8.7MB',
-    dependencies: ['transformers>=4.30.0', 'fastapi>=0.100.0', 'uvicorn>=0.20.0']
+    dependencies: [
+      'transformers>=4.30.0',
+      'fastapi>=0.100.0',
+      'uvicorn>=0.20.0',
+    ],
   },
   {
     id: 'data-processor',
@@ -226,40 +231,45 @@ const mockMarketplacePlugins: MarketplacePlugin[] = [
     license: 'MIT',
     fileUrl: 'https://example.com/plugins/data-processor.zip',
     size: '2.8MB',
-    dependencies: ['pandas>=2.0.0', 'numpy>=1.24.0', 'pydantic>=2.0.0']
-  }
+    dependencies: ['pandas>=2.0.0', 'numpy>=1.24.0', 'pydantic>=2.0.0'],
+  },
 ];
 
 export const PluginMarket: React.FC<PluginMarketProps> = ({
   visible,
   onClose,
-  onInstall
+  onInstall,
 }) => {
-  const [plugins, setPlugins] = useState<MarketplacePlugin[]>(mockMarketplacePlugins);
+  const [plugins, setPlugins] = useState<MarketplacePlugin[]>(
+    mockMarketplacePlugins,
+  );
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'popularity' | 'rating' | 'updated'>('popularity');
-  const [selectedPlugin, setSelectedPlugin] = useState<MarketplacePlugin | null>(null);
+  const [sortBy, setSortBy] = useState<'popularity' | 'rating' | 'updated'>(
+    'popularity',
+  );
+  const [selectedPlugin, setSelectedPlugin] =
+    useState<MarketplacePlugin | null>(null);
   const [installingPlugin, setInstallingPlugin] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('browse');
 
   // 分类列表
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(plugins.map(p => p.category)));
+    const cats = Array.from(new Set(plugins.map((p) => p.category)));
     return ['all', ...cats];
   }, [plugins]);
 
   // 排序插件
   const sortedPlugins = useMemo(() => {
-    const filtered = plugins.filter(plugin => {
+    const filtered = plugins.filter((plugin) => {
       // 搜索过滤
       if (searchText) {
         const searchLower = searchText.toLowerCase();
         return (
           plugin.name.toLowerCase().includes(searchLower) ||
           plugin.description.toLowerCase().includes(searchLower) ||
-          plugin.tags.some(tag => tag.toLowerCase().includes(searchLower))
+          plugin.tags.some((tag) => tag.toLowerCase().includes(searchLower))
         );
       }
 
@@ -287,129 +297,151 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
   }, [plugins, searchText, selectedCategory, sortBy]);
 
   // 获取分类插件
-  const getCategoryPlugins = useCallback((category: string) => {
-    return category === 'all' ? plugins : plugins.filter(p => p.category === category);
-  }, [plugins]);
+  const getCategoryPlugins = useCallback(
+    (category: string) => {
+      return category === 'all'
+        ? plugins
+        : plugins.filter((p) => p.category === category);
+    },
+    [plugins],
+  );
 
   // 获取推荐插件
   const getFeaturedPlugins = useCallback(() => {
     return [...plugins]
-      .sort((a, b) => (b.rating * b.reviews) - (a.rating * a.reviews))
+      .sort((a, b) => b.rating * b.reviews - a.rating * a.reviews)
       .slice(0, 6);
   }, [plugins]);
 
   // 安装插件
-  const handleInstall = useCallback(async (plugin: MarketplacePlugin) => {
-    setInstallingPlugin(plugin.id);
+  const handleInstall = useCallback(
+    async (plugin: MarketplacePlugin) => {
+      setInstallingPlugin(plugin.id);
 
-    try {
-      // 模拟下载过程
-      const source: PluginSource = {
-        type: 'url',
-        url: plugin.fileUrl,
-        options: {
-          autoStart: true,
-          overwrite: true
-        }
-      };
+      try {
+        // 模拟下载过程
+        const source: PluginSource = {
+          type: 'url',
+          url: plugin.fileUrl,
+          options: {
+            autoStart: true,
+            overwrite: true,
+          },
+        };
 
-      // 这里可以显示下载进度
-      message.loading(`正在下载 ${plugin.name}...`);
+        // 这里可以显示下载进度
+        message.loading(`正在下载 ${plugin.name}...`);
 
-      // 模拟下载延迟
-      await new Promise(resolve => setTimeout(resolve, 2000));
+        // 模拟下载延迟
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      message.destroy();
-      message.success(`${plugin.name} 安装成功！`);
+        message.destroy();
+        message.success(`${plugin.name} 安装成功！`);
 
-      onInstall?.(source);
-      onClose?.();
-
-    } catch (error) {
-      message.error(`安装失败: ${error}`);
-    } finally {
-      setInstallingPlugin(null);
-    }
-  }, [onInstall, onClose]);
+        onInstall?.(source);
+        onClose?.();
+      } catch (error) {
+        message.error(`安装失败: ${error}`);
+      } finally {
+        setInstallingPlugin(null);
+      }
+    },
+    [onInstall, onClose],
+  );
 
   // 渲染插件卡片
-  const PluginCard = useCallback(({ plugin }: { plugin: MarketplacePlugin }) => (
-    <Card
-      hoverable
-      style={{ height: '100%' }}
-      cover={
-        <div
-          style={{
-            height: 120,
-            backgroundColor: '#f5f5f5',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1px solid #d9d9d9'
-          }}
-        >
-          <Avatar size={64} icon={plugin.icon} style={{ backgroundColor: '#1890ff' }} />
-        </div>
-      }
-      actions={[
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          loading={installingPlugin === plugin.id}
-          onClick={() => handleInstall(plugin)}
-          block
-        >
-          安装
-        </Button>,
-        <Button
-          icon={<EyeOutlined />}
-          onClick={() => setSelectedPlugin(plugin)}
-        >
-          详情
-        </Button>
-      ]}
-    >
-      <Card.Meta
-        title={
-          <Space>
-            <span>{plugin.name}</span>
-            <Tag size="small">{plugin.version}</Tag>
-          </Space>
+  const PluginCard = useCallback(
+    ({ plugin }: { plugin: MarketplacePlugin }) => (
+      <Card
+        hoverable
+        style={{ height: '100%' }}
+        cover={
+          <div
+            style={{
+              height: 120,
+              backgroundColor: '#f5f5f5',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: '1px solid #d9d9d9',
+            }}
+          >
+            <Avatar
+              size={64}
+              icon={plugin.icon}
+              style={{ backgroundColor: '#1890ff' }}
+            />
+          </div>
         }
-        description={
-          <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          <Text ellipsis={{ rows: 2 }} type="secondary">
-            {plugin.description}
-          </Text>
-          <Space wrap>
-            <Rate disabled defaultValue={plugin.rating} size="small" style={{ fontSize: 12 }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              ({plugin.reviews})
-            </Text>
-            <Tag color="blue">{plugin.category}</Tag>
-            <Tag color="green">{plugin.runtime}</Tag>
-          </Space>
-          <Space>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <DownloadOutlined /> {plugin.downloads.toLocaleString()}
-            </Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              <ClockCircleOutlined /> {plugin.lastUpdated.toLocaleDateString()}
-            </Text>
-          </Space>
-          <Space wrap>
-            {plugin.tags.slice(0, 3).map(tag => (
-              <Tag key={tag} size="small">{tag}</Tag>
-            ))}
-            {plugin.tags.length > 3 && (
-              <Tag size="small">+{plugin.tags.length - 3}</Tag>
-            )}
-          </Space>
-        </Space>
-      }
-    />
-    </Card>
-  ), [installingPlugin, handleInstall]);
+        actions={[
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            loading={installingPlugin === plugin.id}
+            onClick={() => handleInstall(plugin)}
+            block
+          >
+            安装
+          </Button>,
+          <Button
+            icon={<EyeOutlined />}
+            onClick={() => setSelectedPlugin(plugin)}
+          >
+            详情
+          </Button>,
+        ]}
+      >
+        <Card.Meta
+          title={
+            <Space>
+              <span>{plugin.name}</span>
+              <Tag size="small">{plugin.version}</Tag>
+            </Space>
+          }
+          description={
+            <Space direction="vertical" size="small" style={{ width: '100%' }}>
+              <Text ellipsis={{ rows: 2 }} type="secondary">
+                {plugin.description}
+              </Text>
+              <Space wrap>
+                <Rate
+                  disabled
+                  defaultValue={plugin.rating}
+                  size="small"
+                  style={{ fontSize: 12 }}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  ({plugin.reviews})
+                </Text>
+                <Tag color="blue">{plugin.category}</Tag>
+                <Tag color="green">{plugin.runtime}</Tag>
+              </Space>
+              <Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <DownloadOutlined /> {plugin.downloads.toLocaleString()}
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <ClockCircleOutlined />{' '}
+                  {plugin.lastUpdated.toLocaleDateString()}
+                </Text>
+              </Space>
+              <Space wrap>
+                {plugin.tags.slice(0, 3).map((tag) => (
+                  <Tag key={tag} size="small">
+                    {tag}
+                  </Tag>
+                ))}
+                {plugin.tags.length > 3 && (
+                  <Tag size="small">+{plugin.tags.length - 3}</Tag>
+                )}
+              </Space>
+            </Space>
+          }
+        />
+      </Card>
+    ),
+    [installingPlugin, handleInstall],
+  );
 
   return (
     <Modal
@@ -447,7 +479,7 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
                   style={{ width: '100%' }}
                   size="large"
                 >
-                  {categories.map(cat => (
+                  {categories.map((cat) => (
                     <Option key={cat} value={cat}>
                       {cat === 'all' ? '全部分类' : cat}
                     </Option>
@@ -478,7 +510,7 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
 
           {/* 插件列表 */}
           <Row gutter={[16, 16]}>
-            {sortedPlugins.map(plugin => (
+            {sortedPlugins.map((plugin) => (
               <Col xs={24} sm={12} md={8} lg={6} xl={6} key={plugin.id}>
                 <PluginCard plugin={plugin} />
               </Col>
@@ -494,28 +526,32 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
         </TabPane>
 
         <TabPane tab="分类浏览" key="categories">
-          {categories.map(category => (
+          {categories.map((category) => (
             <div key={category} style={{ marginBottom: 24 }}>
               <Title level={4}>
                 {category === 'all' ? '全部分类' : category}
-                <Badge count={getCategoryPlugins(category).length} style={{ marginLeft: 8 }} />
+                <Badge
+                  count={getCategoryPlugins(category).length}
+                  style={{ marginLeft: 8 }}
+                />
               </Title>
               <Row gutter={[16, 16]}>
                 {getCategoryPlugins(category)
                   .slice(0, category === 'all' ? 6 : 4)
-                  .map(plugin => (
+                  .map((plugin) => (
                     <Col xs={24} sm={12} md={8} lg={6} key={plugin.id}>
                       <PluginCard plugin={plugin} />
                     </Col>
                   ))}
               </Row>
-              {category !== 'all' && getCategoryPlugins(category).length > 4 && (
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
-                  <Button>
-                    查看更多 {getCategoryPlugins(category).length - 4} 个插件
-                  </Button>
-                </div>
-              )}
+              {category !== 'all' &&
+                getCategoryPlugins(category).length > 4 && (
+                  <div style={{ textAlign: 'center', marginTop: 16 }}>
+                    <Button>
+                      查看更多 {getCategoryPlugins(category).length - 4} 个插件
+                    </Button>
+                  </div>
+                )}
             </div>
           ))}
         </TabPane>
@@ -526,7 +562,7 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
             根据评分和下载量为您推荐的热门插件
           </Paragraph>
           <Row gutter={[16, 16]}>
-            {getFeaturedPlugins().map(plugin => (
+            {getFeaturedPlugins().map((plugin) => (
               <Col xs={24} sm={12} md={8} key={plugin.id}>
                 <PluginCard plugin={plugin} />
               </Col>
@@ -557,7 +593,7 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
             onClick={() => selectedPlugin && handleInstall(selectedPlugin)}
           >
             安装插件
-          </Button>
+          </Button>,
         ]}
         width={600}
       >
@@ -614,7 +650,7 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
               <div>
                 <Text strong>标签: </Text>
                 <Space wrap>
-                  {selectedPlugin.tags.map(tag => (
+                  {selectedPlugin.tags.map((tag) => (
                     <Tag key={tag}>{tag}</Tag>
                   ))}
                 </Space>
@@ -624,8 +660,10 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
                 <div>
                   <Text strong>依赖: </Text>
                   <Space wrap>
-                    {selectedPlugin.dependencies.map(dep => (
-                      <Tag key={dep} color="cyan">{dep}</Tag>
+                    {selectedPlugin.dependencies.map((dep) => (
+                      <Tag key={dep} color="cyan">
+                        {dep}
+                      </Tag>
                     ))}
                   </Space>
                 </div>
@@ -644,12 +682,20 @@ export const PluginMarket: React.FC<PluginMarketProps> = ({
               {(selectedPlugin.homepage || selectedPlugin.repository) && (
                 <Space>
                   {selectedPlugin.homepage && (
-                    <Button icon={<GlobalOutlined />} href={selectedPlugin.homepage} target="_blank">
+                    <Button
+                      icon={<GlobalOutlined />}
+                      href={selectedPlugin.homepage}
+                      target="_blank"
+                    >
                       主页
                     </Button>
                   )}
                   {selectedPlugin.repository && (
-                    <Button icon={<CloudUploadOutlined />} href={selectedPlugin.repository} target="_blank">
+                    <Button
+                      icon={<CloudUploadOutlined />}
+                      href={selectedPlugin.repository}
+                      target="_blank"
+                    >
                       源码
                     </Button>
                   )}

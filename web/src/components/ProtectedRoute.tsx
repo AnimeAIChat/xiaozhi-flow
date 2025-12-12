@@ -1,9 +1,9 @@
-import React, { useEffect, ReactNode } from 'react';
+import { Spin } from 'antd';
+import React, { type ReactNode, useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { AuthLevel, AuthStatus, getAuthStatus } from '../types/auth';
 import { useSystemStatus } from '../hooks/useApi';
-import { Spin } from 'antd';
+import { AuthLevel, AuthStatus, getAuthStatus } from '../types/auth';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -55,7 +55,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check system status first
   if (systemStatus) {
-    const isSystemInitialized = systemStatus.initialized === true && systemStatus.needs_setup !== true;
+    const isSystemInitialized =
+      systemStatus.initialized === true && systemStatus.needs_setup !== true;
 
     // If system is not initialized, redirect to setup page (unless already there)
     if (!isSystemInitialized && location.pathname !== '/setup') {
@@ -86,13 +87,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     case AuthLevel.AUTHENTICATED:
       // Must be authenticated
       if (!isAuthenticated || !user) {
-        return (
-          <Navigate
-            to={redirectTo}
-            state={{ from: location }}
-            replace
-          />
-        );
+        return <Navigate to={redirectTo} state={{ from: location }} replace />;
       }
       break;
 
@@ -101,11 +96,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       if (!isAuthenticated || !user || user.role !== 'admin') {
         const adminRedirect = user ? '/dashboard' : redirectTo;
         return (
-          <Navigate
-            to={adminRedirect}
-            state={{ from: location }}
-            replace
-          />
+          <Navigate to={adminRedirect} state={{ from: location }} replace />
         );
       }
       break;
@@ -115,13 +106,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (roles.length > 0 && user) {
     const hasRequiredRole = roles.includes(user.role) || user.role === 'admin';
     if (!hasRequiredRole) {
-      return (
-        <Navigate
-          to="/dashboard"
-          state={{ from: location }}
-          replace
-        />
-      );
+      return <Navigate to="/dashboard" state={{ from: location }} replace />;
     }
   }
 
@@ -133,13 +118,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       // For now, we'll assume users have basic permissions
       const hasPermission = true; // Replace with actual permission logic
       if (!hasPermission) {
-        return (
-          <Navigate
-            to="/dashboard"
-            state={{ from: location }}
-            replace
-          />
-        );
+        return <Navigate to="/dashboard" state={{ from: location }} replace />;
       }
     }
   }
@@ -151,7 +130,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 // Higher-order component for protecting components
 export const withAuth = <P extends object>(
   Component: React.ComponentType<P>,
-  options?: Omit<ProtectedRouteProps, 'children'>
+  options?: Omit<ProtectedRouteProps, 'children'>,
 ) => {
   const WrappedComponent = (props: P) => (
     <ProtectedRoute {...options}>
@@ -244,11 +223,11 @@ export const AdminOnly: React.FC<{
 /**
  * AuthOptional - Renders children regardless of auth status
  */
-export const AuthOptional: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthOptional: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   return (
-    <ProtectedRoute authLevel={AuthLevel.OPTIONAL}>
-      {children}
-    </ProtectedRoute>
+    <ProtectedRoute authLevel={AuthLevel.OPTIONAL}>{children}</ProtectedRoute>
   );
 };
 

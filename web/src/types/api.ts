@@ -1,14 +1,14 @@
 // 从api.ts重新导出类型，避免循环依赖
-export {
-  type ServerConfig,
-  type ConnectionTestResult,
-  type InitConfig,
-  type InitResult,
-  type ProviderType,
-  type ProviderConfig,
-  type ProviderTestResult,
-  type SystemConfig,
-  type ApiResponse,
+export type {
+  ApiResponse,
+  ConnectionTestResult,
+  InitConfig,
+  InitResult,
+  ProviderConfig,
+  ProviderTestResult,
+  ProviderType,
+  ServerConfig,
+  SystemConfig,
 } from '../services/api';
 
 // 扩展API相关类型
@@ -29,7 +29,14 @@ export interface ProviderPreset {
 export interface ProviderConfigField {
   key: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'textarea' | 'password' | 'file';
+  type:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'textarea'
+    | 'password'
+    | 'file';
   required: boolean;
   description?: string;
   placeholder?: string;

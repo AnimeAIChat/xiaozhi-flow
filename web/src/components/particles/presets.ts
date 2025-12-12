@@ -543,7 +543,8 @@ export const particlePresets: ParticlePreset[] = [
 export function getRecommendedPreset(): ParticlePreset {
   // 简单的性能检测
   const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+  const gl =
+    canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
 
   if (!gl) {
     // 不支持WebGL，使用轻量级预设
@@ -559,14 +560,19 @@ export function getRecommendedPreset(): ParticlePreset {
     if (renderer.includes('Intel') || renderer.includes('Mali')) {
       return minimalPreset; // 集成显卡，使用轻量级
     }
-    if (renderer.includes('NVIDIA') || renderer.includes('AMD') || renderer.includes('Radeon')) {
+    if (
+      renderer.includes('NVIDIA') ||
+      renderer.includes('AMD') ||
+      renderer.includes('Radeon')
+    ) {
       return intensivePreset; // 独立显卡，可以承受更多粒子
     }
   }
 
   // 检测设备内存
   if ('memory' in navigator && navigator.memory) {
-    const memoryGB = (navigator.memory as any).totalJSHeapSize / (1024 * 1024 * 1024);
+    const memoryGB =
+      (navigator.memory as any).totalJSHeapSize / (1024 * 1024 * 1024);
     if (memoryGB < 4) {
       return minimalPreset;
     }
@@ -581,7 +587,7 @@ export function getRecommendedPreset(): ParticlePreset {
 
 // 根据用户偏好获取预设
 export function getPresetById(id: string): ParticlePreset | undefined {
-  return particlePresets.find(preset => preset.id === id);
+  return particlePresets.find((preset) => preset.id === id);
 }
 
 export default {

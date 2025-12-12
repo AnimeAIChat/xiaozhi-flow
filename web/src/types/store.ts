@@ -1,31 +1,31 @@
 // Zustand Store 相关类型定义
 
 import type {
-  AuthState,
-  User,
-  Theme,
-  Language,
-  Notification,
-  ModalProps,
-  AIStatus
-} from './index';
-import type {
-  SystemConfig,
-  ProviderConfig,
-  ProviderType,
-  WorkflowConfig,
-  ConnectionTestResult
-} from './api';
-import type { ParticleConfig, ParticleSystemState } from './particle';
-import type {
   IPlugin,
-  PluginStatus,
-  ServiceInfo,
-  PluginSource,
+  PluginConfig,
   PluginFilter,
   PluginMarketplace,
-  PluginConfig
+  PluginSource,
+  PluginStatus,
+  ServiceInfo,
 } from '../plugins/types';
+import type {
+  ConnectionTestResult,
+  ProviderConfig,
+  ProviderType,
+  SystemConfig,
+  WorkflowConfig,
+} from './api';
+import type {
+  AIStatus,
+  AuthState,
+  Language,
+  ModalProps,
+  Notification,
+  Theme,
+  User,
+} from './index';
+import type { ParticleConfig, ParticleSystemState } from './particle';
 
 // 应用状态接口
 export interface AppState {
@@ -267,7 +267,13 @@ export interface PluginState {
     error: string | null;
     operationInProgress: boolean;
     currentOperation: {
-      type: 'install' | 'uninstall' | 'update' | 'activate' | 'deactivate' | null;
+      type:
+        | 'install'
+        | 'uninstall'
+        | 'update'
+        | 'activate'
+        | 'deactivate'
+        | null;
       pluginId: string | null;
       progress: number;
     };
@@ -288,7 +294,10 @@ export interface PluginState {
 export interface AppActions {
   // 认证相关
   auth: {
-    login: (credentials: { username: string; password: string }) => Promise<void>;
+    login: (credentials: {
+      username: string;
+      password: string;
+    }) => Promise<void>;
     logout: () => void;
     refreshToken: () => Promise<void>;
     updateProfile: (profile: Partial<User>) => void;
@@ -306,14 +315,22 @@ export interface AppActions {
 
     // 提供商配置
     loadProviders: (type?: ProviderType) => Promise<void>;
-    updateProvider: (type: ProviderType, config: ProviderConfig) => Promise<void>;
+    updateProvider: (
+      type: ProviderType,
+      config: ProviderConfig,
+    ) => Promise<void>;
     testProvider: (type: ProviderType, config: ProviderConfig) => Promise<void>;
     selectProvider: (type: ProviderType, providerId: string | null) => void;
 
     // 工作流配置
     loadWorkflows: () => Promise<void>;
-    createWorkflow: (workflow: Omit<WorkflowConfig, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
-    updateWorkflow: (id: string, workflow: Partial<WorkflowConfig>) => Promise<void>;
+    createWorkflow: (
+      workflow: Omit<WorkflowConfig, 'id' | 'createdAt' | 'updatedAt'>,
+    ) => Promise<void>;
+    updateWorkflow: (
+      id: string,
+      workflow: Partial<WorkflowConfig>,
+    ) => Promise<void>;
     deleteWorkflow: (id: string) => Promise<void>;
 
     // 配置验证
@@ -336,14 +353,19 @@ export interface AppActions {
     toggleComponentLibraryPanel: () => void;
     showComponentLibraryPanel: (position?: { x: number; y: number }) => void;
     hideComponentLibraryPanel: () => void;
-    setComponentLibraryPanelPosition: (position: { x: number; y: number }) => void;
+    setComponentLibraryPanelPosition: (position: {
+      x: number;
+      y: number;
+    }) => void;
     toggleComponentLibraryPanelPin: () => void;
     setComponentLibraryPanelPin: (pinned: boolean) => void;
 
     // 页面管理
     setPageLoading: (loading: boolean) => void;
     setPageTitle: (title: string) => void;
-    setBreadcrumb: (breadcrumb: Array<{ title: string; path?: string }>) => void;
+    setBreadcrumb: (
+      breadcrumb: Array<{ title: string; path?: string }>,
+    ) => void;
 
     // 模态框管理
     openModal: (key: string, modal: Omit<ModalProps, 'visible'>) => void;
@@ -351,7 +373,10 @@ export interface AppActions {
     closeAllModals: () => void;
 
     // 抽屉管理
-    openDrawer: (key: string, drawer: { title?: string; content?: React.ReactNode }) => void;
+    openDrawer: (
+      key: string,
+      drawer: { title?: string; content?: React.ReactNode },
+    ) => void;
     closeDrawer: (key: string) => void;
     closeAllDrawers: () => void;
 
@@ -373,7 +398,10 @@ export interface AppActions {
     setVolume: (volume: number) => void;
 
     // 服务管理
-    connectService: (type: 'asr' | 'tts' | 'llm' | 'vllm', providerId: string) => Promise<void>;
+    connectService: (
+      type: 'asr' | 'tts' | 'llm' | 'vllm',
+      providerId: string,
+    ) => Promise<void>;
     disconnectService: (type: 'asr' | 'tts' | 'llm' | 'vllm') => Promise<void>;
 
     // 性能重置
@@ -392,7 +420,9 @@ export interface AppActions {
 
   // 通知相关
   notifications: {
-    add: (notification: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void;
+    add: (
+      notification: Omit<Notification, 'id' | 'timestamp' | 'read'>,
+    ) => void;
     remove: (id: string) => void;
     markAsRead: (id: string) => void;
     markAllAsRead: () => void;
@@ -417,7 +447,10 @@ export interface AppActions {
 
     // 插件状态
     getPluginStatus: (pluginId: string) => PluginStatus | undefined;
-    updatePluginStatus: (pluginId: string, status: Partial<PluginStatus>) => void;
+    updatePluginStatus: (
+      pluginId: string,
+      status: Partial<PluginStatus>,
+    ) => void;
 
     // 服务管理
     startService: (pluginId: string, serviceId: string) => Promise<void>;
@@ -431,7 +464,11 @@ export interface AppActions {
     getPluginCategories: () => Promise<string[]>;
 
     // 安装进度
-    setInstallationProgress: (progress: { stage: string; progress: number; message: string }) => void;
+    setInstallationProgress: (progress: {
+      stage: string;
+      progress: number;
+      message: string;
+    }) => void;
     clearInstallationProgress: () => void;
 
     // 批量操作

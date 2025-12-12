@@ -1,10 +1,5 @@
-import {
-  RuntimeAdapter,
-  BackendConfig,
-  ServiceInfo
-} from '../types';
-import { ProcessManager } from '../utils/ProcessManager';
-import { SimpleEventEmitter } from '../utils/ProcessManager';
+import type { BackendConfig, RuntimeAdapter, ServiceInfo } from '../types';
+import { ProcessManager, SimpleEventEmitter } from '../utils/ProcessManager';
 
 interface PythonEnvironment {
   path: string;
@@ -21,7 +16,10 @@ interface PythonServiceConfig extends BackendConfig {
   pipArgs?: string[];
 }
 
-export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapter {
+export class PythonRuntimeAdapter
+  extends SimpleEventEmitter
+  implements RuntimeAdapter
+{
   type = 'python';
   name = 'Python Runtime';
   version = '1.0.0';
@@ -54,18 +52,25 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       }
 
       // 启动Python进程
-      const serviceInfo = await this.startPythonProcess(config, pythonEnv, venvPath);
+      const serviceInfo = await this.startPythonProcess(
+        config,
+        pythonEnv,
+        venvPath,
+      );
 
       // 等待服务启动
-      await this.waitForServiceReady(serviceInfo, config.startupTimeout || 30000);
+      await this.waitForServiceReady(
+        serviceInfo,
+        config.startupTimeout || 30000,
+      );
 
       this.services.set(`${config.pluginId}:${serviceInfo.id}`, serviceInfo);
       this.emit('service-started', { serviceInfo });
 
       return serviceInfo;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', { config, error: errorMessage });
       throw new Error(`Failed to start Python service: ${errorMessage}`);
     }
@@ -93,7 +98,9 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
         await this.waitForProcessExit(service.pid, 5000);
 
         // 如果进程还在运行，强制杀死
-        const isRunning = await this.processManager.isProcessRunning(service.pid);
+        const isRunning = await this.processManager.isProcessRunning(
+          service.pid,
+        );
         if (isRunning) {
           await this.processManager.killProcess(service.pid, 'SIGKILL');
         }
@@ -101,9 +108,9 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
 
       this.services.delete(serviceKey);
       this.emit('service-stopped', { serviceInfo });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', { serviceInfo, error: errorMessage });
       throw new Error(`Failed to stop Python service: ${errorMessage}`);
     }
@@ -149,7 +156,9 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
         service.error = 'Process terminated unexpectedly';
       } else {
         // 获取进程信息
-        const processInfo = await this.processManager.getProcessInfo(service.pid);
+        const processInfo = await this.processManager.getProcessInfo(
+          service.pid,
+        );
         service.memoryUsage = processInfo.memoryUsage;
         service.cpuUsage = processInfo.cpuUsage;
       }
@@ -176,11 +185,10 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
 
       const response = await fetch(`${serviceInfo.baseUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(5000),
       });
 
       return response.ok;
-
     } catch (error) {
       return false;
     }
@@ -197,14 +205,16 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       path: pythonPath,
       version,
       virtualEnv: null,
-      packages: []
+      packages: [],
     };
   }
 
   /**
    * 准备虚拟环境
    */
-  private async prepareVirtualEnvironment(config: PythonServiceConfig): Promise<string> {
+  private async prepareVirtualEnvironment(
+    config: PythonServiceConfig,
+  ): Promise<string> {
     const pluginId = config.pluginId || 'unknown';
     const venvPath = config.virtualEnvPath || `/tmp/python-venvs/${pluginId}`;
 
@@ -229,14 +239,17 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       command: pythonPath,
       args: ['-m', 'venv', venvPath],
       cwd: '/',
-      timeout: 60000 // 1分钟超时
+      timeout: 60000, // 1分钟超时
     });
   }
 
   /**
    * 安装Python依赖
    */
-  private async installDependencies(config: PythonServiceConfig, venvPath: string): Promise<void> {
+  private async installDependencies(
+    config: PythonServiceConfig,
+    venvPath: string,
+  ): Promise<void> {
     const pipPath = this.getPipPath(venvPath);
 
     for (const depFile of config.dependencies || []) {
@@ -248,9 +261,9 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
           cwd: config.workingDirectory || '/',
           env: {
             ...process.env,
-            PYTHONPATH: venvPath + '/lib/python*/site-packages'
+            PYTHONPATH: venvPath + '/lib/python*/site-packages',
           },
-          timeout: 300000 // 5分钟超时
+          timeout: 300000, // 5分钟超时
         });
       } else {
         // 安装单个包
@@ -260,9 +273,9 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
           cwd: config.workingDirectory || '/',
           env: {
             ...process.env,
-            PYTHONPATH: venvPath + '/lib/python*/site-packages'
+            PYTHONPATH: venvPath + '/lib/python*/site-packages',
           },
-          timeout: 180000 // 3分钟超时
+          timeout: 180000, // 3分钟超时
         });
       }
     }
@@ -274,16 +287,18 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
   private async startPythonProcess(
     config: PythonServiceConfig,
     pythonEnv: PythonEnvironment,
-    venvPath: string
+    venvPath: string,
   ): Promise<ServiceInfo> {
     const pythonPath = this.getPythonPath(venvPath);
     const entryPoint = config.entryPoint || 'main.py';
 
     const args = [
       entryPoint,
-      '--port', config.port?.toString() || '0',
-      '--host', '127.0.0.1',
-      ...(config.pythonArgs || [])
+      '--port',
+      config.port?.toString() || '0',
+      '--host',
+      '127.0.0.1',
+      ...(config.pythonArgs || []),
     ];
 
     const env = {
@@ -291,7 +306,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       ...config.envVars,
       PYTHONPATH: config.workingDirectory || '.',
       VIRTUAL_ENV: venvPath,
-      PATH: `${venvPath}/bin:${process.env.PATH}`
+      PATH: `${venvPath}/bin:${process.env.PATH}`,
     };
 
     const processInfo = await this.processManager.startProcess({
@@ -299,7 +314,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       args,
       cwd: config.workingDirectory || '/',
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     const port = config.port || 0;
@@ -314,7 +329,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       pid: processInfo.pid,
       startTime: new Date(),
       runtime: 'python',
-      healthStatus: 'unknown'
+      healthStatus: 'unknown',
     };
 
     // 监听进程输出
@@ -353,7 +368,10 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
   /**
    * 等待服务就绪
    */
-  private async waitForServiceReady(serviceInfo: ServiceInfo, timeout: number): Promise<void> {
+  private async waitForServiceReady(
+    serviceInfo: ServiceInfo,
+    timeout: number,
+  ): Promise<void> {
     const startTime = Date.now();
     const maxTime = startTime + timeout;
 
@@ -362,7 +380,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
         if (serviceInfo.port > 0) {
           const response = await fetch(`${serviceInfo.baseUrl}/health`, {
             method: 'GET',
-            signal: AbortSignal.timeout(2000)
+            signal: AbortSignal.timeout(2000),
           });
 
           if (response.ok) {
@@ -375,7 +393,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
         // 服务还未就绪，继续等待
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     throw new Error(`Service not ready after ${timeout}ms`);
@@ -384,7 +402,10 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
   /**
    * 等待进程退出
    */
-  private async waitForProcessExit(pid: number, timeout: number): Promise<void> {
+  private async waitForProcessExit(
+    pid: number,
+    timeout: number,
+  ): Promise<void> {
     const startTime = Date.now();
     const maxTime = startTime + timeout;
 
@@ -393,7 +414,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       if (!isRunning) {
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
@@ -401,19 +422,22 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
    * 查找Python可执行文件
    */
   private async findPythonExecutable(): Promise<string> {
-    const candidates = ['python3', 'python', '/usr/bin/python3', '/usr/bin/python'];
+    const candidates = [
+      'python3',
+      'python',
+      '/usr/bin/python3',
+      '/usr/bin/python',
+    ];
 
     for (const candidate of candidates) {
       try {
         await this.processManager.executeCommand({
           command: candidate,
           args: ['--version'],
-          timeout: 5000
+          timeout: 5000,
         });
         return candidate;
-      } catch (error) {
-        continue;
-      }
+      } catch (error) {}
     }
 
     throw new Error('Python executable not found');
@@ -427,7 +451,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       const result = await this.processManager.executeCommand({
         command: pythonPath,
         args: ['--version'],
-        timeout: 5000
+        timeout: 5000,
       });
 
       const output = result.stdout || result.stderr || '';
@@ -460,7 +484,7 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       await this.processManager.executeCommand({
         command: 'test',
         args: ['-d', path],
-        timeout: 5000
+        timeout: 5000,
       });
       return true;
     } catch (error) {
@@ -476,10 +500,10 @@ export class PythonRuntimeAdapter extends SimpleEventEmitter implements RuntimeA
       await this.stop(serviceInfo);
     } else {
       // 清理所有服务
-      const stopPromises = Array.from(this.services.values()).map(
-        service => this.stop(service).catch(error =>
-          console.error(`Failed to stop service ${service.id}:`, error)
-        )
+      const stopPromises = Array.from(this.services.values()).map((service) =>
+        this.stop(service).catch((error) =>
+          console.error(`Failed to stop service ${service.id}:`, error),
+        ),
       );
       await Promise.all(stopPromises);
     }

@@ -1,5 +1,5 @@
-import { ReactNode, ComponentType } from 'react';
-import { NodeProps } from '@xyflow/react';
+import type { NodeProps } from '@xyflow/react';
+import type { ComponentType, ReactNode } from 'react';
 
 // 基础插件接口
 export interface IPlugin {
@@ -38,12 +38,12 @@ export interface IPlugin {
 
 // 后端配置
 export interface BackendConfig {
-  entryPoint: string;  // main.py, main.go等
-  dependencies?: string[];  // requirements.txt, go.mod等
-  port?: number;  // 服务端口，0表示自动分配
-  envVars?: Record<string, string>;  // 环境变量
-  workingDirectory?: string;  // 工作目录
-  startupTimeout?: number;  // 启动超时时间（毫秒）
+  entryPoint: string; // main.py, main.go等
+  dependencies?: string[]; // requirements.txt, go.mod等
+  port?: number; // 服务端口，0表示自动分配
+  envVars?: Record<string, string>; // 环境变量
+  workingDirectory?: string; // 工作目录
+  startupTimeout?: number; // 启动超时时间（毫秒）
   healthCheck?: {
     path: string;
     interval: number;
@@ -103,7 +103,9 @@ export interface ParameterDefinition {
   // 动态配置
   dynamic?: {
     visible?: (values: Record<string, any>) => boolean;
-    options?: (values: Record<string, any>) => Promise<Array<{ label: string; value: any; description?: string }>>;
+    options?: (
+      values: Record<string, any>,
+    ) => Promise<Array<{ label: string; value: any; description?: string }>>;
     validation?: (value: any, values: Record<string, any>) => ValidationResult;
     loadFromAPI?: {
       endpoint: string;
@@ -153,7 +155,7 @@ export interface UIConfig {
   advanced?: boolean;
   hidden?: boolean;
   disabled?: boolean;
-  component?: string;  // 自定义组件名称
+  component?: string; // 自定义组件名称
   width?: 'small' | 'medium' | 'large' | 'full';
   height?: 'small' | 'medium' | 'large';
 }
@@ -247,7 +249,10 @@ export interface PluginAPI {
   setConfig: (key: string, value: any) => void;
 
   // 通知系统
-  showNotification: (message: string, type: 'info' | 'success' | 'warning' | 'error') => void;
+  showNotification: (
+    message: string,
+    type: 'info' | 'success' | 'warning' | 'error',
+  ) => void;
 }
 
 // 服务配置
@@ -377,7 +382,14 @@ export interface ServiceInfo {
 // 插件状态
 export interface PluginStatus {
   id: string;
-  status: 'loading' | 'loaded' | 'activating' | 'active' | 'deactivating' | 'inactive' | 'error';
+  status:
+    | 'loading'
+    | 'loaded'
+    | 'activating'
+    | 'active'
+    | 'deactivating'
+    | 'inactive'
+    | 'error';
   loadedAt?: Date;
   activatedAt?: Date;
   error?: string;

@@ -1,14 +1,14 @@
+import { DockerRuntimeAdapter } from '../runtime/DockerRuntimeAdapter';
+import { GoRuntimeAdapter } from '../runtime/GoRuntimeAdapter';
+import { PythonRuntimeAdapter } from '../runtime/PythonRuntimeAdapter';
 import {
-  BackendConfig,
-  ServiceInfo,
-  RuntimeAdapter,
-  ServiceProxy
+  type BackendConfig,
+  type RuntimeAdapter,
+  type ServiceInfo,
+  ServiceProxy,
 } from '../types';
 import { SimpleEventEmitter } from '../utils/ProcessManager';
 import { pluginManager } from './PluginManager';
-import { PythonRuntimeAdapter } from '../runtime/PythonRuntimeAdapter';
-import { GoRuntimeAdapter } from '../runtime/GoRuntimeAdapter';
-import { DockerRuntimeAdapter } from '../runtime/DockerRuntimeAdapter';
 
 interface ServiceEvent {
   type: 'started' | 'stopped' | 'error' | 'health-check';
@@ -67,12 +67,16 @@ export class BackendServiceManager extends SimpleEventEmitter {
   async startService(
     pluginId: string,
     serviceId: string,
-    config: BackendConfig
+    config: BackendConfig,
   ): Promise<ServiceInfo> {
     const fullServiceId = `${pluginId}:${serviceId}`;
 
     try {
-      this.emit('service-starting', { serviceId: fullServiceId, pluginId, config });
+      this.emit('service-starting', {
+        serviceId: fullServiceId,
+        pluginId,
+        config,
+      });
 
       // 检查服务是否已启动
       if (this.services.has(fullServiceId)) {
@@ -85,11 +89,13 @@ export class BackendServiceManager extends SimpleEventEmitter {
       // 获取运行时适配器
       const adapter = this.runtimeAdapters.get(config.runtime || 'python');
       if (!adapter) {
-        throw new Error(`No runtime adapter found for runtime: ${config.runtime || 'python'}`);
+        throw new Error(
+          `No runtime adapter found for runtime: ${config.runtime || 'python'}`,
+        );
       }
 
       // 分配端口
-      const port = config.port || await this.portAllocator.allocatePort();
+      const port = config.port || (await this.portAllocator.allocatePort());
 
       // 准备配置
       const serviceConfig: BackendConfig = {
@@ -99,8 +105,8 @@ export class BackendServiceManager extends SimpleEventEmitter {
           ...config.envVars,
           SERVICE_ID: serviceId,
           PLUGIN_ID: pluginId,
-          PORT: port.toString()
-        }
+          PORT: port.toString(),
+        },
       };
 
       // 启动服务
@@ -121,17 +127,23 @@ export class BackendServiceManager extends SimpleEventEmitter {
       // 启动健康检查
       this.startHealthCheck(pluginId, serviceId, serviceInfo, serviceConfig);
 
-      this.emit('service-started', { serviceId: fullServiceId, pluginId, serviceInfo });
+      this.emit('service-started', {
+        serviceId: fullServiceId,
+        pluginId,
+        serviceInfo,
+      });
       return serviceInfo;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', {
         serviceId: fullServiceId,
         pluginId,
-        error: errorMessage
+        error: errorMessage,
       });
-      throw new Error(`Failed to start service ${fullServiceId}: ${errorMessage}`);
+      throw new Error(
+        `Failed to start service ${fullServiceId}: ${errorMessage}`,
+      );
     }
   }
 
@@ -171,22 +183,28 @@ export class BackendServiceManager extends SimpleEventEmitter {
       }
 
       this.emit('service-stopped', { serviceId: fullServiceId, pluginId });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', {
         serviceId: fullServiceId,
         pluginId,
-        error: errorMessage
+        error: errorMessage,
       });
-      throw new Error(`Failed to stop service ${fullServiceId}: ${errorMessage}`);
+      throw new Error(
+        `Failed to stop service ${fullServiceId}: ${errorMessage}`,
+      );
     }
   }
 
   /**
    * 重启后端服务
    */
-  async restartService(pluginId: string, serviceId: string, config?: BackendConfig): Promise<ServiceInfo> {
+  async restartService(
+    pluginId: string,
+    serviceId: string,
+    config?: BackendConfig,
+  ): Promise<ServiceInfo> {
     const fullServiceId = `${pluginId}:${serviceId}`;
     const serviceInfo = this.services.get(fullServiceId);
 
@@ -205,7 +223,9 @@ export class BackendServiceManager extends SimpleEventEmitter {
       }
     }
 
-    throw new Error(`Cannot restart service ${fullServiceId}: service not found or no configuration provided`);
+    throw new Error(
+      `Cannot restart service ${fullServiceId}: service not found or no configuration provided`,
+    );
   }
 
   /**
@@ -228,14 +248,17 @@ export class BackendServiceManager extends SimpleEventEmitter {
    */
   getPluginServices(pluginId: string): ServiceInfo[] {
     return Array.from(this.services.values()).filter(
-      service => service.pluginId === pluginId
+      (service) => service.pluginId === pluginId,
     );
   }
 
   /**
    * 获取服务代理
    */
-  getServiceProxy(pluginId: string, serviceId: string): ServiceProxy | undefined {
+  getServiceProxy(
+    pluginId: string,
+    serviceId: string,
+  ): ServiceProxy | undefined {
     const fullServiceId = `${pluginId}:${serviceId}`;
     return this.serviceProxies.get(fullServiceId);
   }
@@ -243,7 +266,10 @@ export class BackendServiceManager extends SimpleEventEmitter {
   /**
    * 检查服务状态
    */
-  async checkServiceStatus(pluginId: string, serviceId: string): Promise<ServiceInfo> {
+  async checkServiceStatus(
+    pluginId: string,
+    serviceId: string,
+  ): Promise<ServiceInfo> {
     const fullServiceId = `${pluginId}:${serviceId}`;
     const serviceInfo = this.services.get(fullServiceId);
 
@@ -264,7 +290,10 @@ export class BackendServiceManager extends SimpleEventEmitter {
   /**
    * 执行健康检查
    */
-  async performHealthCheck(pluginId: string, serviceId: string): Promise<boolean> {
+  async performHealthCheck(
+    pluginId: string,
+    serviceId: string,
+  ): Promise<boolean> {
     const fullServiceId = `${pluginId}:${serviceId}`;
     const serviceInfo = this.services.get(fullServiceId);
 
@@ -285,7 +314,7 @@ export class BackendServiceManager extends SimpleEventEmitter {
           serviceId: fullServiceId,
           pluginId,
           isHealthy,
-          serviceInfo
+          serviceInfo,
         });
 
         return isHealthy;
@@ -295,12 +324,13 @@ export class BackendServiceManager extends SimpleEventEmitter {
     } catch (error) {
       serviceInfo.healthStatus = 'unhealthy';
       serviceInfo.lastHealthCheck = new Date();
-      serviceInfo.error = error instanceof Error ? error.message : 'Health check failed';
+      serviceInfo.error =
+        error instanceof Error ? error.message : 'Health check failed';
 
       this.emit('service-health-check-failed', {
         serviceId: fullServiceId,
         pluginId,
-        error: serviceInfo.error
+        error: serviceInfo.error,
       });
 
       return false;
@@ -313,10 +343,10 @@ export class BackendServiceManager extends SimpleEventEmitter {
   async stopPluginServices(pluginId: string): Promise<void> {
     const pluginServices = this.getPluginServices(pluginId);
 
-    const stopPromises = pluginServices.map(service =>
-      this.stopService(pluginId, service.id).catch(error => {
+    const stopPromises = pluginServices.map((service) =>
+      this.stopService(pluginId, service.id).catch((error) => {
         console.error(`Failed to stop service ${service.id}:`, error);
-      })
+      }),
     );
 
     await Promise.all(stopPromises);
@@ -329,7 +359,7 @@ export class BackendServiceManager extends SimpleEventEmitter {
     pluginId: string,
     serviceId: string,
     serviceInfo: ServiceInfo,
-    config: BackendConfig
+    config: BackendConfig,
   ): void {
     const fullServiceId = `${pluginId}:${serviceId}`;
 
@@ -341,7 +371,10 @@ export class BackendServiceManager extends SimpleEventEmitter {
       try {
         await this.performHealthCheck(pluginId, serviceId);
       } catch (error) {
-        console.error(`Health check failed for service ${fullServiceId}:`, error);
+        console.error(
+          `Health check failed for service ${fullServiceId}:`,
+          error,
+        );
       }
     }, config.healthCheck.interval);
 
@@ -365,15 +398,21 @@ export class BackendServiceManager extends SimpleEventEmitter {
   private setupEventHandlers(): void {
     // 监听插件卸载事件，停止相关服务
     pluginManager.on('plugin-unloaded', ({ plugin }) => {
-      this.stopPluginServices(plugin.id).catch(error => {
-        console.error(`Failed to stop services for plugin ${plugin.id}:`, error);
+      this.stopPluginServices(plugin.id).catch((error) => {
+        console.error(
+          `Failed to stop services for plugin ${plugin.id}:`,
+          error,
+        );
       });
     });
 
     // 监听插件停用事件，停止相关服务
     pluginManager.on('plugin-deactivated', ({ plugin }) => {
-      this.stopPluginServices(plugin.id).catch(error => {
-        console.error(`Failed to stop services for plugin ${plugin.id}:`, error);
+      this.stopPluginServices(plugin.id).catch((error) => {
+        console.error(
+          `Failed to stop services for plugin ${plugin.id}:`,
+          error,
+        );
       });
     });
 
@@ -394,10 +433,13 @@ export class BackendServiceManager extends SimpleEventEmitter {
     this.healthCheckIntervals.clear();
 
     // 停止所有服务
-    const stopPromises = Array.from(this.services.values()).map(service =>
-      this.stopService(service.pluginId, service.id).catch(error => {
-        console.error(`Failed to stop service ${service.id} during cleanup:`, error);
-      })
+    const stopPromises = Array.from(this.services.values()).map((service) =>
+      this.stopService(service.pluginId, service.id).catch((error) => {
+        console.error(
+          `Failed to stop service ${service.id} during cleanup:`,
+          error,
+        );
+      }),
     );
 
     await Promise.all(stopPromises);
@@ -421,7 +463,7 @@ class PortAllocator {
    */
   async allocatePort(): Promise<number> {
     for (let port = this.portRange.min; port <= this.portRange.max; port++) {
-      if (!this.usedPorts.has(port) && await this.isPortAvailable(port)) {
+      if (!this.usedPorts.has(port) && (await this.isPortAvailable(port))) {
         this.usedPorts.add(port);
         return port;
       }
@@ -473,7 +515,11 @@ export class ServiceProxy {
   /**
    * 调用服务API
    */
-  async callService(endpoint: string, params: any = {}, options: RequestInit = {}): Promise<any> {
+  async callService(
+    endpoint: string,
+    params: any = {},
+    options: RequestInit = {},
+  ): Promise<any> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
 
@@ -486,11 +532,11 @@ export class ServiceProxy {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...options.headers
+          ...options.headers,
         },
         body: JSON.stringify(params),
         signal: controller.signal,
-        ...options
+        ...options,
       });
 
       clearTimeout(timeoutId);
@@ -505,7 +551,6 @@ export class ServiceProxy {
       } else {
         return await response.text();
       }
-
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -520,7 +565,10 @@ export class ServiceProxy {
   /**
    * 流式响应
    */
-  async *streamResponse(endpoint: string, params: any = {}): AsyncIterable<any> {
+  async *streamResponse(
+    endpoint: string,
+    params: any = {},
+  ): AsyncIterable<any> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
 
@@ -532,10 +580,10 @@ export class ServiceProxy {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(params),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -556,7 +604,7 @@ export class ServiceProxy {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n').filter(line => line.trim());
+        const lines = chunk.split('\n').filter((line) => line.trim());
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -569,7 +617,6 @@ export class ServiceProxy {
           }
         }
       }
-
     } catch (error) {
       clearTimeout(timeoutId);
 
@@ -588,7 +635,7 @@ export class ServiceProxy {
     try {
       const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(5000),
       });
       return response.ok;
     } catch {

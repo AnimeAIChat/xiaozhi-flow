@@ -1,32 +1,33 @@
-import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ParameterDefinition,
-  ParameterType
-} from '../../plugins/types';
-import {
-  Form,
-  Input,
-  InputNumber,
-  Switch,
-  Select,
-  Radio,
-  Checkbox,
-  Button,
-  Space,
-  Divider,
-  Tooltip,
-  message,
-  Collapse,
-  Row,
-  Col
-} from 'antd';
-import {
-  SettingOutlined,
+  DeleteOutlined, 
   EyeInvisibleOutlined,
   EyeOutlined,
   PlusOutlined,
-  DeleteOutlined
+  SettingOutlined
 } from '@ant-design/icons';
+import {
+  Button,
+  Checkbox,
+  Col, 
+  Collapse,
+  type Divider,
+  type Form,
+  Input,
+  type InputNumber,
+  message,
+  Radio,
+  Row,
+  Select,
+  type Space,
+  type Switch,
+  Tooltip
+} from 'antd';
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  type ParameterDefinition,
+  ParameterType
+} from '../../plugins/types';
 
 const { TextArea } = Input;
 const { Panel } = Collapse;
@@ -155,7 +156,7 @@ const ParameterInput: React.FC<{
           <Select
             value={value || []}
             onChange={(newValue) => handleChange(newValue)}
-            placeholder={parameter.ui?.placeholder || `Select ${parameter.name}`}
+            placeholder={parameter.ui?.placeholder || `Select $parameter.name`}
             mode="multiple"
             style={{ width: '100%' }}
             allowClear
@@ -320,7 +321,7 @@ const ParameterInput: React.FC<{
         return value ? 'True' : 'False';
 
       case 'array':
-        return Array.isArray(value) ? `${value.length} items` : String(value);
+        return Array.isArray(value) ? `$value.lengthitems` : String(value);
 
       case 'object':
         try {
@@ -411,7 +412,7 @@ export const ParameterEditor: React.FC<ParameterEditorProps> = ({
 
     // 验证参数
     let isValid = true;
-    let error = undefined;
+    let error ;
 
     try {
       // 类型验证
@@ -519,8 +520,7 @@ export const ParameterEditor: React.FC<ParameterEditorProps> = ({
               <Divider orientation="left">{groupName}</Divider>
               <div style={{ fontWeight: 'bold', marginBottom: 12 }}>{groupName}</div>
             </>
-          )}
-          {renderParameters(params)}
+          )}renderParameters(params)
         </div>
       );
     }
@@ -545,8 +545,7 @@ export const ParameterEditor: React.FC<ParameterEditorProps> = ({
               label={
                 <Space>
                   <span>
-                    {parameter.name}
-                    {parameter.required && <span style={{ color: '#ff4d4f' }}> *</span>}
+                    {parameter.name}parameter.required && <span style={{ color: '#ff4d4f' }> *</span>}
                   </span>
                   {parameter.ui?.advanced && (
                     <Tooltip title="Advanced parameter">

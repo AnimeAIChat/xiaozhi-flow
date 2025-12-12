@@ -1,6 +1,6 @@
-import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { log } from '../utils/logger';
+import axios, { type AxiosInstance, type AxiosResponse } from 'axios';
 import { envConfig } from '../utils/envConfig';
+import { log } from '../utils/logger';
 
 // 基础API响应类型
 export interface ApiResponse<T = any> {
@@ -32,37 +32,6 @@ export interface DatabaseTestResult {
   message: string;
   latency?: number;
   details?: any;
-}
-
-// 项目初始化配置
-export interface InitConfig {
-  databaseConfig: any;
-  adminConfig: {
-    username: string;
-    password: string;
-    email?: string;
-  };
-  // 保持向后兼容
-  serverConfig?: ServerConfig;
-  providers?: {
-    asr?: any;
-    tts?: any;
-    llm?: any;
-    vllm?: any;
-  };
-  systemConfig?: any;
-}
-
-// 初始化结果
-export interface InitResult {
-  success: boolean;
-  message: string;
-  configId?: string;
-  steps?: Array<{
-    name: string;
-    status: 'pending' | 'running' | 'completed' | 'failed';
-    message?: string;
-  }>;
 }
 
 // 提供商类型
@@ -135,7 +104,8 @@ export class ApiService {
 
   constructor(baseURL?: string) {
     // 优先使用传入的baseURL，其次使用环境配置，最后使用默认值
-    this.baseURL = baseURL || envConfig.apiBaseUrl || 'http://localhost:8080/api';
+    this.baseURL =
+      baseURL || envConfig.apiBaseUrl || 'http://localhost:8080/api';
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: envConfig.apiTimeout || 10000,
@@ -152,7 +122,6 @@ export class ApiService {
         // 添加请求开始时间到配置中
         (config as any).metadata = { startTime };
 
-        
         // 创建API调用记录
         const callInfo: ApiCallInfo = {
           id: this.generateApiCallId(),
@@ -169,12 +138,17 @@ export class ApiService {
         (config as any).callInfo = callInfo;
 
         if (envConfig.enableApiDebugging) {
-          log.debug(`API 请求: ${callInfo.method} ${callInfo.url}`, {
-            id: callInfo.id,
-            headers: this.sanitizeHeaders(config.headers),
-            params: config.params,
-            data: this.sanitizeData(config.data),
-          }, 'api', 'ApiService');
+          log.debug(
+            `API 请求: ${callInfo.method} ${callInfo.url}`,
+            {
+              id: callInfo.id,
+              headers: this.sanitizeHeaders(config.headers),
+              params: config.params,
+              data: this.sanitizeData(config.data),
+            },
+            'api',
+            'ApiService',
+          );
         }
 
         return config;
@@ -182,7 +156,7 @@ export class ApiService {
       (error) => {
         log.error('API 请求错误', error, 'api', 'ApiService', error.stack);
         return Promise.reject(error);
-      }
+      },
     );
 
     // 响应拦截器
@@ -208,12 +182,17 @@ export class ApiService {
             response.config.url || '',
             response.status,
             callInfo?.duration || 0,
-            this.sanitizeResponse(response.data)
+            this.sanitizeResponse(response.data),
           );
 
           // 记录性能指标
           if (callInfo?.duration) {
-            log.performance(`api.${this.getCategoryFromUrl(response.config.url || '')}.response_time`, callInfo.duration, 'ms', 'api');
+            log.performance(
+              `api.${this.getCategoryFromUrl(response.config.url || '')}.response_time`,
+              callInfo.duration,
+              'ms',
+              'api',
+            );
           }
         }
 
@@ -233,19 +212,30 @@ export class ApiService {
           this.addToHistory(callInfo);
         }
 
-        log.error('API 响应错误', {
-          id: callInfo?.id,
-          method: callInfo?.method,
-          url: callInfo?.url,
-          status: error.response?.status,
-          statusText: error.response?.statusText,
-          message: error.message,
-          duration: callInfo?.duration,
-        }, 'api', 'ApiService', error.stack);
+        log.error(
+          'API 响应错误',
+          {
+            id: callInfo?.id,
+            method: callInfo?.method,
+            url: callInfo?.url,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            message: error.message,
+            duration: callInfo?.duration,
+          },
+          'api',
+          'ApiService',
+          error.stack,
+        );
 
         // 记录错误性能指标
         if (callInfo?.duration) {
-          log.performance(`api.error.response_time`, callInfo.duration, 'ms', 'api');
+          log.performance(
+            `api.error.response_time`,
+            callInfo.duration,
+            'ms',
+            'api',
+          );
         }
 
         // 统一错误处理
@@ -260,7 +250,7 @@ export class ApiService {
           // 请求配置错误
           throw new Error(error.message || 'Request configuration error');
         }
-      }
+      },
     );
   }
 
@@ -285,7 +275,7 @@ export class ApiService {
     const sanitized = { ...headers };
     const sensitiveHeaders = ['authorization', 'token', 'cookie'];
 
-    sensitiveHeaders.forEach(key => {
+    sensitiveHeaders.forEach((key) => {
       if (sanitized[key]) {
         sanitized[key] = '[REDACTED]';
       }
@@ -303,7 +293,7 @@ export class ApiService {
       const sanitized = { ...data };
       const sensitiveFields = ['password', 'token', 'secret', 'key'];
 
-      sensitiveFields.forEach(field => {
+      sensitiveFields.forEach((field) => {
         if (sanitized[field]) {
           sanitized[field] = '[REDACTED]';
         }
@@ -326,7 +316,9 @@ export class ApiService {
         message: data.message,
         code: data.code,
         hasData: !!data.data,
-        dataKeys: Array.isArray(data.data) ? `Array[${data.data.length}]` : typeof data.data,
+        dataKeys: Array.isArray(data.data)
+          ? `Array[${data.data.length}]`
+          : typeof data.data,
       };
     }
 
@@ -360,12 +352,14 @@ export class ApiService {
 
   // 获取按分类过滤的API历史
   getApiHistoryByCategory(category: string): ApiCallInfo[] {
-    return this.apiCallHistory.filter(call => call.category === category);
+    return this.apiCallHistory.filter((call) => call.category === category);
   }
 
   // 获取错误调用历史
   getErrorHistory(): ApiCallInfo[] {
-    return this.apiCallHistory.filter(call => call.error || (call.status && call.status >= 400));
+    return this.apiCallHistory.filter(
+      (call) => call.error || (call.status && call.status >= 400),
+    );
   }
 
   // 获取性能统计
@@ -375,13 +369,18 @@ export class ApiService {
       successCalls: 0,
       errorCalls: 0,
       averageResponseTime: 0,
-      categories: {} as Record<string, { count: number; totalTime: number; errors: number }>,
-      slowCalls: this.apiCallHistory.filter(call => call.duration && call.duration > 2000),
+      categories: {} as Record<
+        string,
+        { count: number; totalTime: number; errors: number }
+      >,
+      slowCalls: this.apiCallHistory.filter(
+        (call) => call.duration && call.duration > 2000,
+      ),
     };
 
     let totalResponseTime = 0;
 
-    this.apiCallHistory.forEach(call => {
+    this.apiCallHistory.forEach((call) => {
       const isError = call.error || (call.status && call.status >= 400);
 
       if (isError) {
@@ -397,7 +396,11 @@ export class ApiService {
       // 分类统计
       if (call.category) {
         if (!stats.categories[call.category]) {
-          stats.categories[call.category] = { count: 0, totalTime: 0, errors: 0 };
+          stats.categories[call.category] = {
+            count: 0,
+            totalTime: 0,
+            errors: 0,
+          };
         }
         stats.categories[call.category].count++;
         if (call.duration) {
@@ -409,10 +412,11 @@ export class ApiService {
       }
     });
 
-    stats.averageResponseTime = stats.totalCalls > 0 ? totalResponseTime / stats.totalCalls : 0;
+    stats.averageResponseTime =
+      stats.totalCalls > 0 ? totalResponseTime / stats.totalCalls : 0;
 
     // 计算每个分类的平均响应时间
-    Object.keys(stats.categories).forEach(category => {
+    Object.keys(stats.categories).forEach((category) => {
       const cat = stats.categories[category];
       cat.totalTime = cat.count > 0 ? cat.totalTime / cat.count : 0;
     });
@@ -428,12 +432,16 @@ export class ApiService {
 
   // 导出API历史
   exportApiHistory(): string {
-    return JSON.stringify({
-      exportTime: new Date().toISOString(),
-      totalCalls: this.apiCallHistory.length,
-      calls: this.apiCallHistory,
-      stats: this.getPerformanceStats(),
-    }, null, 2);
+    return JSON.stringify(
+      {
+        exportTime: new Date().toISOString(),
+        totalCalls: this.apiCallHistory.length,
+        calls: this.apiCallHistory,
+        stats: this.getPerformanceStats(),
+      },
+      null,
+      2,
+    );
   }
 
   // 重放API调用（仅开发环境）
@@ -442,12 +450,17 @@ export class ApiService {
       throw new Error('API重放功能仅在开发环境可用');
     }
 
-    const originalCall = this.apiCallHistory.find(call => call.id === callId);
+    const originalCall = this.apiCallHistory.find((call) => call.id === callId);
     if (!originalCall) {
       throw new Error(`找不到API调用记录: ${callId}`);
     }
 
-    log.info(`重放API调用: ${originalCall.method} ${originalCall.url}`, { callId }, 'api', 'ApiService');
+    log.info(
+      `重放API调用: ${originalCall.method} ${originalCall.url}`,
+      { callId },
+      'api',
+      'ApiService',
+    );
 
     try {
       const response = await this.client.request({
@@ -466,19 +479,6 @@ export class ApiService {
   }
 
   /**
-   * 获取系统状态
-   * 更新为使用新的 API 端点 /api/v1/system/status
-   */
-  async getSystemStatus(): Promise<any> {
-    try {
-      const response = await this.client.get('/api/v1/system/status');
-      return response.data.data;
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to get system status');
-    }
-  }
-
-  /**
    * 获取系统日志
    */
   async getSystemLogs(level?: string): Promise<any> {
@@ -487,7 +487,9 @@ export class ApiService {
       const response = await this.client.get('/admin/system/logs', { params });
       return response.data.data;
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to get system logs');
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to get system logs',
+      );
     }
   }
 
@@ -499,7 +501,11 @@ export class ApiService {
       const response = await this.client.post('/admin/config/validate', config);
       return response.data.data;
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Configuration validation failed');
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : 'Configuration validation failed',
+      );
     }
   }
 
@@ -513,7 +519,11 @@ export class ApiService {
       const response = await this.client.get('/admin/database/schema');
       return response.data.data;
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to get database schema');
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to get database schema',
+      );
     }
   }
 
@@ -525,7 +535,11 @@ export class ApiService {
       const response = await this.client.get('/admin/database/tables');
       return response.data.data;
     } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to get database tables');
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to get database tables',
+      );
     }
   }
 
@@ -580,7 +594,7 @@ export class ApiService {
 
     return {
       valid: issues.length === 0,
-      issues
+      issues,
     };
   }
 }
@@ -595,7 +609,7 @@ if (typeof window !== 'undefined' && envConfig.debug) {
   console.log('🚀 API服务初始化', {
     baseURL: config.baseURL,
     timeout: config.timeout,
-    environment: config.environment
+    environment: config.environment,
   });
 
   // 验证配置

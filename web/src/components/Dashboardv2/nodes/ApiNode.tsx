@@ -1,4 +1,4 @@
-import { BaseNode, NodeData, renderNode } from './BaseNode';
+import { BaseNode, type NodeData, renderNode } from './BaseNode';
 
 export class ApiNode extends BaseNode {
   constructor(id: string, label: string, data?: Partial<NodeData>) {
@@ -7,9 +7,9 @@ export class ApiNode extends BaseNode {
       metrics: {
         requests: 0,
         errors: 0,
-        avgResponseTime: '0ms'
+        avgResponseTime: '0ms',
       },
-      ...data
+      ...data,
     });
   }
 }

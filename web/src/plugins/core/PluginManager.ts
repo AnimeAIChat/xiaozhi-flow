@@ -1,12 +1,12 @@
 import {
-  IPlugin,
-  PluginSource,
-  PluginStatus,
-  ServiceInfo,
-  PluginFilter,
+  type IPlugin,
+  type PluginContext,
   PluginEvent,
-  PluginContext,
-  RuntimeAdapter
+  type PluginFilter,
+  type PluginSource,
+  type PluginStatus,
+  type RuntimeAdapter,
+  type ServiceInfo,
 } from '../types';
 import { SimpleEventEmitter } from '../utils/ProcessManager';
 
@@ -51,7 +51,7 @@ export class PluginManager extends SimpleEventEmitter {
         id: plugin.id,
         status: 'loaded',
         loadedAt: new Date(),
-        services: []
+        services: [],
       };
       this.pluginStatuses.set(plugin.id, status);
 
@@ -66,9 +66,9 @@ export class PluginManager extends SimpleEventEmitter {
 
       this.emit('plugin-loaded', { plugin });
       return plugin;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('plugin-error', { source, error: errorMessage });
       throw new Error(`Failed to load plugin: ${errorMessage}`);
     }
@@ -107,9 +107,9 @@ export class PluginManager extends SimpleEventEmitter {
       this.pluginContexts.delete(pluginId);
 
       this.emit('plugin-unloaded', { plugin });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('plugin-error', { plugin, error: errorMessage });
       throw new Error(`Failed to unload plugin ${pluginId}: ${errorMessage}`);
     }
@@ -151,13 +151,13 @@ export class PluginManager extends SimpleEventEmitter {
 
       // 更新状态为激活
       this.updatePluginStatus(pluginId, 'active', {
-        activatedAt: new Date()
+        activatedAt: new Date(),
       });
 
       this.emit('plugin-activated', { plugin });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.updatePluginStatus(pluginId, 'error', { error: errorMessage });
       this.emit('plugin-error', { plugin, error: errorMessage });
       throw new Error(`Failed to activate plugin ${pluginId}: ${errorMessage}`);
@@ -199,12 +199,14 @@ export class PluginManager extends SimpleEventEmitter {
       this.updatePluginStatus(pluginId, 'inactive');
 
       this.emit('plugin-deactivated', { plugin });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.updatePluginStatus(pluginId, 'error', { error: errorMessage });
       this.emit('plugin-error', { plugin, error: errorMessage });
-      throw new Error(`Failed to deactivate plugin ${pluginId}: ${errorMessage}`);
+      throw new Error(
+        `Failed to deactivate plugin ${pluginId}: ${errorMessage}`,
+      );
     }
   }
 
@@ -229,12 +231,17 @@ export class PluginManager extends SimpleEventEmitter {
     let plugins = Array.from(this.plugins.values());
 
     if (filter) {
-      plugins = plugins.filter(plugin => {
+      plugins = plugins.filter((plugin) => {
         if (filter.type && plugin.type !== filter.type) return false;
         if (filter.runtime && plugin.runtime !== filter.runtime) return false;
-        if (filter.category && plugin.metadata.category !== filter.category) return false;
+        if (filter.category && plugin.metadata.category !== filter.category)
+          return false;
         if (filter.author && plugin.author !== filter.author) return false;
-        if (filter.tags && !filter.tags.some(tag => plugin.metadata.tags.includes(tag))) return false;
+        if (
+          filter.tags &&
+          !filter.tags.some((tag) => plugin.metadata.tags.includes(tag))
+        )
+          return false;
 
         if (filter.enabled !== undefined) {
           const status = this.pluginStatuses.get(plugin.id);
@@ -301,7 +308,6 @@ export class PluginManager extends SimpleEventEmitter {
       }
 
       this.emit('service-started', { pluginId, serviceInfo });
-
     } catch (error) {
       throw new Error(`Failed to start backend service: ${error}`);
     }
@@ -381,7 +387,10 @@ export class PluginManager extends SimpleEventEmitter {
   /**
    * 从注册表加载插件
    */
-  private async loadFromRegistry(registry: { name: string; version?: string }): Promise<IPlugin> {
+  private async loadFromRegistry(registry: {
+    name: string;
+    version?: string;
+  }): Promise<IPlugin> {
     // 这里需要实现从npm注册表等加载插件的逻辑
     throw new Error('Registry plugin loading not implemented yet');
   }
@@ -429,7 +438,11 @@ export class PluginManager extends SimpleEventEmitter {
         this.emit('node-unregistered', { pluginId: plugin.id, nodeId });
       },
       registerService: (serviceId: string, config: any) => {
-        this.emit('service-registered', { pluginId: plugin.id, serviceId, config });
+        this.emit('service-registered', {
+          pluginId: plugin.id,
+          serviceId,
+          config,
+        });
       },
       unregisterService: (serviceId: string) => {
         this.emit('service-unregistered', { pluginId: plugin.id, serviceId });
@@ -451,7 +464,10 @@ export class PluginManager extends SimpleEventEmitter {
         // 设置插件配置
         this.setPluginConfig(plugin.id, key, value);
       },
-      showNotification: (message: string, type: 'info' | 'success' | 'warning' | 'error') => {
+      showNotification: (
+        message: string,
+        type: 'info' | 'success' | 'warning' | 'error',
+      ) => {
         this.emit('notification', { message, type, pluginId: plugin.id });
       },
     };
@@ -467,17 +483,24 @@ export class PluginManager extends SimpleEventEmitter {
         return localStorage.getItem(`plugin:${pluginId}:${key}`);
       },
       set: async (key: string, value: any) => {
-        localStorage.setItem(`plugin:${pluginId}:${key}`, JSON.stringify(value));
+        localStorage.setItem(
+          `plugin:${pluginId}:${key}`,
+          JSON.stringify(value),
+        );
       },
       delete: async (key: string) => {
         localStorage.removeItem(`plugin:${pluginId}:${key}`);
       },
       clear: async () => {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith(`plugin:${pluginId}:`));
-        keys.forEach(k => localStorage.removeItem(k));
+        const keys = Object.keys(localStorage).filter((k) =>
+          k.startsWith(`plugin:${pluginId}:`),
+        );
+        keys.forEach((k) => localStorage.removeItem(k));
       },
       keys: async () => {
-        return Object.keys(localStorage).filter(k => k.startsWith(`plugin:${pluginId}:`));
+        return Object.keys(localStorage).filter((k) =>
+          k.startsWith(`plugin:${pluginId}:`),
+        );
       },
     };
   }
@@ -505,7 +528,11 @@ export class PluginManager extends SimpleEventEmitter {
   /**
    * 更新插件状态
    */
-  private updatePluginStatus(pluginId: string, status: string, updates?: Partial<PluginStatus>): void {
+  private updatePluginStatus(
+    pluginId: string,
+    status: string,
+    updates?: Partial<PluginStatus>,
+  ): void {
     const currentStatus = this.pluginStatuses.get(pluginId);
     if (currentStatus) {
       currentStatus.status = status as any;
@@ -597,7 +624,7 @@ export class PluginManager extends SimpleEventEmitter {
    */
   getPluginServices(pluginId: string): ServiceInfo[] {
     return Array.from(this.services.values()).filter(
-      service => service.pluginId === pluginId
+      (service) => service.pluginId === pluginId,
     );
   }
 }

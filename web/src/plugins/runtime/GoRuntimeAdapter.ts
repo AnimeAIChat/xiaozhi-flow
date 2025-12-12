@@ -1,10 +1,5 @@
-import {
-  RuntimeAdapter,
-  BackendConfig,
-  ServiceInfo
-} from '../types';
-import { ProcessManager } from '../utils/ProcessManager';
-import { SimpleEventEmitter } from '../utils/ProcessManager';
+import type { BackendConfig, RuntimeAdapter, ServiceInfo } from '../types';
+import { ProcessManager, SimpleEventEmitter } from '../utils/ProcessManager';
 
 interface GoEnvironment {
   path: string;
@@ -27,7 +22,10 @@ interface GoServiceConfig extends BackendConfig {
   };
 }
 
-export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapter {
+export class GoRuntimeAdapter
+  extends SimpleEventEmitter
+  implements RuntimeAdapter
+{
   type = 'go';
   name = 'Go Runtime';
   version = '1.0.0';
@@ -62,15 +60,18 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       const serviceInfo = await this.startGoProcess(config, binaryPath);
 
       // 等待服务启动
-      await this.waitForServiceReady(serviceInfo, config.startupTimeout || 30000);
+      await this.waitForServiceReady(
+        serviceInfo,
+        config.startupTimeout || 30000,
+      );
 
       this.services.set(`${config.pluginId}:${serviceInfo.id}`, serviceInfo);
       this.emit('service-started', { serviceInfo });
 
       return serviceInfo;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', { config, error: errorMessage });
       throw new Error(`Failed to start Go service: ${errorMessage}`);
     }
@@ -98,7 +99,9 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         await this.waitForProcessExit(service.pid, 5000);
 
         // 如果进程还在运行，强制杀死
-        const isRunning = await this.processManager.isProcessRunning(service.pid);
+        const isRunning = await this.processManager.isProcessRunning(
+          service.pid,
+        );
         if (isRunning) {
           await this.processManager.killProcess(service.pid, 'SIGKILL');
         }
@@ -106,9 +109,9 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
 
       this.services.delete(serviceKey);
       this.emit('service-stopped', { serviceInfo });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('service-error', { serviceInfo, error: errorMessage });
       throw new Error(`Failed to stop Go service: ${errorMessage}`);
     }
@@ -154,7 +157,9 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         service.error = 'Process terminated unexpectedly';
       } else {
         // 获取进程信息
-        const processInfo = await this.processManager.getProcessInfo(service.pid);
+        const processInfo = await this.processManager.getProcessInfo(
+          service.pid,
+        );
         service.memoryUsage = processInfo.memoryUsage;
         service.cpuUsage = processInfo.cpuUsage;
       }
@@ -181,11 +186,10 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
 
       const response = await fetch(`${serviceInfo.baseUrl}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(5000),
       });
 
       return response.ok;
-
     } catch (error) {
       return false;
     }
@@ -197,15 +201,15 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
   async validateEnvironment(): Promise<GoEnvironment> {
     const goPath = await this.findGoExecutable();
     const version = await this.getGoVersion(goPath);
-    const goRoot = process.env.GOROOT || await this.getGoRoot(goPath);
-    const goPathEnv = process.env.GOPATH || await this.getGoPath(goPath);
+    const goRoot = process.env.GOROOT || (await this.getGoRoot(goPath));
+    const goPathEnv = process.env.GOPATH || (await this.getGoPath(goPath));
 
     return {
       path: goPath,
       version,
       goRoot,
       goPath: goPathEnv,
-      goproxy: process.env.GOPROXY
+      goproxy: process.env.GOPROXY,
     };
   }
 
@@ -225,7 +229,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         args: ['mod', 'init', config.pluginId || 'service'],
         cwd: workingDir,
         env: this.buildGoEnvironment(config),
-        timeout: 30000
+        timeout: 30000,
       });
     }
 
@@ -235,7 +239,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       args: ['mod', 'download'],
       cwd: workingDir,
       env: this.buildGoEnvironment(config),
-      timeout: 120000 // 2分钟超时
+      timeout: 120000, // 2分钟超时
     });
 
     // 整理依赖
@@ -244,31 +248,32 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       args: ['mod', 'tidy'],
       cwd: workingDir,
       env: this.buildGoEnvironment(config),
-      timeout: 60000
+      timeout: 60000,
     });
   }
 
   /**
    * 构建Go应用
    */
-  private async buildGoApp(config: GoServiceConfig, goEnv: GoEnvironment): Promise<string> {
+  private async buildGoApp(
+    config: GoServiceConfig,
+    goEnv: GoEnvironment,
+  ): Promise<string> {
     const workingDir = config.workingDirectory || '/';
-    const buildOutput = config.buildOutput || `/tmp/go-binaries/${config.pluginId || 'service'}`;
+    const buildOutput =
+      config.buildOutput || `/tmp/go-binaries/${config.pluginId || 'service'}`;
 
     // 确保输出目录存在
     await this.ensureDirectoryExists(buildOutput);
 
-    const buildArgs = [
-      'build',
-      '-o', buildOutput,
-      ...(config.buildArgs || [])
-    ];
+    const buildArgs = ['build', '-o', buildOutput, ...(config.buildArgs || [])];
 
     // 如果是交叉编译
     if (config.crossCompile) {
       buildArgs.push(
-        '-ldflags', '-s -w', // 去除调试信息，减小二进制大小
-        '-trimpath'
+        '-ldflags',
+        '-s -w', // 去除调试信息，减小二进制大小
+        '-trimpath',
       );
     }
 
@@ -278,7 +283,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       args: buildArgs,
       cwd: workingDir,
       env: this.buildGoEnvironment(config, config.crossCompile),
-      timeout: 300000 // 5分钟超时
+      timeout: 300000, // 5分钟超时
     });
 
     // 检查二进制文件是否生成成功
@@ -290,7 +295,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
     await this.processManager.executeCommand({
       command: 'chmod',
       args: ['+x', buildOutput],
-      timeout: 5000
+      timeout: 5000,
     });
 
     return buildOutput;
@@ -299,18 +304,23 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
   /**
    * 启动Go进程
    */
-  private async startGoProcess(config: GoServiceConfig, binaryPath: string): Promise<ServiceInfo> {
+  private async startGoProcess(
+    config: GoServiceConfig,
+    binaryPath: string,
+  ): Promise<ServiceInfo> {
     const args = [
-      '--port', config.port?.toString() || '0',
-      '--host', '127.0.0.1',
-      ...(config.runArgs || [])
+      '--port',
+      config.port?.toString() || '0',
+      '--host',
+      '127.0.0.1',
+      ...(config.runArgs || []),
     ];
 
     const env = {
       ...process.env,
       ...config.envVars,
       PORT: config.port?.toString() || '0',
-      HOST: '127.0.0.1'
+      HOST: '127.0.0.1',
     };
 
     const processInfo = await this.processManager.startProcess({
@@ -318,7 +328,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       args,
       cwd: config.workingDirectory || '/',
       env,
-      stdio: ['pipe', 'pipe', 'pipe']
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
 
     const port = config.port || 0;
@@ -334,7 +344,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       startTime: new Date(),
       runtime: 'go',
       healthStatus: 'unknown',
-      config
+      config,
     };
 
     // 监听进程输出
@@ -373,12 +383,15 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
   /**
    * 构建Go环境变量
    */
-  private buildGoEnvironment(config: GoServiceConfig, crossCompile?: GoServiceConfig['crossCompile']): Record<string, string> {
+  private buildGoEnvironment(
+    config: GoServiceConfig,
+    crossCompile?: GoServiceConfig['crossCompile'],
+  ): Record<string, string> {
     const env = {
       ...process.env,
       ...config.envVars,
       GO111MODULE: 'on',
-      CGO_ENABLED: '0' // 静态编译
+      CGO_ENABLED: '0', // 静态编译
     };
 
     if (crossCompile) {
@@ -400,7 +413,10 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
   /**
    * 等待服务就绪
    */
-  private async waitForServiceReady(serviceInfo: ServiceInfo, timeout: number): Promise<void> {
+  private async waitForServiceReady(
+    serviceInfo: ServiceInfo,
+    timeout: number,
+  ): Promise<void> {
     const startTime = Date.now();
     const maxTime = startTime + timeout;
 
@@ -409,7 +425,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         if (serviceInfo.port > 0) {
           const response = await fetch(`${serviceInfo.baseUrl}/health`, {
             method: 'GET',
-            signal: AbortSignal.timeout(2000)
+            signal: AbortSignal.timeout(2000),
           });
 
           if (response.ok) {
@@ -422,7 +438,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         // 服务还未就绪，继续等待
       }
 
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     throw new Error(`Service not ready after ${timeout}ms`);
@@ -431,7 +447,10 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
   /**
    * 等待进程退出
    */
-  private async waitForProcessExit(pid: number, timeout: number): Promise<void> {
+  private async waitForProcessExit(
+    pid: number,
+    timeout: number,
+  ): Promise<void> {
     const startTime = Date.now();
     const maxTime = startTime + timeout;
 
@@ -440,7 +459,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       if (!isRunning) {
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
   }
 
@@ -455,12 +474,10 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
         await this.processManager.executeCommand({
           command: candidate,
           args: ['version'],
-          timeout: 5000
+          timeout: 5000,
         });
         return candidate;
-      } catch (error) {
-        continue;
-      }
+      } catch (error) {}
     }
 
     throw new Error('Go executable not found');
@@ -474,7 +491,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       const result = await this.processManager.executeCommand({
         command: goPath,
         args: ['version'],
-        timeout: 5000
+        timeout: 5000,
       });
 
       const output = result.stdout || result.stderr || '';
@@ -493,7 +510,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       const result = await this.processManager.executeCommand({
         command: goPath,
         args: ['env', 'GOROOT'],
-        timeout: 5000
+        timeout: 5000,
       });
 
       return result.stdout?.trim() || '';
@@ -510,7 +527,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       const result = await this.processManager.executeCommand({
         command: goPath,
         args: ['env', 'GOPATH'],
-        timeout: 5000
+        timeout: 5000,
       });
 
       return result.stdout?.trim() || '';
@@ -527,7 +544,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       await this.processManager.executeCommand({
         command: 'test',
         args: ['-f', path],
-        timeout: 5000
+        timeout: 5000,
       });
       return true;
     } catch (error) {
@@ -543,7 +560,7 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       await this.processManager.executeCommand({
         command: 'mkdir',
         args: ['-p', dirPath],
-        timeout: 5000
+        timeout: 5000,
       });
     } catch (error) {
       // 目录可能已存在，忽略错误
@@ -558,10 +575,10 @@ export class GoRuntimeAdapter extends SimpleEventEmitter implements RuntimeAdapt
       await this.stop(serviceInfo);
     } else {
       // 清理所有服务
-      const stopPromises = Array.from(this.services.values()).map(
-        service => this.stop(service).catch(error =>
-          console.error(`Failed to stop service ${service.id}:`, error)
-        )
+      const stopPromises = Array.from(this.services.values()).map((service) =>
+        this.stop(service).catch((error) =>
+          console.error(`Failed to stop service ${service.id}:`, error),
+        ),
       );
       await Promise.all(stopPromises);
     }

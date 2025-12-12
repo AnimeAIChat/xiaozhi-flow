@@ -1,10 +1,10 @@
+import { App as AntApp, ConfigProvider } from 'antd';
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ConfigProvider, App as AntApp } from 'antd';
+import { Route, BrowserRouter as Router, Routes } from 'react-router-dom';
 import './App.css';
-import { QueryProvider } from './components/QueryProvider';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import DevTools from './components/DevTools';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { QueryProvider } from './components/QueryProvider';
 import { log } from './utils/logger';
 
 // 页面组件
@@ -27,11 +27,17 @@ const LoadingSpinner: React.FC = () => (
 const App: React.FC = () => {
   // 全局错误处理函数
   const handleGlobalError = (error: Error, errorInfo: any) => {
-    log.error('全局错误捕获', {
-      error: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack,
-    }, 'global', 'App', error.stack);
+    log.error(
+      '全局错误捕获',
+      {
+        error: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+      },
+      'global',
+      'App',
+      error.stack,
+    );
   };
 
   return (

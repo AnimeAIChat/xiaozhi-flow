@@ -1,12 +1,12 @@
-import { SimpleEventEmitter } from '../../plugins/utils/ProcessManager';
+import type { NodeProps } from '@xyflow/react';
+import type { ComponentType } from 'react';
 import {
-  NodeDefinition,
-  ParameterDefinition,
-  IPlugin,
-  RuntimeAdapter
+  type IPlugin,
+  type NodeDefinition,
+  type ParameterDefinition,
+  RuntimeAdapter,
 } from '../../plugins/types';
-import { ComponentType } from 'react';
-import { NodeProps } from '@xyflow/react';
+import { SimpleEventEmitter } from '../../plugins/utils/ProcessManager';
 
 interface NodeRegistration {
   definition: NodeDefinition;
@@ -50,7 +50,7 @@ export class NodeRegistry extends SimpleEventEmitter {
   registerNode(
     definition: NodeDefinition,
     component?: ComponentType<NodeProps>,
-    options: NodeRegistrationOptions = {}
+    options: NodeRegistrationOptions = {},
   ): boolean {
     try {
       // 验证节点定义
@@ -62,7 +62,9 @@ export class NodeRegistry extends SimpleEventEmitter {
 
       // 检查是否已存在
       if (this.nodes.has(nodeId) && !options.override) {
-        throw new Error(`Node type ${nodeId} is already registered. Use override option to replace.`);
+        throw new Error(
+          `Node type ${nodeId} is already registered. Use override option to replace.`,
+        );
       }
 
       // 自动分类
@@ -76,7 +78,7 @@ export class NodeRegistry extends SimpleEventEmitter {
         component,
         registeredAt: new Date(),
         category: definition.category,
-        tags: [...definition.tags, definition.category]
+        tags: [...definition.tags, definition.category],
       };
 
       // 注册节点
@@ -89,21 +91,20 @@ export class NodeRegistry extends SimpleEventEmitter {
 
       // 更新分类和标签
       this.categories.add(definition.category);
-      definition.tags.forEach(tag => this.tags.add(tag));
+      definition.tags.forEach((tag) => this.tags.add(tag));
 
       this.emit('node-registered', {
         nodeId,
         definition,
         component,
-        registration
+        registration,
       });
 
       return true;
-
     } catch (error) {
       this.emit('node-registration-error', {
         nodeId: definition.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -115,7 +116,7 @@ export class NodeRegistry extends SimpleEventEmitter {
   registerNodes(
     definitions: NodeDefinition[],
     components?: Map<string, ComponentType<NodeProps>>,
-    options: NodeRegistrationOptions = {}
+    options: NodeRegistrationOptions = {},
   ): number {
     let successCount = 0;
     const errors: Array<{ nodeId: string; error: string }> = [];
@@ -129,7 +130,7 @@ export class NodeRegistry extends SimpleEventEmitter {
       } catch (error) {
         errors.push({
           nodeId: definition.id,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
@@ -137,7 +138,7 @@ export class NodeRegistry extends SimpleEventEmitter {
     this.emit('nodes-registered', {
       total: definitions.length,
       success: successCount,
-      errors
+      errors,
     });
 
     return successCount;
@@ -156,29 +157,28 @@ export class NodeRegistry extends SimpleEventEmitter {
       ...plugin.nodeDefinition,
       id: nodeId,
       category: plugin.metadata.category,
-      tags: [...plugin.metadata.tags, plugin.runtime]
+      tags: [...plugin.metadata.tags, plugin.runtime],
     };
 
     try {
       this.registerNode(definition, plugin.nodeDefinition.customComponent, {
         validate: true,
         autoCategorize: true,
-        override: true
+        override: true,
       });
 
       this.emit('plugin-nodes-loaded', {
         pluginId: plugin.id,
         nodeId,
-        definition
+        definition,
       });
 
       return 1;
-
     } catch (error) {
       this.emit('plugin-node-load-error', {
         pluginId: plugin.id,
         nodeId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return 0;
     }
@@ -202,7 +202,7 @@ export class NodeRegistry extends SimpleEventEmitter {
 
     this.emit('node-unregistered', {
       nodeId,
-      registration
+      registration,
     });
 
     return true;
@@ -224,7 +224,7 @@ export class NodeRegistry extends SimpleEventEmitter {
 
     this.emit('plugin-nodes-unloaded', {
       pluginId,
-      count: removedCount
+      count: removedCount,
     });
 
     return removedCount;
@@ -263,7 +263,7 @@ export class NodeRegistry extends SimpleEventEmitter {
       pluginId,
       runtime,
       limit,
-      offset = 0
+      offset = 0,
     } = query;
 
     for (const registration of this.nodes.values()) {
@@ -286,7 +286,7 @@ export class NodeRegistry extends SimpleEventEmitter {
 
       // 标签过滤
       if (tags && tags.length > 0) {
-        const hasAllTags = tags.every(tag => definition.tags.includes(tag));
+        const hasAllTags = tags.every((tag) => definition.tags.includes(tag));
         if (!hasAllTags) {
           continue;
         }
@@ -300,8 +300,10 @@ export class NodeRegistry extends SimpleEventEmitter {
           definition.displayName,
           definition.description,
           definition.category,
-          ...definition.tags
-        ].join(' ').toLowerCase();
+          ...definition.tags,
+        ]
+          .join(' ')
+          .toLowerCase();
 
         if (!searchTextIn.includes(searchText)) {
           continue;
@@ -319,10 +321,12 @@ export class NodeRegistry extends SimpleEventEmitter {
       // 搜索查询优先匹配ID和名称
       if (searchQuery) {
         const queryLower = searchQuery.toLowerCase();
-        const aMatch = a.id.toLowerCase().includes(queryLower) ||
-                      a.displayName.toLowerCase().includes(queryLower);
-        const bMatch = b.id.toLowerCase().includes(queryLower) ||
-                      b.displayName.toLowerCase().includes(queryLower);
+        const aMatch =
+          a.id.toLowerCase().includes(queryLower) ||
+          a.displayName.toLowerCase().includes(queryLower);
+        const bMatch =
+          b.id.toLowerCase().includes(queryLower) ||
+          b.displayName.toLowerCase().includes(queryLower);
 
         if (aMatch && !bMatch) return -1;
         if (!aMatch && bMatch) return 1;
@@ -342,7 +346,7 @@ export class NodeRegistry extends SimpleEventEmitter {
    * 获取所有节点定义
    */
   getAllNodeDefinitions(): NodeDefinition[] {
-    return Array.from(this.nodes.values()).map(reg => reg.definition);
+    return Array.from(this.nodes.values()).map((reg) => reg.definition);
   }
 
   /**
@@ -420,11 +424,11 @@ export class NodeRegistry extends SimpleEventEmitter {
     customComponents: number;
   } {
     const pluginNodes = Array.from(this.nodes.values()).filter(
-      reg => reg.pluginId !== undefined
+      (reg) => reg.pluginId !== undefined,
     ).length;
 
     const customComponents = Array.from(this.nodes.values()).filter(
-      reg => reg.component !== undefined
+      (reg) => reg.component !== undefined,
     ).length;
 
     return {
@@ -432,7 +436,7 @@ export class NodeRegistry extends SimpleEventEmitter {
       totalCategories: this.categories.size,
       totalTags: this.tags.size,
       pluginNodes,
-      customComponents
+      customComponents,
     };
   }
 
@@ -519,11 +523,20 @@ export class NodeRegistry extends SimpleEventEmitter {
     if (!definition.category || definition.category.trim() === '') {
       if (definition.tags.includes('LLM') || definition.tags.includes('AI')) {
         definition.category = 'AI';
-      } else if (definition.tags.includes('database') || definition.tags.includes('storage')) {
+      } else if (
+        definition.tags.includes('database') ||
+        definition.tags.includes('storage')
+      ) {
         definition.category = 'Data';
-      } else if (definition.tags.includes('api') || definition.tags.includes('service')) {
+      } else if (
+        definition.tags.includes('api') ||
+        definition.tags.includes('service')
+      ) {
         definition.category = 'Service';
-      } else if (definition.tags.includes('utility') || definition.tags.includes('tool')) {
+      } else if (
+        definition.tags.includes('utility') ||
+        definition.tags.includes('tool')
+      ) {
         definition.category = 'Utility';
       } else {
         definition.category = 'General';
@@ -543,7 +556,7 @@ export class NodeRegistry extends SimpleEventEmitter {
 
     for (const registration of this.nodes.values()) {
       this.categories.add(registration.definition.category);
-      registration.definition.tags.forEach(tag => this.tags.add(tag));
+      registration.definition.tags.forEach((tag) => this.tags.add(tag));
     }
   }
 
@@ -557,10 +570,10 @@ export class NodeRegistry extends SimpleEventEmitter {
       'Service',
       'Utility',
       'General',
-      'Custom'
+      'Custom',
     ];
 
-    defaultCategories.forEach(category => this.categories.add(category));
+    defaultCategories.forEach((category) => this.categories.add(category));
   }
 }
 

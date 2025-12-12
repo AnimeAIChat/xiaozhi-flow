@@ -1,12 +1,17 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { ClassicPreset } from 'rete';
-import { Editor } from 'rete';
-import { ReactRenderPlugin, Presets as ReactPresets } from '@retejs/react-renderer';
-import { ConnectionPlugin, Presets as ConnectionPresets } from '@retejs/connection-plugin';
-
-import { WorkflowViewProps } from '../Dashboard/types';
-import { convertReactFlowToRete } from '../../utils/reteDataConverter';
+import {
+  ConnectionPlugin,
+  Presets as ConnectionPresets,
+} from '@retejs/connection-plugin';
+import {
+  Presets as ReactPresets,
+  ReactRenderPlugin,
+} from '@retejs/react-renderer';
+import type React from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { ClassicPreset, Editor } from 'rete';
 import { log } from '../../utils/logger';
+import { convertReactFlowToRete } from '../../utils/reteDataConverter';
+import type { WorkflowViewProps } from '../Dashboard/types';
 
 interface ReteNodeData {
   label: string;
@@ -50,11 +55,11 @@ const ReteWorkflowView: React.FC<WorkflowViewProps> = ({
 
         // 添加插件
         editor.use(ReactRenderPlugin, {
-          element: containerRef.current
+          element: containerRef.current,
         });
 
         editor.use(ConnectionPlugin, {
-          connector: ConnectionPresets.curve
+          connector: ConnectionPresets.curve,
         });
 
         // 配置节点类型
@@ -63,9 +68,19 @@ const ReteWorkflowView: React.FC<WorkflowViewProps> = ({
         editorRef.current = editor;
         setIsReady(true);
 
-        log.info('Rete.js 编辑器初始化成功', null, 'system', 'ReteWorkflowView');
+        log.info(
+          'Rete.js 编辑器初始化成功',
+          null,
+          'system',
+          'ReteWorkflowView',
+        );
       } catch (error) {
-        log.error('Rete.js 编辑器初始化失败', { error }, 'system', 'ReteWorkflowView');
+        log.error(
+          'Rete.js 编辑器初始化失败',
+          { error },
+          'system',
+          'ReteWorkflowView',
+        );
       }
     };
 
@@ -86,12 +101,15 @@ const ReteWorkflowView: React.FC<WorkflowViewProps> = ({
         const editor = editorRef.current!;
 
         // 清除现有节点
-        editor.getNodes().forEach(node => {
+        editor.getNodes().forEach((node) => {
           editor.removeNode(node.id);
         });
 
         // 转换并添加节点
-        const { nodes: reteNodes, connections } = convertReactFlowToRete(nodes, edges);
+        const { nodes: reteNodes, connections } = convertReactFlowToRete(
+          nodes,
+          edges,
+        );
 
         for (const nodeData of reteNodes) {
           const node = new ReteNode(nodeData.data);
@@ -107,27 +125,45 @@ const ReteWorkflowView: React.FC<WorkflowViewProps> = ({
           try {
             await editor.addConnection(connection);
           } catch (error) {
-            log.warn('连接创建失败', { connection, error }, 'ui', 'ReteWorkflowView');
+            log.warn(
+              '连接创建失败',
+              { connection, error },
+              'ui',
+              'ReteWorkflowView',
+            );
           }
         }
 
-        log.info('编辑器数据更新完成', {
-          nodeCount: reteNodes.length,
-          connectionCount: connections.length
-        }, 'ui', 'ReteWorkflowView');
+        log.info(
+          '编辑器数据更新完成',
+          {
+            nodeCount: reteNodes.length,
+            connectionCount: connections.length,
+          },
+          'ui',
+          'ReteWorkflowView',
+        );
       } catch (error) {
-        log.error('编辑器数据更新失败', { error }, 'system', 'ReteWorkflowView');
+        log.error(
+          '编辑器数据更新失败',
+          { error },
+          'system',
+          'ReteWorkflowView',
+        );
       }
     };
 
     updateEditorData();
   }, [nodes, edges, isReady]);
 
-  const handleDoubleClick = useCallback((event: React.MouseEvent) => {
-    if (event.target === containerRef.current) {
-      onDoubleClick?.();
-    }
-  }, [onDoubleClick]);
+  const handleDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (event.target === containerRef.current) {
+        onDoubleClick?.();
+      }
+    },
+    [onDoubleClick],
+  );
 
   return (
     <div
@@ -143,7 +179,7 @@ const ReteWorkflowView: React.FC<WorkflowViewProps> = ({
           backgroundImage: `
             radial-gradient(circle, #e5e7eb 1px, transparent 1px)
           `,
-          backgroundSize: '20px 20px'
+          backgroundSize: '20px 20px',
         }}
       />
 

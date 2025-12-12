@@ -1,13 +1,13 @@
 import type {
+  AIStatus,
+  AIStatusParticleConfig,
+  BackgroundParticleConfig,
+  InteractiveParticleConfig,
   IParticleSystem,
   Particle,
   ParticleConfig,
   ParticleSystemState,
-  AIStatus,
   PerformanceStats,
-  BackgroundParticleConfig,
-  InteractiveParticleConfig,
-  AIStatusParticleConfig,
 } from '../../types/particle';
 
 /**
@@ -222,7 +222,10 @@ export class ParticleSystem implements IParticleSystem {
    */
   private generateBackgroundParticles(): void {
     const config = this.state.config.background;
-    const particlesToGenerate = Math.min(config.count, this.state.config.performance.maxParticles);
+    const particlesToGenerate = Math.min(
+      config.count,
+      this.state.config.performance.maxParticles,
+    );
 
     for (let i = 0; i < particlesToGenerate; i++) {
       this.state.particles.push(this.createBackgroundParticle());
@@ -264,12 +267,15 @@ export class ParticleSystem implements IParticleSystem {
     const canvas = this.canvas!;
 
     // 限制AI状态粒子数量
-    const aiStatusParticles = this.state.particles.filter(p => p.type === 'ai-status');
+    const aiStatusParticles = this.state.particles.filter(
+      (p) => p.type === 'ai-status',
+    );
     if (aiStatusParticles.length >= config.particleCount) {
       return null;
     }
 
-    let vx = 0, vy = 0;
+    let vx = 0,
+      vy = 0;
 
     // 根据模式设置速度方向
     switch (statusConfig.pattern) {
@@ -277,21 +283,24 @@ export class ParticleSystem implements IParticleSystem {
         vx = (Math.random() - 0.5) * statusConfig.speed;
         vy = (Math.random() - 0.5) * statusConfig.speed;
         break;
-      case 'wave':
+      case 'wave': {
         const angle = Math.random() * Math.PI * 2;
         vx = Math.cos(angle) * statusConfig.speed;
         vy = Math.sin(angle) * statusConfig.speed;
         break;
-      case 'spiral':
+      }
+      case 'spiral': {
         const spiralAngle = Math.random() * Math.PI * 2;
         vx = Math.cos(spiralAngle) * statusConfig.speed;
         vy = Math.sin(spiralAngle) * statusConfig.speed;
         break;
-      case 'burst':
+      }
+      case 'burst': {
         const burstAngle = Math.random() * Math.PI * 2;
         vx = Math.cos(burstAngle) * statusConfig.speed * 2;
         vy = Math.sin(burstAngle) * statusConfig.speed * 2;
         break;
+      }
       default:
         vx = (Math.random() - 0.5) * statusConfig.speed;
         vy = (Math.random() - 0.5) * statusConfig.speed;
@@ -385,7 +394,9 @@ export class ParticleSystem implements IParticleSystem {
 
     // 性能节流
     this.updateThrottleCounter += deltaTime;
-    if (this.updateThrottleCounter < this.state.config.performance.updateThrottle) {
+    if (
+      this.updateThrottleCounter < this.state.config.performance.updateThrottle
+    ) {
       this.animationId = requestAnimationFrame(() => this.animate());
       return;
     }
@@ -430,26 +441,36 @@ export class ParticleSystem implements IParticleSystem {
     const config = this.state.config;
 
     // 移除死亡的粒子
-    this.state.particles = this.state.particles.filter(particle => {
+    this.state.particles = this.state.particles.filter((particle) => {
       particle.lifetime -= deltaTime;
-      return particle.lifetime > 0 && particle.maxLifetime !== particle.lifetime;
+      return (
+        particle.lifetime > 0 && particle.maxLifetime !== particle.lifetime
+      );
     });
 
     // 更新每个粒子
-    this.state.particles.forEach(particle => {
+    this.state.particles.forEach((particle) => {
       this.updateParticle(particle, deltaTime);
     });
 
     // 补充背景粒子
-    const backgroundParticles = this.state.particles.filter(p => p.type === 'background');
-    const neededBackgroundParticles = Math.max(0, config.background.count - backgroundParticles.length);
+    const backgroundParticles = this.state.particles.filter(
+      (p) => p.type === 'background',
+    );
+    const neededBackgroundParticles = Math.max(
+      0,
+      config.background.count - backgroundParticles.length,
+    );
     for (let i = 0; i < neededBackgroundParticles; i++) {
       this.state.particles.push(this.createBackgroundParticle());
     }
 
     // 限制总粒子数
     if (this.state.particles.length > config.performance.maxParticles) {
-      this.state.particles = this.state.particles.slice(0, config.performance.maxParticles);
+      this.state.particles = this.state.particles.slice(
+        0,
+        config.performance.maxParticles,
+      );
     }
 
     // 更新性能统计
@@ -522,7 +543,7 @@ export class ParticleSystem implements IParticleSystem {
     }
 
     // 渲染粒子
-    this.state.particles.forEach(particle => {
+    this.state.particles.forEach((particle) => {
       this.renderParticle(particle);
       drawCalls++;
     });
@@ -537,19 +558,22 @@ export class ParticleSystem implements IParticleSystem {
     if (!this.ctx) return;
 
     const config = this.state.config.background;
-    const backgroundParticles = this.state.particles.filter(p => p.type === 'background');
+    const backgroundParticles = this.state.particles.filter(
+      (p) => p.type === 'background',
+    );
 
     for (let i = 0; i < backgroundParticles.length; i++) {
       for (let j = i + 1; j < backgroundParticles.length; j++) {
         const p1 = backgroundParticles[i];
         const p2 = backgroundParticles[j];
-        const distance = Math.sqrt(
-          Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)
-        );
+        const distance = Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
 
         if (distance < config.connectDistance) {
-          const opacity = (1 - distance / config.connectDistance) * config.connectionOpacity;
-          this.ctx.strokeStyle = `${config.color}${Math.floor(opacity * 255).toString(16).padStart(2, '0')}`;
+          const opacity =
+            (1 - distance / config.connectDistance) * config.connectionOpacity;
+          this.ctx.strokeStyle = `${config.color}${Math.floor(opacity * 255)
+            .toString(16)
+            .padStart(2, '0')}`;
           this.ctx.lineWidth = 0.5;
           this.ctx.beginPath();
           this.ctx.moveTo(p1.x, p1.y);
@@ -581,7 +605,12 @@ export class ParticleSystem implements IParticleSystem {
         this.ctx.fill();
         break;
       case 'square':
-        this.ctx.fillRect(-particle.size, -particle.size, particle.size * 2, particle.size * 2);
+        this.ctx.fillRect(
+          -particle.size,
+          -particle.size,
+          particle.size * 2,
+          particle.size * 2,
+        );
         break;
       case 'triangle':
         this.ctx.beginPath();
@@ -606,7 +635,8 @@ export class ParticleSystem implements IParticleSystem {
     // 随机从画布边缘发射粒子
     if (Math.random() < config.emitRate / 60) {
       const canvas = this.canvas!;
-      let x = 0, y = 0;
+      let x = 0,
+        y = 0;
 
       switch (Math.floor(Math.random() * 4)) {
         case 0: // 左边

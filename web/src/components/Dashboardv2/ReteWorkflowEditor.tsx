@@ -1,11 +1,22 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { NodeEditor, Node } from 'rete';
-import { AreaPlugin, AreaExtensions } from 'rete-area-plugin';
-import { ConnectionPlugin, ClassicFlow } from 'rete-connection-plugin';
-import { ReactPlugin, ReactRenderExtensions, Presets as ReactPresets } from 'rete-react-plugin';
-
-import { BaseNode, renderNode } from './nodes';
-import { DatabaseNode, ApiNode, AiNode, CloudNode, ConfigNode } from './nodes';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { type Node, NodeEditor } from 'rete';
+import { AreaExtensions, AreaPlugin } from 'rete-area-plugin';
+import { ClassicFlow, ConnectionPlugin } from 'rete-connection-plugin';
+import {
+  ReactPlugin,
+  Presets as ReactPresets,
+  ReactRenderExtensions,
+} from 'rete-react-plugin';
+import {
+  AiNode,
+  ApiNode,
+  type BaseNode,
+  CloudNode,
+  ConfigNode,
+  DatabaseNode,
+  renderNode,
+} from './nodes';
 
 interface ReteWorkflowEditorProps {
   onNodesChange?: (nodes: Node[]) => void;
@@ -16,7 +27,7 @@ interface ReteWorkflowEditorProps {
 export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
   onNodesChange,
   onConnectionsChange,
-  onExecute
+  onExecute,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const areaRef = useRef<AreaPlugin<any> | null>(null);
@@ -47,16 +58,19 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
         // 配置区域插件
         AreaExtensions.configure(areaPlugin, {
           snap: true,
-          translateExtent: [['-200%', '-200%'], ['200%', '200%']],
+          translateExtent: [
+            ['-200%', '-200%'],
+            ['200%', '200%'],
+          ],
           wheelZoom: {
-            smooth: true
-          }
+            smooth: true,
+          },
         });
 
         // 配置连接插件
         connectionPlugin.addPreset(ClassicFlow.setup, {
           getRotation: () => 0,
-          curvature: 0.4
+          curvature: 0.4,
         });
 
         // 配置 React 渲染插件
@@ -71,10 +85,10 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
                 const handleClick = (e: React.MouseEvent) => {
                   e.stopPropagation();
                   const nodeId = node.id;
-                  setSelectedNodes(prev =>
+                  setSelectedNodes((prev) =>
                     prev.includes(nodeId)
-                      ? prev.filter(id => id !== nodeId)
-                      : [...prev, nodeId]
+                      ? prev.filter((id) => id !== nodeId)
+                      : [...prev, nodeId],
                   );
                 };
 
@@ -85,7 +99,7 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
                       outline: selectedNodes.includes(node.id)
                         ? '2px solid #1890ff'
                         : 'none',
-                      borderRadius: '8px'
+                      borderRadius: '8px',
                     }}
                   >
                     {renderNode({ data, emitter: null, node })}
@@ -94,17 +108,19 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
               };
 
               return <EnhancedNode />;
-            }
-          }
+            },
+          },
         });
 
-        
         // 添加示例节点
         await addExampleNodes(editor);
 
         // 监听节点变化
         editor.addPipe((context) => {
-          if (context.type === 'nodecreated' || context.type === 'noderemoved') {
+          if (
+            context.type === 'nodecreated' ||
+            context.type === 'noderemoved'
+          ) {
             onNodesChange?.(editor.getNodes());
           }
           return context;
@@ -112,7 +128,10 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
 
         // 监听连接变化
         editor.addPipe((context) => {
-          if (context.type === 'connectioncreated' || context.type === 'connectionremoved') {
+          if (
+            context.type === 'connectioncreated' ||
+            context.type === 'connectionremoved'
+          ) {
             onConnectionsChange?.(editor.getConnections());
           }
           return context;
@@ -135,7 +154,7 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
     const editorPromise = initializeEditor();
 
     return () => {
-      editorPromise.then(editor => {
+      editorPromise.then((editor) => {
         if (editor) {
           editor.destroy();
         }
@@ -160,11 +179,11 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
 
       // 设置节点位置
       const positions = [
-        { x: 100, y: 100 },   // database
-        { x: 400, y: 100 },   // api
-        { x: 700, y: 100 },   // ai
-        { x: 100, y: 300 },   // cloud
-        { x: 400, y: 300 }    // config
+        { x: 100, y: 100 }, // database
+        { x: 400, y: 100 }, // api
+        { x: 700, y: 100 }, // ai
+        { x: 100, y: 300 }, // cloud
+        { x: 400, y: 300 }, // config
       ];
 
       const nodes = [databaseNode, apiNode, aiNode, cloudNode, configNode];
@@ -177,17 +196,16 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
       // 添加一些示例连接
       await editor.addConnection(
         databaseNode.outputs.get('data')!,
-        apiNode.inputs.get('input')!
+        apiNode.inputs.get('input')!,
       );
       await editor.addConnection(
         apiNode.outputs.get('response')!,
-        aiNode.inputs.get('prompt')!
+        aiNode.inputs.get('prompt')!,
       );
       await editor.addConnection(
         configNode.outputs.get('settings')!,
-        cloudNode.inputs.get('credentials')!
+        cloudNode.inputs.get('credentials')!,
       );
-
     } catch (error) {
       console.error('添加示例节点失败:', error);
     }
@@ -202,7 +220,10 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
 
     if (areaRef.current) {
       const position = areaRef.current.area.transform(node.id);
-      areaRef.current.area.translate(newNode.id, { x: position.x + 50, y: position.y + 50 });
+      areaRef.current.area.translate(newNode.id, {
+        x: position.x + 50,
+        y: position.y + 50,
+      });
     }
   };
 
@@ -298,7 +319,9 @@ export const ReteWorkflowEditor: React.FC<ReteWorkflowEditorProps> = ({
       {/* 工具栏 */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-2">
         <div className="flex flex-col space-y-2">
-          <div className="text-xs font-semibold text-gray-600 mb-1">添加节点</div>
+          <div className="text-xs font-semibold text-gray-600 mb-1">
+            添加节点
+          </div>
           <button
             onClick={() => addNode('database')}
             className="px-3 py-2 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"

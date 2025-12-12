@@ -12,7 +12,10 @@ export default defineConfig({
   output: {
     sourceMap: {
       // 在开发环境启用详细 sourcemap，在生产环境启用安全版本
-      js: process.env.NODE_ENV === 'development' ? 'source-map' : 'hidden-source-map',
+      js:
+        process.env.NODE_ENV === 'development'
+          ? 'source-map'
+          : 'hidden-source-map',
       css: process.env.NODE_ENV === 'development' ? true : false,
     },
     // 生成 source map 文件用于调试

@@ -1,14 +1,17 @@
-import React, { ComponentType } from 'react';
-import { NodeProps, Handle, Position } from '@xyflow/react';
-import { Card, Button, Space } from 'antd';
-import { ConfigNode } from '../../plugins/types';
+import { Handle, type NodeProps, Position } from '@xyflow/react';
+import { Button, Card, Space } from 'antd';
+import React, { type ComponentType } from 'react';
+import type { ConfigNode } from '../../plugins/types';
 
 interface DynamicNodeRendererProps extends NodeProps {
   data: ConfigNode['data'];
   selected?: boolean;
 }
 
-const DynamicNodeRenderer: ComponentType<DynamicNodeRendererProps> = ({ data, selected }) => {
+const DynamicNodeRenderer: ComponentType<DynamicNodeRendererProps> = ({
+  data,
+  selected,
+}) => {
   return (
     <div>
       <Handle type="target" position={Position.Top} />
@@ -17,7 +20,7 @@ const DynamicNodeRenderer: ComponentType<DynamicNodeRendererProps> = ({ data, se
         style={{
           width: 280,
           borderColor: selected ? '#1890ff' : data.color,
-          backgroundColor: '#fff'
+          backgroundColor: '#fff',
         }}
         title={data.label}
       >

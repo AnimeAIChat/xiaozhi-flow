@@ -104,7 +104,14 @@ export interface ConfigSection {
 export interface ConfigField {
   key: string;
   label: string;
-  type: 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'textarea' | 'password';
+  type:
+    | 'string'
+    | 'number'
+    | 'boolean'
+    | 'select'
+    | 'multiselect'
+    | 'textarea'
+    | 'password';
   required?: boolean;
   default?: any;
   options?: Array<{ label: string; value: any }>;

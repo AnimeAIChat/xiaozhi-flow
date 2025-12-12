@@ -100,7 +100,12 @@ export interface Particle {
 }
 
 // AI状态类型
-export type AIStatus = 'idle' | 'listening' | 'processing' | 'speaking' | 'error';
+export type AIStatus =
+  | 'idle'
+  | 'listening'
+  | 'processing'
+  | 'speaking'
+  | 'error';
 
 // 粒子系统状态
 export interface ParticleSystemState {
@@ -127,7 +132,12 @@ export interface PerformanceStats {
 
 // 粒子事件
 export interface ParticleEvent {
-  type: 'mouse-move' | 'mouse-click' | 'status-change' | 'particle-created' | 'particle-destroyed';
+  type:
+    | 'mouse-move'
+    | 'mouse-click'
+    | 'status-change'
+    | 'particle-created'
+    | 'particle-destroyed';
   timestamp: number;
   data: any;
 }
@@ -158,7 +168,12 @@ export interface IParticleSystem {
 // 粒子生成器
 export interface ParticleGenerator {
   generate(config: ParticleConfig, count: number): Particle[];
-  generateFromPattern(pattern: string, x: number, y: number, count: number): Particle[];
+  generateFromPattern(
+    pattern: string,
+    x: number,
+    y: number,
+    count: number,
+  ): Particle[];
   generateStatusEffect(status: AIStatus, x: number, y: number): Particle[];
 }
 
@@ -166,14 +181,30 @@ export interface ParticleGenerator {
 export interface ParticleAnimator {
   update(particle: Particle, deltaTime: number, config: ParticleConfig): void;
   applyPhysics(particle: Particle, deltaTime: number): void;
-  applyMouseInteraction(particle: Particle, mousePosition: { x: number; y: number }, config: InteractiveParticleConfig): void;
-  applyStatusEffect(particle: Particle, status: AIStatus, config: AIStatusParticleConfig): void;
+  applyMouseInteraction(
+    particle: Particle,
+    mousePosition: { x: number; y: number },
+    config: InteractiveParticleConfig,
+  ): void;
+  applyStatusEffect(
+    particle: Particle,
+    status: AIStatus,
+    config: AIStatusParticleConfig,
+  ): void;
 }
 
 // 粒子渲染器
 export interface ParticleRenderer {
-  render(ctx: CanvasRenderingContext2D, particles: Particle[], config: ParticleConfig): void;
+  render(
+    ctx: CanvasRenderingContext2D,
+    particles: Particle[],
+    config: ParticleConfig,
+  ): void;
   renderParticle(ctx: CanvasRenderingContext2D, particle: Particle): void;
-  renderConnections(ctx: CanvasRenderingContext2D, particles: Particle[], config: BackgroundParticleConfig): void;
+  renderConnections(
+    ctx: CanvasRenderingContext2D,
+    particles: Particle[],
+    config: BackgroundParticleConfig,
+  ): void;
   clear(ctx: CanvasRenderingContext2D): void;
 }

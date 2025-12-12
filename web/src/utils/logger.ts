@@ -24,8 +24,8 @@ const LogLevelNames: Record<LogLevel, string> = {
 // 日志级别颜色映射（控制台输出用）
 const LogLevelColors: Record<LogLevel, string> = {
   [LogLevel.DEBUG]: '#95a5a6', // 灰色
-  [LogLevel.INFO]: '#3498db',  // 蓝色
-  [LogLevel.WARN]: '#f39c12',  // 橙色
+  [LogLevel.INFO]: '#3498db', // 蓝色
+  [LogLevel.WARN]: '#f39c12', // 橙色
   [LogLevel.ERROR]: '#e74c3c', // 红色
 };
 
@@ -49,9 +49,7 @@ export interface LogEntry {
 }
 
 // 日志监听器接口
-export interface LogListener {
-  (entry: LogEntry): void;
-}
+export type LogListener = (entry: LogEntry) => void;
 
 // 性能监控接口
 export interface PerformanceMetric {
@@ -129,34 +127,49 @@ class Logger {
         'ResizeObserver loop completed with undelivered notifications',
         'React DevTools',
         'Download the React DevTools',
-        'Immersion Translate ERROR: UnknownError: Model not available'
+        'Immersion Translate ERROR: UnknownError: Model not available',
       ];
 
-      if (ignoredErrors.some(ignored => event.message && event.message.includes(ignored))) {
+      if (
+        ignoredErrors.some(
+          (ignored) => event.message && event.message.includes(ignored),
+        )
+      ) {
         // 这些是已知的无害错误或开发工具信息，忽略它们
         return;
       }
 
       // 过滤 React Router 的未来版本警告
-      if (event.message && event.message.includes('React Router Future Flag Warning')) {
+      if (
+        event.message &&
+        event.message.includes('React Router Future Flag Warning')
+      ) {
         return;
       }
 
-      this.error('未捕获的 JavaScript 错误', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        stack: event.error?.stack,
-      }, 'JavaScript');
+      this.error(
+        '未捕获的 JavaScript 错误',
+        {
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          stack: event.error?.stack,
+        },
+        'JavaScript',
+      );
     });
 
     // 监听 Promise 拒绝
     window.addEventListener('unhandledrejection', (event) => {
-      this.error('未处理的 Promise 拒绝', {
-        reason: event.reason,
-        stack: event.reason?.stack,
-      }, 'Promise');
+      this.error(
+        '未处理的 Promise 拒绝',
+        {
+          reason: event.reason,
+          stack: event.reason?.stack,
+        },
+        'Promise',
+      );
     });
 
     // 重写 console 方法来过滤开发日志
@@ -173,33 +186,37 @@ class Logger {
       const message = args.join(' ');
 
       // 过滤掉 Storage 操作的详细日志
-      if (message.includes('Storage:') &&
-          (message.includes('called, result:') ||
-           message.includes('completed') ||
-           message.includes('called, token length:') ||
-           message.includes('called, username:') ||
-           message.includes('called, expiresAt:') ||
-           message.includes('removeToken called') ||
-           message.includes('removeUser called') ||
-           message.includes('removeExpiresAt called') ||
-           message.includes('clear called'))) {
+      if (
+        message.includes('Storage:') &&
+        (message.includes('called, result:') ||
+          message.includes('completed') ||
+          message.includes('called, token length:') ||
+          message.includes('called, username:') ||
+          message.includes('called, expiresAt:') ||
+          message.includes('removeToken called') ||
+          message.includes('removeUser called') ||
+          message.includes('removeExpiresAt called') ||
+          message.includes('clear called'))
+      ) {
         return;
       }
 
       // 过滤掉 AuthContext 的详细调试日志
-      if (message.includes('AuthContext:') &&
-          (message.includes('saveAuthData called') ||
-           message.includes('saveAuthData completed') ||
-           message.includes('Login successful') ||
-           message.includes('Saving auth data') ||
-           message.includes('Verifying stored data') ||
-           message.includes('Login state updated') ||
-           message.includes('Found token in storage') ||
-           message.includes('checkAuth called') ||
-           message.includes('Stored auth data') ||
-           message.includes('Server validation successful') ||
-           message.includes('Using cached auth data') ||
-           message.includes('Initializing auth on mount'))) {
+      if (
+        message.includes('AuthContext:') &&
+        (message.includes('saveAuthData called') ||
+          message.includes('saveAuthData completed') ||
+          message.includes('Login successful') ||
+          message.includes('Saving auth data') ||
+          message.includes('Verifying stored data') ||
+          message.includes('Login state updated') ||
+          message.includes('Found token in storage') ||
+          message.includes('checkAuth called') ||
+          message.includes('Stored auth data') ||
+          message.includes('Server validation successful') ||
+          message.includes('Using cached auth data') ||
+          message.includes('Initializing auth on mount'))
+      ) {
         return;
       }
 
@@ -226,17 +243,21 @@ class Logger {
       const message = args.join(' ');
 
       // 过滤掉系统初始化器的重复日志
-      if (message.includes('[system]') &&
-          (message.includes('系统已初始化，允许访问仪表板') ||
-           message.includes('系统已初始化，允许访问页面'))) {
+      if (
+        message.includes('[system]') &&
+        (message.includes('系统已初始化，允许访问仪表板') ||
+          message.includes('系统已初始化，允许访问页面'))
+      ) {
         return;
       }
 
       // 过滤掉 API 调用的重复成功日志
-      if (message.includes('[api]') &&
-          (message.includes('✅ GET /auth/me') ||
-           message.includes('✅ GET /admin/system/status') ||
-           message.includes('✅ GET /admin/database/schema'))) {
+      if (
+        message.includes('[api]') &&
+        (message.includes('✅ GET /auth/me') ||
+          message.includes('✅ GET /admin/system/status') ||
+          message.includes('✅ GET /admin/database/schema'))
+      ) {
         return;
       }
 
@@ -251,10 +272,10 @@ class Logger {
       const ignoredWarnings = [
         'React Router Future Flag Warning',
         'React Flow',
-        'It looks like you\'ve created a new nodeTypes or edgeTypes object'
+        "It looks like you've created a new nodeTypes or edgeTypes object",
       ];
 
-      if (ignoredWarnings.some(warning => message.includes(warning))) {
+      if (ignoredWarnings.some((warning) => message.includes(warning))) {
         return;
       }
 
@@ -285,14 +306,20 @@ class Logger {
   // 记录页面加载指标
   private recordPageLoadMetrics() {
     try {
-      const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming;
+      const navigation = performance.getEntriesByType(
+        'navigation',
+      )[0] as PerformanceNavigationTiming;
 
       if (navigation) {
         const metrics = {
-          'page.load.domContentLoaded': navigation.domContentLoadedEventEnd - navigation.domContentLoadedEventStart,
+          'page.load.domContentLoaded':
+            navigation.domContentLoadedEventEnd -
+            navigation.domContentLoadedEventStart,
           'page.load.load': navigation.loadEventEnd - navigation.loadEventStart,
-          'page.load.firstPaint': performance.getEntriesByType('paint')[0]?.startTime,
-          'page.load.firstContentfulPaint': performance.getEntriesByType('paint')[1]?.startTime,
+          'page.load.firstPaint':
+            performance.getEntriesByType('paint')[0]?.startTime,
+          'page.load.firstContentfulPaint':
+            performance.getEntriesByType('paint')[1]?.startTime,
           'page.load.total': navigation.loadEventEnd - navigation.fetchStart,
         };
 
@@ -312,10 +339,30 @@ class Logger {
     try {
       const memory = (performance as any).memory;
       if (memory) {
-        this.performance('memory.used', memory.usedJSHeapSize, 'bytes', 'memory');
-        this.performance('memory.total', memory.totalJSHeapSize, 'bytes', 'memory');
-        this.performance('memory.limit', memory.jsHeapSizeLimit, 'bytes', 'memory');
-        this.performance('memory.usage', (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100, 'percentage', 'memory');
+        this.performance(
+          'memory.used',
+          memory.usedJSHeapSize,
+          'bytes',
+          'memory',
+        );
+        this.performance(
+          'memory.total',
+          memory.totalJSHeapSize,
+          'bytes',
+          'memory',
+        );
+        this.performance(
+          'memory.limit',
+          memory.jsHeapSizeLimit,
+          'bytes',
+          'memory',
+        );
+        this.performance(
+          'memory.usage',
+          (memory.usedJSHeapSize / memory.jsHeapSizeLimit) * 100,
+          'percentage',
+          'memory',
+        );
       }
     } catch (error) {
       this.warn('内存使用记录失败', error);
@@ -324,9 +371,12 @@ class Logger {
 
   // 设置日志清理
   private setupLogCleanup() {
-    setInterval(() => {
-      this.cleanupOldLogs();
-    }, 5 * 60 * 1000); // 每5分钟清理一次
+    setInterval(
+      () => {
+        this.cleanupOldLogs();
+      },
+      5 * 60 * 1000,
+    ); // 每5分钟清理一次
   }
 
   // 清理旧日志
@@ -350,7 +400,7 @@ class Logger {
     data?: any,
     category?: string,
     source?: string,
-    stack?: string
+    stack?: string,
   ): LogEntry {
     return {
       id: this.generateLogId(),
@@ -442,7 +492,7 @@ class Logger {
     this.logs.push(entry);
 
     // 通知监听器
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener) => {
       try {
         listener(entry);
       } catch (error) {
@@ -456,7 +506,11 @@ class Logger {
     }
 
     // 上报错误日志
-    if (entry.level === LogLevel.ERROR && envConfig.enableErrorReporting && envConfig.errorReportUrl) {
+    if (
+      entry.level === LogLevel.ERROR &&
+      envConfig.enableErrorReporting &&
+      envConfig.errorReportUrl
+    ) {
       this.reportError(entry);
     }
   }
@@ -502,7 +556,9 @@ class Logger {
         stack: entry.stack,
         userId: entry.userId,
         sessionId: entry.sessionId,
-        userAgent: envConfig.errorIncludeUserAgent ? navigator.userAgent : undefined,
+        userAgent: envConfig.errorIncludeUserAgent
+          ? navigator.userAgent
+          : undefined,
         url: window.location.href,
       };
 
@@ -521,10 +577,17 @@ class Logger {
   // === 公共 API ===
 
   // 美化的 API 响应日志
-  apiResponse(method: string, url: string, status: number, duration: number, data?: any) {
+  apiResponse(
+    method: string,
+    url: string,
+    status: number,
+    duration: number,
+    data?: any,
+  ) {
     if (!this.shouldLog(LogLevel.INFO)) return;
 
-    const statusIcon = status >= 200 && status < 300 ? '✅' : status >= 400 ? '❌' : '⚠️';
+    const statusIcon =
+      status >= 200 && status < 300 ? '✅' : status >= 400 ? '❌' : '⚠️';
 
     // 美化响应数据
     let beautifiedData = '';
@@ -546,13 +609,19 @@ class Logger {
 
     const message = `${statusIcon} ${method} ${url} - ${status} (${duration}ms)${beautifiedData ? ` | ${beautifiedData}` : ''}`;
 
-    const entry = this.createLogEntry(LogLevel.INFO, message, {
-      method,
-      url,
-      status,
-      duration,
-      data: this.sanitizeApiData(data)
-    }, 'api', 'ApiService');
+    const entry = this.createLogEntry(
+      LogLevel.INFO,
+      message,
+      {
+        method,
+        url,
+        status,
+        duration,
+        data: this.sanitizeApiData(data),
+      },
+      'api',
+      'ApiService',
+    );
 
     this.addLogEntry(entry);
   }
@@ -567,7 +636,7 @@ class Logger {
 
       // 移除可能的敏感字段
       const sensitiveFields = ['password', 'token', 'secret', 'key', 'auth'];
-      sensitiveFields.forEach(field => {
+      sensitiveFields.forEach((field) => {
         if (sanitized[field]) {
           sanitized[field] = '[REDACTED]';
         }
@@ -587,30 +656,67 @@ class Logger {
 
   debug(message: string, data?: any, category?: string, source?: string) {
     if (!this.shouldLog(LogLevel.DEBUG)) return;
-    const entry = this.createLogEntry(LogLevel.DEBUG, message, data, category, source);
+    const entry = this.createLogEntry(
+      LogLevel.DEBUG,
+      message,
+      data,
+      category,
+      source,
+    );
     this.addLogEntry(entry);
   }
 
   info(message: string, data?: any, category?: string, source?: string) {
     if (!this.shouldLog(LogLevel.INFO)) return;
-    const entry = this.createLogEntry(LogLevel.INFO, message, data, category, source);
+    const entry = this.createLogEntry(
+      LogLevel.INFO,
+      message,
+      data,
+      category,
+      source,
+    );
     this.addLogEntry(entry);
   }
 
   warn(message: string, data?: any, category?: string, source?: string) {
     if (!this.shouldLog(LogLevel.WARN)) return;
-    const entry = this.createLogEntry(LogLevel.WARN, message, data, category, source);
+    const entry = this.createLogEntry(
+      LogLevel.WARN,
+      message,
+      data,
+      category,
+      source,
+    );
     this.addLogEntry(entry);
   }
 
-  error(message: string, data?: any, category?: string, source?: string, stack?: string) {
+  error(
+    message: string,
+    data?: any,
+    category?: string,
+    source?: string,
+    stack?: string,
+  ) {
     if (!this.shouldLog(LogLevel.ERROR)) return;
-    const entry = this.createLogEntry(LogLevel.ERROR, message, data, category, source, stack);
+    const entry = this.createLogEntry(
+      LogLevel.ERROR,
+      message,
+      data,
+      category,
+      source,
+      stack,
+    );
     this.addLogEntry(entry);
   }
 
   // 性能记录
-  performance(name: string, value: number, unit: 'ms' | 'bytes' | 'count' | 'percentage' = 'ms', category?: string, tags?: Record<string, string>) {
+  performance(
+    name: string,
+    value: number,
+    unit: 'ms' | 'bytes' | 'count' | 'percentage' = 'ms',
+    category?: string,
+    tags?: Record<string, string>,
+  ) {
     if (!envConfig.enablePerformanceMonitoring) return;
 
     const metric: PerformanceMetric = {
@@ -686,12 +792,12 @@ class Logger {
 
   // 获取按级别过滤的日志
   getLogsByLevel(level: LogLevel): LogEntry[] {
-    return this.logs.filter(log => log.level === level);
+    return this.logs.filter((log) => log.level === level);
   }
 
   // 获取按分类过滤的日志
   getLogsByCategory(category: string): LogEntry[] {
-    return this.logs.filter(log => log.category === category);
+    return this.logs.filter((log) => log.category === category);
   }
 
   // 清空日志
@@ -717,7 +823,7 @@ class Logger {
       categories: {} as Record<string, number>,
     };
 
-    this.logs.forEach(log => {
+    this.logs.forEach((log) => {
       switch (log.level) {
         case LogLevel.DEBUG:
           stats.debug++;
@@ -734,7 +840,8 @@ class Logger {
       }
 
       if (log.category) {
-        stats.categories[log.category] = (stats.categories[log.category] || 0) + 1;
+        stats.categories[log.category] =
+          (stats.categories[log.category] || 0) + 1;
       }
     });
 
@@ -747,14 +854,36 @@ export const logger = new Logger();
 
 // 导出便捷方法
 export const log = {
-  debug: (message: string, data?: any, category?: string, source?: string) => logger.debug(message, data, category, source),
-  info: (message: string, data?: any, category?: string, source?: string) => logger.info(message, data, category, source),
-  warn: (message: string, data?: any, category?: string, source?: string) => logger.warn(message, data, category, source),
-  error: (message: string, data?: any, category?: string, source?: string, stack?: string) => logger.error(message, data, category, source, stack),
-  performance: (name: string, value: number, unit?: 'ms' | 'bytes' | 'count' | 'percentage', category?: string, tags?: Record<string, string>) => logger.performance(name, value, unit, category, tags),
+  debug: (message: string, data?: any, category?: string, source?: string) =>
+    logger.debug(message, data, category, source),
+  info: (message: string, data?: any, category?: string, source?: string) =>
+    logger.info(message, data, category, source),
+  warn: (message: string, data?: any, category?: string, source?: string) =>
+    logger.warn(message, data, category, source),
+  error: (
+    message: string,
+    data?: any,
+    category?: string,
+    source?: string,
+    stack?: string,
+  ) => logger.error(message, data, category, source, stack),
+  performance: (
+    name: string,
+    value: number,
+    unit?: 'ms' | 'bytes' | 'count' | 'percentage',
+    category?: string,
+    tags?: Record<string, string>,
+  ) => logger.performance(name, value, unit, category, tags),
   time: (label: string, category?: string) => logger.time(label, category),
-  timeEnd: (label: string, category?: string) => logger.timeEnd(label, category),
-  apiResponse: (method: string, url: string, status: number, duration: number, data?: any) => logger.apiResponse(method, url, status, duration, data),
+  timeEnd: (label: string, category?: string) =>
+    logger.timeEnd(label, category),
+  apiResponse: (
+    method: string,
+    url: string,
+    status: number,
+    duration: number,
+    data?: any,
+  ) => logger.apiResponse(method, url, status, duration, data),
 };
 
 export default logger;

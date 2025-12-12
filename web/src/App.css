@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* 引入 Rete.js 样式 */
-@import '../styles/rete.scss';
+@import "../styles/rete.scss";
 
 body {
   margin: 0;

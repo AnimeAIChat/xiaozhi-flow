@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { ParticleSystemState, AIStatus, ParticleConfig, Particle } from '../types/particle';
+import type {
+  AIStatus,
+  Particle,
+  ParticleConfig,
+  ParticleSystemState,
+} from '../types/particle';
 
 interface ParticleStore extends ParticleSystemState {
   // Actions
@@ -14,7 +19,9 @@ interface ParticleStore extends ParticleSystemState {
   addParticle: (particle: Particle) => void;
   removeParticle: (id: string) => void;
   clearParticles: () => void;
-  updatePerformanceStats: (stats: Partial<ParticleSystemState['performanceStats']>) => void;
+  updatePerformanceStats: (
+    stats: Partial<ParticleSystemState['performanceStats']>,
+  ) => void;
   destroy: () => void;
 }
 
@@ -137,7 +144,10 @@ const initialParticleState: ParticleSystemState = {
 // 粒子系统相关工具函数
 const particleUtils = {
   // 创建背景粒子
-  createBackgroundParticle: (config: ParticleConfig['background'], canvas: HTMLCanvasElement): Particle => ({
+  createBackgroundParticle: (
+    config: ParticleConfig['background'],
+    canvas: HTMLCanvasElement,
+  ): Particle => ({
     id: `bg-${Date.now()}-${Math.random()}`,
     x: Math.random() * canvas.width,
     y: Math.random() * canvas.height,
@@ -158,24 +168,27 @@ const particleUtils = {
     x: number,
     y: number,
     status: AIStatus,
-    config: ParticleConfig['aiStatus']
+    config: ParticleConfig['aiStatus'],
   ): Particle | null => {
     if (!config.enabled) return null;
 
     const statusConfig = config.statusEffects[status];
-    let vx = 0, vy = 0;
+    let vx = 0,
+      vy = 0;
 
     switch (statusConfig.pattern) {
-      case 'wave':
+      case 'wave': {
         const angle = Math.random() * Math.PI * 2;
         vx = Math.cos(angle) * statusConfig.speed;
         vy = Math.sin(angle) * statusConfig.speed;
         break;
-      case 'burst':
+      }
+      case 'burst': {
         const burstAngle = Math.random() * Math.PI * 2;
         vx = Math.cos(burstAngle) * statusConfig.speed * 2;
         vy = Math.sin(burstAngle) * statusConfig.speed * 2;
         break;
+      }
       default:
         vx = (Math.random() - 0.5) * statusConfig.speed;
         vy = (Math.random() - 0.5) * statusConfig.speed;
@@ -203,7 +216,11 @@ const particleUtils = {
   },
 
   // 更新粒子位置
-  updateParticle: (particle: Particle, deltaTime: number, canvas: HTMLCanvasElement): void => {
+  updateParticle: (
+    particle: Particle,
+    deltaTime: number,
+    canvas: HTMLCanvasElement,
+  ): void => {
     particle.x += particle.vx;
     particle.y += particle.vy;
     particle.rotation += particle.rotationSpeed;
@@ -228,7 +245,7 @@ const particleUtils = {
   applyMouseInteraction: (
     particle: Particle,
     mousePosition: { x: number; y: number },
-    config: ParticleConfig['interactive']
+    config: ParticleConfig['interactive'],
   ): void => {
     if (!config.enabled) return;
 
@@ -266,7 +283,10 @@ export const useParticleStore = create<ParticleStore>()(
             // 生成初始背景粒子
             for (let i = 0; i < state.config.background.count; i++) {
               state.particles.push(
-                particleUtils.createBackgroundParticle(state.config.background, canvas)
+                particleUtils.createBackgroundParticle(
+                  state.config.background,
+                  canvas,
+                ),
               );
             }
           }),
@@ -306,7 +326,9 @@ export const useParticleStore = create<ParticleStore>()(
         addParticle: (particle: Particle) =>
           set((state) => {
             // 检查粒子数量限制
-            if (state.particles.length < state.config.performance.maxParticles) {
+            if (
+              state.particles.length < state.config.performance.maxParticles
+            ) {
               state.particles.push(particle);
             }
           }),
@@ -314,7 +336,7 @@ export const useParticleStore = create<ParticleStore>()(
         // 移除粒子
         removeParticle: (id: string) =>
           set((state) => {
-            state.particles = state.particles.filter(p => p.id !== id);
+            state.particles = state.particles.filter((p) => p.id !== id);
           }),
 
         // 清空所有粒子
@@ -324,7 +346,9 @@ export const useParticleStore = create<ParticleStore>()(
           }),
 
         // 更新性能统计
-        updatePerformanceStats: (stats: Partial<ParticleSystemState['performanceStats']>) =>
+        updatePerformanceStats: (
+          stats: Partial<ParticleSystemState['performanceStats']>,
+        ) =>
           set((state) => {
             Object.assign(state.performanceStats, stats);
           }),
@@ -336,22 +360,27 @@ export const useParticleStore = create<ParticleStore>()(
             state.isInitialized = false;
             state.isRunning = false;
           }),
-      }))
+      })),
     ),
     {
       name: 'particle-store',
-    }
-  )
+    },
+  ),
 );
 
 // 选择器hooks
 export const useParticles = () => useParticleStore((state) => state.particles);
-export const useParticleConfig = () => useParticleStore((state) => state.config);
+export const useParticleConfig = () =>
+  useParticleStore((state) => state.config);
 export const useAIStatus = () => useParticleStore((state) => state.aiStatus);
-export const useMousePosition = () => useParticleStore((state) => state.mousePosition);
-export const useParticleStats = () => useParticleStore((state) => state.performanceStats);
-export const useParticleInitialized = () => useParticleStore((state) => state.isInitialized);
-export const useParticleRunning = () => useParticleStore((state) => state.isRunning);
+export const useMousePosition = () =>
+  useParticleStore((state) => state.mousePosition);
+export const useParticleStats = () =>
+  useParticleStore((state) => state.performanceStats);
+export const useParticleInitialized = () =>
+  useParticleStore((state) => state.isInitialized);
+export const useParticleRunning = () =>
+  useParticleStore((state) => state.isRunning);
 
 // 复合选择器
 export const useParticleCount = () => {
@@ -359,9 +388,9 @@ export const useParticleCount = () => {
   const config = useParticleConfig();
   return {
     total: particles.length,
-    background: particles.filter(p => p.type === 'background').length,
-    aiStatus: particles.filter(p => p.type === 'ai-status').length,
-    interactive: particles.filter(p => p.type === 'interactive').length,
+    background: particles.filter((p) => p.type === 'background').length,
+    aiStatus: particles.filter((p) => p.type === 'ai-status').length,
+    interactive: particles.filter((p) => p.type === 'interactive').length,
     max: config.performance.maxParticles,
   };
 };

@@ -1,8 +1,19 @@
-import { IPlugin, PluginSource, PluginInfo, PluginDetails } from '../types';
+import {
+  type IPlugin,
+  PluginDetails,
+  type PluginInfo,
+  type PluginSource,
+} from '../types';
 import { SimpleEventEmitter } from '../utils/ProcessManager';
 
 interface InstallProgress {
-  stage: 'downloading' | 'extracting' | 'validating' | 'installing' | 'configuring' | 'completed';
+  stage:
+    | 'downloading'
+    | 'extracting'
+    | 'validating'
+    | 'installing'
+    | 'configuring'
+    | 'completed';
   progress: number; // 0-100
   message: string;
   error?: string;
@@ -52,7 +63,9 @@ export class PluginInstaller extends SimpleEventEmitter {
 
       // 检查是否已安装
       if (this.installedPlugins.has(plugin.id) && !source.options?.overwrite) {
-        throw new Error(`Plugin ${plugin.id} is already installed. Use overwrite option to reinstall.`);
+        throw new Error(
+          `Plugin ${plugin.id} is already installed. Use overwrite option to reinstall.`,
+        );
       }
 
       // 安装插件文件
@@ -66,9 +79,9 @@ export class PluginInstaller extends SimpleEventEmitter {
 
       this.emit('install-completed', { installId, plugin });
       return plugin;
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('install-error', { installId, source, error: errorMessage });
       throw new Error(`Failed to install plugin: ${errorMessage}`);
     } finally {
@@ -102,11 +115,13 @@ export class PluginInstaller extends SimpleEventEmitter {
       this.installedPlugins.delete(pluginId);
 
       this.emit('uninstall-completed', { pluginId });
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('uninstall-error', { pluginId, error: errorMessage });
-      throw new Error(`Failed to uninstall plugin ${pluginId}: ${errorMessage}`);
+      throw new Error(
+        `Failed to uninstall plugin ${pluginId}: ${errorMessage}`,
+      );
     }
   }
 
@@ -123,7 +138,8 @@ export class PluginInstaller extends SimpleEventEmitter {
       }
 
       // 如果没有提供源，尝试从当前源更新
-      const updateSource = source || await this.getUpdateSource(currentPlugin);
+      const updateSource =
+        source || (await this.getUpdateSource(currentPlugin));
 
       // 备份当前插件
       const backup = await this.backupPlugin(currentPlugin);
@@ -132,20 +148,23 @@ export class PluginInstaller extends SimpleEventEmitter {
         // 安装新版本
         const updatedPlugin = await this.install({
           ...updateSource,
-          options: { ...updateSource.options, overwrite: true }
+          options: { ...updateSource.options, overwrite: true },
         });
 
-        this.emit('update-completed', { pluginId, oldVersion: currentPlugin.version, newVersion: updatedPlugin.version });
+        this.emit('update-completed', {
+          pluginId,
+          oldVersion: currentPlugin.version,
+          newVersion: updatedPlugin.version,
+        });
         return updatedPlugin;
-
       } catch (error) {
         // 如果更新失败，恢复备份
         await this.restorePlugin(backup);
         throw error;
       }
-
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       this.emit('update-error', { pluginId, error: errorMessage });
       throw new Error(`Failed to update plugin ${pluginId}: ${errorMessage}`);
     }
@@ -191,7 +210,6 @@ export class PluginInstaller extends SimpleEventEmitter {
       }
 
       return null;
-
     } catch (error) {
       console.warn(`Failed to check updates for plugin ${pluginId}:`, error);
       return null;
@@ -201,22 +219,30 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 从本地安装插件
    */
-  private async installFromLocal(localPath: string, installId: string): Promise<IPlugin> {
+  private async installFromLocal(
+    localPath: string,
+    installId: string,
+  ): Promise<IPlugin> {
     this.reportProgress(installId, 'downloading', 0, 'Reading local plugin...');
 
     try {
       // 检查路径是否存在
-      if (!await this.pathExists(localPath)) {
+      if (!(await this.pathExists(localPath))) {
         throw new Error(`Local path does not exist: ${localPath}`);
       }
 
       // 读取插件配置文件
       const configPath = this.joinPath(localPath, 'plugin.json');
-      if (!await this.pathExists(configPath)) {
+      if (!(await this.pathExists(configPath))) {
         throw new Error(`Plugin configuration file not found: ${configPath}`);
       }
 
-      this.reportProgress(installId, 'validating', 30, 'Validating plugin configuration...');
+      this.reportProgress(
+        installId,
+        'validating',
+        30,
+        'Validating plugin configuration...',
+      );
 
       const configContent = await this.readFile(configPath);
       const pluginConfig = JSON.parse(configContent);
@@ -240,11 +266,16 @@ export class PluginInstaller extends SimpleEventEmitter {
           category: pluginConfig.category || 'General',
           color: pluginConfig.color || '#1890ff',
           tags: pluginConfig.tags || [],
-          ...pluginConfig.metadata
-        }
+          ...pluginConfig.metadata,
+        },
       };
 
-      this.reportProgress(installId, 'installing', 60, 'Installing plugin files...');
+      this.reportProgress(
+        installId,
+        'installing',
+        60,
+        'Installing plugin files...',
+      );
 
       // 复制插件文件到临时目录
       const tempPluginPath = this.joinPath(this.tempDirectory, installId);
@@ -253,10 +284,14 @@ export class PluginInstaller extends SimpleEventEmitter {
       // 验证插件结构
       await this.validatePluginStructure(tempPluginPath, plugin);
 
-      this.reportProgress(installId, 'completed', 100, 'Plugin installation completed');
+      this.reportProgress(
+        installId,
+        'completed',
+        100,
+        'Plugin installation completed',
+      );
 
       return plugin;
-
     } catch (error) {
       throw new Error(`Failed to install from local path: ${error}`);
     }
@@ -265,19 +300,31 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 从URL安装插件
    */
-  private async installFromURL(url: string, installId: string): Promise<IPlugin> {
-    this.reportProgress(installId, 'downloading', 0, 'Downloading plugin from URL...');
+  private async installFromURL(
+    url: string,
+    installId: string,
+  ): Promise<IPlugin> {
+    this.reportProgress(
+      installId,
+      'downloading',
+      0,
+      'Downloading plugin from URL...',
+    );
 
     try {
       // 下载插件
       const tempPluginPath = this.joinPath(this.tempDirectory, installId);
       await this.downloadPlugin(url, tempPluginPath, (progress) => {
-        this.reportProgress(installId, 'downloading', progress, `Downloading plugin... ${progress}%`);
+        this.reportProgress(
+          installId,
+          'downloading',
+          progress,
+          `Downloading plugin... ${progress}%`,
+        );
       });
 
       // 从下载的文件安装
       return await this.installFromLocal(tempPluginPath, installId);
-
     } catch (error) {
       throw new Error(`Failed to install from URL: ${error}`);
     }
@@ -286,20 +333,42 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 从市场安装插件
    */
-  private async installFromMarket(marketId: string, installId: string): Promise<IPlugin> {
-    this.reportProgress(installId, 'downloading', 0, 'Fetching plugin from marketplace...');
+  private async installFromMarket(
+    marketId: string,
+    installId: string,
+  ): Promise<IPlugin> {
+    this.reportProgress(
+      installId,
+      'downloading',
+      0,
+      'Fetching plugin from marketplace...',
+    );
 
     try {
       // 获取插件详情
       const pluginDetails = await this.getPluginFromMarket(marketId);
 
-      this.reportProgress(installId, 'downloading', 20, 'Downloading plugin files...');
+      this.reportProgress(
+        installId,
+        'downloading',
+        20,
+        'Downloading plugin files...',
+      );
 
       // 下载插件文件
       const tempPluginPath = this.joinPath(this.tempDirectory, installId);
-      await this.downloadPlugin(pluginDetails.downloadUrl, tempPluginPath, (progress) => {
-        this.reportProgress(installId, 'downloading', 20 + progress * 0.6, `Downloading plugin... ${20 + progress * 0.6}%`);
-      });
+      await this.downloadPlugin(
+        pluginDetails.downloadUrl,
+        tempPluginPath,
+        (progress) => {
+          this.reportProgress(
+            installId,
+            'downloading',
+            20 + progress * 0.6,
+            `Downloading plugin... ${20 + progress * 0.6}%`,
+          );
+        },
+      );
 
       // 从下载的文件安装
       const plugin = await this.installFromLocal(tempPluginPath, installId);
@@ -309,11 +378,10 @@ export class PluginInstaller extends SimpleEventEmitter {
         ...plugin.metadata,
         marketplaceId: marketId,
         downloads: pluginDetails.downloads,
-        rating: pluginDetails.rating
+        rating: pluginDetails.rating,
       };
 
       return plugin;
-
     } catch (error) {
       throw new Error(`Failed to install from marketplace: ${error}`);
     }
@@ -322,24 +390,48 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 从注册表安装插件
    */
-  private async installFromRegistry(registry: { name: string; version?: string }, installId: string): Promise<IPlugin> {
-    this.reportProgress(installId, 'downloading', 0, 'Fetching plugin from registry...');
+  private async installFromRegistry(
+    registry: { name: string; version?: string },
+    installId: string,
+  ): Promise<IPlugin> {
+    this.reportProgress(
+      installId,
+      'downloading',
+      0,
+      'Fetching plugin from registry...',
+    );
 
     try {
       // 从npm注册表获取包
-      const packageInfo = await this.getPackageFromRegistry(registry.name, registry.version);
+      const packageInfo = await this.getPackageFromRegistry(
+        registry.name,
+        registry.version,
+      );
 
-      this.reportProgress(installId, 'downloading', 20, 'Downloading package...');
+      this.reportProgress(
+        installId,
+        'downloading',
+        20,
+        'Downloading package...',
+      );
 
       // 下载包
       const tempPluginPath = this.joinPath(this.tempDirectory, installId);
-      await this.downloadPackage(packageInfo.tarball, tempPluginPath, (progress) => {
-        this.reportProgress(installId, 'downloading', 20 + progress * 0.6, `Downloading package... ${20 + progress * 0.6}%`);
-      });
+      await this.downloadPackage(
+        packageInfo.tarball,
+        tempPluginPath,
+        (progress) => {
+          this.reportProgress(
+            installId,
+            'downloading',
+            20 + progress * 0.6,
+            `Downloading package... ${20 + progress * 0.6}%`,
+          );
+        },
+      );
 
       // 从下载的包安装
       return await this.installFromLocal(tempPluginPath, installId);
-
     } catch (error) {
       throw new Error(`Failed to install from registry: ${error}`);
     }
@@ -359,16 +451,23 @@ export class PluginInstaller extends SimpleEventEmitter {
 
     // 验证ID格式
     if (!/^[a-z0-9-]+$/.test(config.id)) {
-      throw new Error('Plugin ID must contain only lowercase letters, numbers, and hyphens');
+      throw new Error(
+        'Plugin ID must contain only lowercase letters, numbers, and hyphens',
+      );
     }
 
     // 验证版本格式
     if (!/^\d+\.\d+\.\d+/.test(config.version)) {
-      throw new Error('Plugin version must follow semantic versioning (e.g., 1.0.0)');
+      throw new Error(
+        'Plugin version must follow semantic versioning (e.g., 1.0.0)',
+      );
     }
 
     // 验证节点定义
-    if (!config.nodeDefinition.parameters || !Array.isArray(config.nodeDefinition.parameters)) {
+    if (
+      !config.nodeDefinition.parameters ||
+      !Array.isArray(config.nodeDefinition.parameters)
+    ) {
       throw new Error('Node definition must have parameters array');
     }
   }
@@ -376,13 +475,16 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 验证插件结构
    */
-  private async validatePluginStructure(pluginPath: string, plugin: IPlugin): Promise<void> {
+  private async validatePluginStructure(
+    pluginPath: string,
+    plugin: IPlugin,
+  ): Promise<void> {
     // 检查必要文件
     const requiredFiles = ['plugin.json'];
 
     for (const file of requiredFiles) {
       const filePath = this.joinPath(pluginPath, file);
-      if (!await this.pathExists(filePath)) {
+      if (!(await this.pathExists(filePath))) {
         throw new Error(`Required file not found: ${file}`);
       }
     }
@@ -390,15 +492,17 @@ export class PluginInstaller extends SimpleEventEmitter {
     // 检查后端配置
     if (plugin.backend) {
       const backendPath = this.joinPath(pluginPath, plugin.backend.entryPoint);
-      if (!await this.pathExists(backendPath)) {
-        throw new Error(`Backend entry point not found: ${plugin.backend.entryPoint}`);
+      if (!(await this.pathExists(backendPath))) {
+        throw new Error(
+          `Backend entry point not found: ${plugin.backend.entryPoint}`,
+        );
       }
 
       // 检查依赖文件
       if (plugin.backend.dependencies) {
         for (const depFile of plugin.backend.dependencies) {
           const depPath = this.joinPath(pluginPath, depFile);
-          if (!await this.pathExists(depPath)) {
+          if (!(await this.pathExists(depPath))) {
             throw new Error(`Dependency file not found: ${depFile}`);
           }
         }
@@ -409,11 +513,19 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 安装插件文件
    */
-  private async installPluginFiles(plugin: IPlugin, installId: string): Promise<void> {
+  private async installPluginFiles(
+    plugin: IPlugin,
+    installId: string,
+  ): Promise<void> {
     const tempPluginPath = this.joinPath(this.tempDirectory, installId);
     const pluginPath = this.joinPath(this.pluginsDirectory, plugin.id);
 
-    this.reportProgress(installId, 'configuring', 80, 'Installing plugin files...');
+    this.reportProgress(
+      installId,
+      'configuring',
+      80,
+      'Installing plugin files...',
+    );
 
     // 如果插件已存在，先删除
     if (await this.pathExists(pluginPath)) {
@@ -430,17 +542,23 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 保存安装记录
    */
-  private async saveInstallRecord(plugin: IPlugin, source: PluginSource): Promise<void> {
+  private async saveInstallRecord(
+    plugin: IPlugin,
+    source: PluginSource,
+  ): Promise<void> {
     const record = {
       pluginId: plugin.id,
       name: plugin.name,
       version: plugin.version,
       installedAt: new Date().toISOString(),
       source,
-      plugin
+      plugin,
     };
 
-    const recordsPath = this.joinPath(this.pluginsDirectory, 'install-records.json');
+    const recordsPath = this.joinPath(
+      this.pluginsDirectory,
+      'install-records.json',
+    );
     let records: any[] = [];
 
     if (await this.pathExists(recordsPath)) {
@@ -459,9 +577,12 @@ export class PluginInstaller extends SimpleEventEmitter {
    * 移除安装记录
    */
   private async removeInstallRecord(pluginId: string): Promise<void> {
-    const recordsPath = this.joinPath(this.pluginsDirectory, 'install-records.json');
+    const recordsPath = this.joinPath(
+      this.pluginsDirectory,
+      'install-records.json',
+    );
 
-    if (!await this.pathExists(recordsPath)) {
+    if (!(await this.pathExists(recordsPath))) {
       return;
     }
 
@@ -476,7 +597,12 @@ export class PluginInstaller extends SimpleEventEmitter {
   /**
    * 报告安装进度
    */
-  private reportProgress(installId: string, stage: InstallProgress['stage'], progress: number, message: string): void {
+  private reportProgress(
+    installId: string,
+    stage: InstallProgress['stage'],
+    progress: number,
+    message: string,
+  ): void {
     const progressInfo: InstallProgress = { stage, progress, message };
     this.emit('install-progress', { installId, progress: progressInfo });
   }
@@ -550,7 +676,7 @@ export class PluginInstaller extends SimpleEventEmitter {
     // 暂时返回市场源
     return {
       type: 'market',
-      marketId: plugin.id
+      marketId: plugin.id,
     };
   }
 
@@ -602,7 +728,10 @@ export class PluginInstaller extends SimpleEventEmitter {
     // 实现目录删除
   }
 
-  private async setPluginPermissions(path: string, plugin: IPlugin): Promise<void> {
+  private async setPluginPermissions(
+    path: string,
+    plugin: IPlugin,
+  ): Promise<void> {
     // 实现权限设置
   }
 
@@ -611,12 +740,20 @@ export class PluginInstaller extends SimpleEventEmitter {
     return paths.join('/');
   }
 
-  private async downloadPlugin(url: string, dest: string, onProgress?: (progress: number) => void): Promise<void> {
+  private async downloadPlugin(
+    url: string,
+    dest: string,
+    onProgress?: (progress: number) => void,
+  ): Promise<void> {
     // 实现插件下载
     console.log('Downloading plugin from:', url, 'to:', dest);
   }
 
-  private async downloadPackage(tarball: string, dest: string, onProgress?: (progress: number) => void): Promise<void> {
+  private async downloadPackage(
+    tarball: string,
+    dest: string,
+    onProgress?: (progress: number) => void,
+  ): Promise<void> {
     // 实现包下载
     console.log('Downloading package from:', tarball, 'to:', dest);
   }
@@ -626,7 +763,10 @@ export class PluginInstaller extends SimpleEventEmitter {
     return { downloadUrl: '', downloads: 0, rating: 0 };
   }
 
-  private async getPackageFromRegistry(name: string, version?: string): Promise<any> {
+  private async getPackageFromRegistry(
+    name: string,
+    version?: string,
+  ): Promise<any> {
     // 实现从注册表获取包信息
     return { tarball: '' };
   }
@@ -642,7 +782,7 @@ export class PluginInstaller extends SimpleEventEmitter {
       downloads: 0,
       rating: 0,
       tags: plugin.metadata.tags,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
   }
 }

@@ -91,10 +91,10 @@ export interface ConfigCanvasState {
 
 // 配置编辑器模式
 export type ConfigEditMode =
-  | 'view'      // 查看模式
-  | 'edit'      // 编辑模式
-  | 'connect'   // 连接模式
-  | 'debug';    // 调试模式
+  | 'view' // 查看模式
+  | 'edit' // 编辑模式
+  | 'connect' // 连接模式
+  | 'debug'; // 调试模式
 
 // 配置验证结果
 export interface ConfigValidation {
@@ -148,11 +148,11 @@ export interface ConfigUpdateOperation {
 
 // 配置画布布局算法
 export type ConfigLayoutAlgorithm =
-  | 'force'      // 力导向布局
+  | 'force' // 力导向布局
   | 'hierarchical' // 层次布局
-  | 'circular'   // 圆形布局
-  | 'grid'       // 网格布局
-  | 'tree';      // 树形布局
+  | 'circular' // 圆形布局
+  | 'grid' // 网格布局
+  | 'tree'; // 树形布局
 
 // 配置节点渲染器
 export interface ConfigNodeRenderer {

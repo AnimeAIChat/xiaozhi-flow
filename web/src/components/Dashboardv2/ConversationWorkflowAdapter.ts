@@ -1,8 +1,12 @@
-import { workflowService, Workflow, WorkflowNode, WorkflowEdge } from '../../services/workflowService';
-import { SimpleNode, SimpleConnection } from './SimpleReteEditor';
+import {
+  type Workflow,
+  WorkflowEdge,
+  WorkflowNode,
+  workflowService,
+} from '../../services/workflowService';
+import type { SimpleConnection, SimpleNode } from './SimpleReteEditor';
 
 export class ConversationWorkflowAdapter {
-  
   async getWorkflow(workflowId: string): Promise<Workflow> {
     try {
       return await workflowService.getCurrentWorkflow();
@@ -12,11 +16,15 @@ export class ConversationWorkflowAdapter {
     }
   }
 
-  async saveWorkflow(workflowId: string, nodes: SimpleNode[], connections: SimpleConnection[]): Promise<void> {
+  async saveWorkflow(
+    workflowId: string,
+    nodes: SimpleNode[],
+    connections: SimpleConnection[],
+  ): Promise<void> {
     const workflow = await this.getWorkflow(workflowId);
-    
+
     // Update nodes
-    workflow.nodes = nodes.map(node => ({
+    workflow.nodes = nodes.map((node) => ({
       id: node.id,
       name: node.data.label,
       type: 'task', // Default to task
@@ -25,21 +33,21 @@ export class ConversationWorkflowAdapter {
       inputs: node.data.inputs || [],
       outputs: node.data.outputs || [],
       position: { x: node.x, y: node.y },
-      config: node.data.config || {}
+      config: node.data.config || {},
     }));
 
     // Update edges
-    workflow.edges = connections.map(conn => ({
+    workflow.edges = connections.map((conn) => ({
       id: conn.id,
       from: conn.from,
-      to: conn.to
+      to: conn.to,
     }));
 
     await workflowService.saveWorkflow(workflow);
   }
 
   convertWorkflowToEditorNodes(workflow: Workflow): SimpleNode[] {
-    return workflow.nodes.map(node => ({
+    return workflow.nodes.map((node) => ({
       id: node.id,
       x: node.position.x,
       y: node.position.y,
@@ -51,18 +59,18 @@ export class ConversationWorkflowAdapter {
         outputs: node.outputs,
         config: node.config,
         plugin: node.plugin,
-        status: 'pending' // Default status
-      }
+        status: 'pending', // Default status
+      },
     }));
   }
 
   convertWorkflowToEditorConnections(workflow: Workflow): SimpleConnection[] {
-    return workflow.edges.map(edge => ({
+    return workflow.edges.map((edge) => ({
       id: edge.id,
       from: edge.from,
       to: edge.to,
       fromOutput: 'output', // Default
-      toInput: 'input' // Default
+      toInput: 'input', // Default
     }));
   }
 

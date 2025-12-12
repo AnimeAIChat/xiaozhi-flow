@@ -1,6 +1,6 @@
-import React from 'react';
-import { NodeProps } from 'rete-react-plugin';
+import type React from 'react';
 import { ClassicPreset } from 'rete';
+import type { NodeProps } from 'rete-react-plugin';
 import { getIconByNodeType, getStatusColor } from '../../../utils/nodeUtils';
 
 // 节点数据类型
@@ -15,7 +15,7 @@ export interface StartupNodeData {
 export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
   data,
   selected,
-  id
+  id,
 }) => {
   const nodeData = data as StartupNodeData;
 
@@ -35,13 +35,18 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
         padding: '12px',
         minWidth: '180px',
         maxWidth: '240px',
-        boxShadow: selected ? '0 4px 12px rgba(0, 0, 0, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+        boxShadow: selected
+          ? '0 4px 12px rgba(0, 0, 0, 0.15)'
+          : '0 2px 8px rgba(0, 0, 0, 0.1)',
         cursor: 'pointer',
-        transition: 'all 0.2s ease'
+        transition: 'all 0.2s ease',
       }}
     >
       {/* 节点头部 */}
-      <div className="startup-node__header" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
+      <div
+        className="startup-node__header"
+        style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}
+      >
         <div
           className="startup-node__icon"
           style={{
@@ -52,7 +57,7 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
             alignItems: 'center',
             justifyContent: 'center',
             color: getStatusColor(nodeData.type),
-            fontSize: '16px'
+            fontSize: '16px',
           }}
         >
           {getIconByNodeType(nodeData.type)}
@@ -66,7 +71,7 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
             flex: 1,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
           }}
         >
           {nodeData.label}
@@ -81,7 +86,8 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
             borderRadius: '50%',
             backgroundColor: getStatusColor(nodeData.status),
             marginLeft: '8px',
-            animation: nodeData.status === 'running' ? 'pulse 2s infinite' : 'none'
+            animation:
+              nodeData.status === 'running' ? 'pulse 2s infinite' : 'none',
           }}
         />
       </div>
@@ -94,7 +100,7 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
             fontSize: '12px',
             color: '#6b7280',
             marginBottom: '8px',
-            lineHeight: '1.4'
+            lineHeight: '1.4',
           }}
         >
           {nodeData.description}
@@ -108,20 +114,28 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
           style={{
             fontSize: '11px',
             color: '#9ca3af',
-            marginBottom: '8px'
+            marginBottom: '8px',
           }}
         >
-          {Object.entries(nodeData.metrics).slice(0, 2).map(([key, value]) => (
-            <div key={key} style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span>{key}:</span>
-              <span style={{ fontWeight: '500' }}>{value}</span>
-            </div>
-          ))}
+          {Object.entries(nodeData.metrics)
+            .slice(0, 2)
+            .map(([key, value]) => (
+              <div
+                key={key}
+                style={{ display: 'flex', justifyContent: 'space-between' }}
+              >
+                <span>{key}:</span>
+                <span style={{ fontWeight: '500' }}>{value}</span>
+              </div>
+            ))}
         </div>
       )}
 
       {/* 连接点 */}
-      <div className="startup-node__connections" style={{ display: 'flex', justifyContent: 'space-between' }}>
+      <div
+        className="startup-node__connections"
+        style={{ display: 'flex', justifyContent: 'space-between' }}
+      >
         {/* 输入连接点 */}
         {nodeData.type !== 'database' && (
           <div
@@ -136,7 +150,7 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
               left: '-6px',
               top: '50%',
               transform: 'translateY(-50%)',
-              cursor: 'crosshair'
+              cursor: 'crosshair',
             }}
             title="输入连接点"
           />
@@ -156,7 +170,7 @@ export const StartupNode: React.FC<NodeProps<StartupNodeComponent>> = ({
               right: '-6px',
               top: '50%',
               transform: 'translateY(-50%)',
-              cursor: 'crosshair'
+              cursor: 'crosshair',
             }}
             title="输出连接点"
           />

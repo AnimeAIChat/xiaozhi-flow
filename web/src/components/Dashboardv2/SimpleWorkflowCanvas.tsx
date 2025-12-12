@@ -1,6 +1,13 @@
-import React from 'react';
-import { Card, Typography, Space, Button, Tag } from 'antd';
-import { DatabaseOutlined, ApiOutlined, RobotOutlined, CloudOutlined, SettingOutlined, PlayCircleOutlined } from '@ant-design/icons';
+import {
+  ApiOutlined,
+  CloudOutlined,
+  DatabaseOutlined,
+  PlayCircleOutlined,
+  RobotOutlined,
+  SettingOutlined,
+} from '@ant-design/icons';
+import { Button, Card, Space, Tag, Typography } from 'antd';
+import type React from 'react';
 
 const { Title, Paragraph } = Typography;
 
@@ -11,7 +18,7 @@ interface SimpleWorkflowCanvasProps {
 
 export const SimpleWorkflowCanvas: React.FC<SimpleWorkflowCanvasProps> = ({
   title,
-  description
+  description,
 }) => {
   return (
     <div className="w-full h-full flex items-center justify-center bg-gray-50">
@@ -28,7 +35,9 @@ export const SimpleWorkflowCanvas: React.FC<SimpleWorkflowCanvasProps> = ({
 
           {/* 示例节点展示 */}
           <div className="mb-8">
-            <Title level={4} className="text-gray-700 mb-4">可用节点类型</Title>
+            <Title level={4} className="text-gray-700 mb-4">
+              可用节点类型
+            </Title>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <NodeCard
                 icon={<DatabaseOutlined style={{ fontSize: '24px' }} />}
@@ -65,7 +74,9 @@ export const SimpleWorkflowCanvas: React.FC<SimpleWorkflowCanvasProps> = ({
 
           {/* 特性展示 */}
           <div className="mb-8">
-            <Title level={4} className="text-gray-700 mb-4">Rete.js 特性</Title>
+            <Title level={4} className="text-gray-700 mb-4">
+              Rete.js 特性
+            </Title>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FeatureCard
                 title="模块化架构"
@@ -97,9 +108,7 @@ export const SimpleWorkflowCanvas: React.FC<SimpleWorkflowCanvasProps> = ({
               >
                 开始使用
               </Button>
-              <Button size="large">
-                查看文档
-              </Button>
+              <Button size="large">查看文档</Button>
             </Space>
           </div>
 
@@ -128,14 +137,23 @@ interface NodeCardProps {
   color: string;
 }
 
-const NodeCard: React.FC<NodeCardProps> = ({ icon, title, description, color }) => {
+const NodeCard: React.FC<NodeCardProps> = ({
+  icon,
+  title,
+  description,
+  color,
+}) => {
   return (
     <Card
       className="text-center hover:shadow-md transition-shadow duration-200"
       size="small"
     >
-      <div className="mb-2" style={{ color }}>{icon}</div>
-      <Title level={5} className="mb-2">{title}</Title>
+      <div className="mb-2" style={{ color }}>
+        {icon}
+      </div>
+      <Title level={5} className="mb-2">
+        {title}
+      </Title>
       <Paragraph className="text-gray-600 text-sm mb-0">
         {description}
       </Paragraph>
@@ -151,7 +169,9 @@ interface FeatureCardProps {
 const FeatureCard: React.FC<FeatureCardProps> = ({ title, description }) => {
   return (
     <Card size="small" className="h-full">
-      <Title level={5} className="mb-2 text-blue-600">{title}</Title>
+      <Title level={5} className="mb-2 text-blue-600">
+        {title}
+      </Title>
       <Paragraph className="text-gray-600 text-sm mb-0">
         {description}
       </Paragraph>

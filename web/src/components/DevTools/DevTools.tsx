@@ -1,19 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Drawer, Tabs, Typography, Button, Space, Card, Statistic, Table, Tag, Collapse, Divider } from 'antd';
 import {
-  BugOutlined,
   ApiOutlined,
-  DashboardOutlined,
+  BugOutlined,
   ClearOutlined,
+  DashboardOutlined,
   DownloadOutlined,
-  ReloadOutlined,
   InfoCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
-import { logger, log } from '../../utils/logger';
+import {
+  Button,
+  Card,
+  Collapse,
+  Divider,
+  Drawer,
+  Space,
+  Statistic,
+  Table,
+  Tabs,
+  Tag,
+  Typography,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { apiService } from '../../services/api';
 import { envConfig } from '../../utils/envConfig';
-import type { ColumnsType } from 'antd/es/table';
 import type { LogEntry } from '../../utils/logger';
+import { log, logger } from '../../utils/logger';
 
 const { Title, Text, Paragraph } = Typography;
 const { TabPane } = Tabs;
@@ -156,7 +169,8 @@ const DevTools: React.FC = () => {
       width: 80,
       render: (status: number) => {
         if (!status) return '-';
-        const color = status >= 400 ? 'red' : status >= 300 ? 'orange' : 'green';
+        const color =
+          status >= 400 ? 'red' : status >= 300 ? 'orange' : 'green';
         return <Tag color={color}>{status}</Tag>;
       },
     },
@@ -167,7 +181,8 @@ const DevTools: React.FC = () => {
       width: 100,
       render: (duration: number) => {
         if (!duration) return '-';
-        const color = duration > 2000 ? 'red' : duration > 1000 ? 'orange' : 'green';
+        const color =
+          duration > 2000 ? 'red' : duration > 1000 ? 'orange' : 'green';
         return <Tag color={color}>{duration}ms</Tag>;
       },
     },
@@ -214,7 +229,10 @@ const DevTools: React.FC = () => {
         onClose={() => setVisible(false)}
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => window.location.reload()}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={() => window.location.reload()}
+            >
               刷新页面
             </Button>
           </Space>
@@ -222,16 +240,36 @@ const DevTools: React.FC = () => {
       >
         <Tabs defaultActiveKey="overview">
           {/* 概览页 */}
-          <TabPane tab={<span><DashboardOutlined />概览</span>} key="overview">
+          <TabPane
+            tab={
+              <span>
+                <DashboardOutlined />
+                概览
+              </span>
+            }
+            key="overview"
+          >
             <Space direction="vertical" style={{ width: '100%' }} size="large">
               {/* 环境信息 */}
               <Card title="环境信息" size="small">
                 <Space direction="vertical" style={{ width: '100%' }}>
-                  <Text><strong>环境:</strong> {envConfig.appEnv}</Text>
-                  <Text><strong>调试模式:</strong> {envConfig.debug ? '启用' : '禁用'}</Text>
-                  <Text><strong>API地址:</strong> {envConfig.apiBaseUrl}</Text>
-                  <Text><strong>日志级别:</strong> {envConfig.logLevel}</Text>
-                  <Text><strong>SourceMap:</strong> {envConfig.enableSourceMap ? '启用' : '禁用'}</Text>
+                  <Text>
+                    <strong>环境:</strong> {envConfig.appEnv}
+                  </Text>
+                  <Text>
+                    <strong>调试模式:</strong>{' '}
+                    {envConfig.debug ? '启用' : '禁用'}
+                  </Text>
+                  <Text>
+                    <strong>API地址:</strong> {envConfig.apiBaseUrl}
+                  </Text>
+                  <Text>
+                    <strong>日志级别:</strong> {envConfig.logLevel}
+                  </Text>
+                  <Text>
+                    <strong>SourceMap:</strong>{' '}
+                    {envConfig.enableSourceMap ? '启用' : '禁用'}
+                  </Text>
                 </Space>
               </Card>
 
@@ -241,10 +279,18 @@ const DevTools: React.FC = () => {
                 size="small"
                 extra={
                   <Space>
-                    <Button icon={<ClearOutlined />} size="small" onClick={handleClearLogs}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      size="small"
+                      onClick={handleClearLogs}
+                    >
                       清空
                     </Button>
-                    <Button icon={<DownloadOutlined />} size="small" onClick={handleExportLogs}>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      size="small"
+                      onClick={handleExportLogs}
+                    >
                       导出
                     </Button>
                   </Space>
@@ -252,9 +298,21 @@ const DevTools: React.FC = () => {
               >
                 <Space wrap>
                   <Statistic title="总数" value={logStats.total || 0} />
-                  <Statistic title="信息" value={logStats.info || 0} valueStyle={{ color: '#1890ff' }} />
-                  <Statistic title="警告" value={logStats.warn || 0} valueStyle={{ color: '#faad14' }} />
-                  <Statistic title="错误" value={logStats.error || 0} valueStyle={{ color: '#ff4d4f' }} />
+                  <Statistic
+                    title="信息"
+                    value={logStats.info || 0}
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                  <Statistic
+                    title="警告"
+                    value={logStats.warn || 0}
+                    valueStyle={{ color: '#faad14' }}
+                  />
+                  <Statistic
+                    title="错误"
+                    value={logStats.error || 0}
+                    valueStyle={{ color: '#ff4d4f' }}
+                  />
                 </Space>
               </Card>
 
@@ -264,10 +322,18 @@ const DevTools: React.FC = () => {
                 size="small"
                 extra={
                   <Space>
-                    <Button icon={<ClearOutlined />} size="small" onClick={handleClearApiHistory}>
+                    <Button
+                      icon={<ClearOutlined />}
+                      size="small"
+                      onClick={handleClearApiHistory}
+                    >
                       清空
                     </Button>
-                    <Button icon={<DownloadOutlined />} size="small" onClick={handleExportApiHistory}>
+                    <Button
+                      icon={<DownloadOutlined />}
+                      size="small"
+                      onClick={handleExportApiHistory}
+                    >
                       导出
                     </Button>
                   </Space>
@@ -275,11 +341,22 @@ const DevTools: React.FC = () => {
               >
                 <Space wrap>
                   <Statistic title="总调用" value={apiStats.totalCalls || 0} />
-                  <Statistic title="成功" value={apiStats.successCalls || 0} valueStyle={{ color: '#52c41a' }} />
-                  <Statistic title="失败" value={apiStats.errorCalls || 0} valueStyle={{ color: '#ff4d4f' }} />
+                  <Statistic
+                    title="成功"
+                    value={apiStats.successCalls || 0}
+                    valueStyle={{ color: '#52c41a' }}
+                  />
+                  <Statistic
+                    title="失败"
+                    value={apiStats.errorCalls || 0}
+                    valueStyle={{ color: '#ff4d4f' }}
+                  />
                   <Statistic
                     title="平均耗时"
-                    value={Math.round((apiStats.averageResponseTime || 0) * 100) / 100}
+                    value={
+                      Math.round((apiStats.averageResponseTime || 0) * 100) /
+                      100
+                    }
                     suffix="ms"
                     valueStyle={{ color: '#722ed1' }}
                   />
@@ -289,15 +366,45 @@ const DevTools: React.FC = () => {
           </TabPane>
 
           {/* 日志页 */}
-          <TabPane tab={<span><BugOutlined />日志</span>} key="logs">
+          <TabPane
+            tab={
+              <span>
+                <BugOutlined />
+                日志
+              </span>
+            }
+            key="logs"
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               <Space>
                 <Text strong>日志级别过滤:</Text>
-                <Button size="small" onClick={() => setLogs(logger.getLogs())}>全部</Button>
-                <Button size="small" onClick={() => setLogs(logger.getLogsByLevel(3))}>错误</Button>
-                <Button size="small" onClick={() => setLogs(logger.getLogsByLevel(2))}>警告</Button>
-                <Button size="small" onClick={() => setLogs(logger.getLogsByLevel(1))}>信息</Button>
-                <Button size="small" onClick={() => setLogs(logger.getLogsByLevel(0))}>调试</Button>
+                <Button size="small" onClick={() => setLogs(logger.getLogs())}>
+                  全部
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setLogs(logger.getLogsByLevel(3))}
+                >
+                  错误
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setLogs(logger.getLogsByLevel(2))}
+                >
+                  警告
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setLogs(logger.getLogsByLevel(1))}
+                >
+                  信息
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => setLogs(logger.getLogsByLevel(0))}
+                >
+                  调试
+                </Button>
               </Space>
 
               <Table
@@ -312,17 +419,43 @@ const DevTools: React.FC = () => {
           </TabPane>
 
           {/* API页 */}
-          <TabPane tab={<span><ApiOutlined />API</span>} key="api">
+          <TabPane
+            tab={
+              <span>
+                <ApiOutlined />
+                API
+              </span>
+            }
+            key="api"
+          >
             <Space direction="vertical" style={{ width: '100%' }}>
               <Space>
                 <Text strong>API分类过滤:</Text>
-                <Button size="small" onClick={() => setApiHistory(apiService.getApiHistory())}>全部</Button>
-                {Object.keys(apiStats.categories || {}).map(category => (
-                  <Button size="small" key={category} onClick={() => setApiHistory(apiService.getApiHistoryByCategory(category))}>
+                <Button
+                  size="small"
+                  onClick={() => setApiHistory(apiService.getApiHistory())}
+                >
+                  全部
+                </Button>
+                {Object.keys(apiStats.categories || {}).map((category) => (
+                  <Button
+                    size="small"
+                    key={category}
+                    onClick={() =>
+                      setApiHistory(
+                        apiService.getApiHistoryByCategory(category),
+                      )
+                    }
+                  >
                     {category}
                   </Button>
                 ))}
-                <Button size="small" onClick={() => setApiHistory(apiService.getErrorHistory())}>仅错误</Button>
+                <Button
+                  size="small"
+                  onClick={() => setApiHistory(apiService.getErrorHistory())}
+                >
+                  仅错误
+                </Button>
               </Space>
 
               <Table
@@ -337,12 +470,30 @@ const DevTools: React.FC = () => {
                     <Collapse ghost size="small">
                       <Panel header="详细信息" key="details">
                         <Space direction="vertical" style={{ width: '100%' }}>
-                          <Text><strong>ID:</strong> {record.id}</Text>
-                          <Text><strong>分类:</strong> {record.category}</Text>
-                          <Text><strong>参数:</strong> {JSON.stringify(record.params, null, 2)}</Text>
-                          <Text><strong>请求体:</strong> {JSON.stringify(record.data, null, 2)}</Text>
-                          <Text><strong>响应:</strong> {JSON.stringify(record.response, null, 2)}</Text>
-                          {record.error && <Text><strong>错误:</strong> {JSON.stringify(record.error, null, 2)}</Text>}
+                          <Text>
+                            <strong>ID:</strong> {record.id}
+                          </Text>
+                          <Text>
+                            <strong>分类:</strong> {record.category}
+                          </Text>
+                          <Text>
+                            <strong>参数:</strong>{' '}
+                            {JSON.stringify(record.params, null, 2)}
+                          </Text>
+                          <Text>
+                            <strong>请求体:</strong>{' '}
+                            {JSON.stringify(record.data, null, 2)}
+                          </Text>
+                          <Text>
+                            <strong>响应:</strong>{' '}
+                            {JSON.stringify(record.response, null, 2)}
+                          </Text>
+                          {record.error && (
+                            <Text>
+                              <strong>错误:</strong>{' '}
+                              {JSON.stringify(record.error, null, 2)}
+                            </Text>
+                          )}
                         </Space>
                       </Panel>
                     </Collapse>

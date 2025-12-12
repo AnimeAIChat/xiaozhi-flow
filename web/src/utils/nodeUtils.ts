@@ -62,7 +62,9 @@ export const getTypeColor = (type: NodeType): string => {
 /**
  * 获取节点的默认尺寸
  */
-export const getNodeSize = (type: NodeType): { width: number; height: number } => {
+export const getNodeSize = (
+  type: NodeType,
+): { width: number; height: number } => {
   switch (type) {
     case 'database':
       return { width: 180, height: 100 };

@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
-import { Layout, Menu, Button, Typography, Avatar, Space } from 'antd';
 import {
   DashboardOutlined,
-  SettingOutlined,
   LoginOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   RobotOutlined,
+  SettingOutlined,
 } from '@ant-design/icons';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Avatar, Button, Layout, Menu, Space, Typography } from 'antd';
+import type React from 'react';
+import { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -65,7 +66,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               <span className="text-white font-bold text-sm">X</span>
             </div>
             {!collapsed && (
-              <span className="ml-3 text-lg font-medium text-gray-900">Xiaozhi</span>
+              <span className="ml-3 text-lg font-medium text-gray-900">
+                Xiaozhi
+              </span>
             )}
           </div>
         </div>
@@ -98,9 +101,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
         </Header>
 
         <Content className="bg-gray-50">
-          <div className="p-8">
-            {children}
-          </div>
+          <div className="p-8">{children}</div>
         </Content>
       </Layout>
     </Layout>

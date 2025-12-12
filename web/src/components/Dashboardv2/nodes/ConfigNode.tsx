@@ -1,4 +1,4 @@
-import { BaseNode, NodeData, renderNode } from './BaseNode';
+import { BaseNode, type NodeData, renderNode } from './BaseNode';
 
 export class ConfigNode extends BaseNode {
   constructor(id: string, label: string, data?: Partial<NodeData>) {
@@ -6,9 +6,9 @@ export class ConfigNode extends BaseNode {
       description: '配置管理节点',
       metrics: {
         variables: 0,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       },
-      ...data
+      ...data,
     });
   }
 }

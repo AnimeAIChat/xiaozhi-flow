@@ -1,5 +1,5 @@
+import type { Node } from 'rete';
 import { ContextMenuPlugin } from 'rete-context-menu-plugin';
-import { Node } from 'rete';
 import { log } from '../../../utils/logger';
 
 /**
@@ -18,7 +18,7 @@ export const createStartupContextMenu = () => {
               log.info('添加数据库节点', null, 'ui', 'ContextMenu');
               // TODO: 实现添加节点逻辑
             },
-            icon: '🗄️'
+            icon: '🗄️',
           },
           {
             label: '添加API节点',
@@ -26,7 +26,7 @@ export const createStartupContextMenu = () => {
               log.info('添加API节点', null, 'ui', 'ContextMenu');
               // TODO: 实现添加节点逻辑
             },
-            icon: '🔌'
+            icon: '🔌',
           },
           {
             label: '添加AI节点',
@@ -34,7 +34,7 @@ export const createStartupContextMenu = () => {
               log.info('添加AI节点', null, 'ui', 'ContextMenu');
               // TODO: 实现添加节点逻辑
             },
-            icon: '🤖'
+            icon: '🤖',
           },
           {
             label: '添加云服务节点',
@@ -42,7 +42,7 @@ export const createStartupContextMenu = () => {
               log.info('添加云服务节点', null, 'ui', 'ContextMenu');
               // TODO: 实现添加节点逻辑
             },
-            icon: '☁️'
+            icon: '☁️',
           },
           { type: 'separator' },
           {
@@ -51,7 +51,7 @@ export const createStartupContextMenu = () => {
               log.info('展开所有节点', null, 'ui', 'ContextMenu');
               // TODO: 实现展开逻辑
             },
-            icon: '📂'
+            icon: '📂',
           },
           {
             label: '全部折叠',
@@ -59,7 +59,7 @@ export const createStartupContextMenu = () => {
               log.info('折叠所有节点', null, 'ui', 'ContextMenu');
               // TODO: 实现折叠逻辑
             },
-            icon: '📁'
+            icon: '📁',
           },
           { type: 'separator' },
           {
@@ -68,8 +68,8 @@ export const createStartupContextMenu = () => {
               log.info('适应视图', null, 'ui', 'ContextMenu');
               // TODO: 实现适应视图逻辑
             },
-            icon: '🎯'
-          }
+            icon: '🎯',
+          },
         ];
       }
 
@@ -82,12 +82,17 @@ export const createStartupContextMenu = () => {
         {
           label: '编辑配置',
           action: () => {
-            log.info('编辑节点配置', { nodeId: node.id, nodeType }, 'ui', 'ContextMenu');
+            log.info(
+              '编辑节点配置',
+              { nodeId: node.id, nodeType },
+              'ui',
+              'ContextMenu',
+            );
             // TODO: 实现编辑配置逻辑
             showNodeConfigDialog(node.id);
           },
           icon: '⚙️',
-          shortcut: 'Ctrl+E'
+          shortcut: 'Ctrl+E',
         },
         {
           label: '查看详情',
@@ -96,7 +101,7 @@ export const createStartupContextMenu = () => {
             // TODO: 实现查看详情逻辑
             showNodeDetails(node.id);
           },
-          icon: '📋'
+          icon: '📋',
         },
         {
           label: '查看日志',
@@ -106,22 +111,27 @@ export const createStartupContextMenu = () => {
             showNodeLogs(node.id);
           },
           icon: '📄',
-          disabled: nodeStatus === 'stopped' // 停止状态下无法查看日志
+          disabled: nodeStatus === 'stopped', // 停止状态下无法查看日志
         },
         { type: 'separator' },
         {
           label: nodeStatus === 'running' ? '停止节点' : '启动节点',
           action: () => {
             const action = nodeStatus === 'running' ? 'stop' : 'start';
-            log.info(`${action === 'stop' ? '停止' : '启动'}节点`, { nodeId: node.id }, 'ui', 'ContextMenu');
+            log.info(
+              `${action === 'stop' ? '停止' : '启动'}节点`,
+              { nodeId: node.id },
+              'ui',
+              'ContextMenu',
+            );
             // TODO: 实现启动/停止逻辑
             toggleNodeStatus(node.id, action);
           },
           icon: nodeStatus === 'running' ? '⏹️' : '▶️',
           // 根据节点状态改变颜色
           style: {
-            color: nodeStatus === 'running' ? '#ff4d4f' : '#52c41a'
-          }
+            color: nodeStatus === 'running' ? '#ff4d4f' : '#52c41a',
+          },
         },
         {
           label: '重启节点',
@@ -131,31 +141,41 @@ export const createStartupContextMenu = () => {
             restartNode(node.id);
           },
           icon: '🔄',
-          disabled: nodeStatus === 'stopped' // 停止状态下无法重启
+          disabled: nodeStatus === 'stopped', // 停止状态下无法重启
         },
         { type: 'separator' },
         {
           label: '复制节点',
           action: () => {
-            log.info('复制节点', { nodeId: node.id, nodeType }, 'ui', 'ContextMenu');
+            log.info(
+              '复制节点',
+              { nodeId: node.id, nodeType },
+              'ui',
+              'ContextMenu',
+            );
             // TODO: 实现复制节点逻辑
             duplicateNode(node.id);
           },
           icon: '📋',
-          shortcut: 'Ctrl+D'
+          shortcut: 'Ctrl+D',
         },
         {
           label: '删除节点',
           action: () => {
-            log.info('删除节点', { nodeId: node.id, nodeType }, 'ui', 'ContextMenu');
+            log.info(
+              '删除节点',
+              { nodeId: node.id, nodeType },
+              'ui',
+              'ContextMenu',
+            );
             // TODO: 实现删除节点逻辑
             deleteNode(node.id);
           },
           icon: '🗑️',
           style: {
-            color: '#ff4d4f'
+            color: '#ff4d4f',
           },
-          shortcut: 'Delete'
+          shortcut: 'Delete',
         },
         { type: 'separator' },
         {
@@ -165,7 +185,7 @@ export const createStartupContextMenu = () => {
             // TODO: 实现查看依赖关系逻辑
             showNodeDependencies(node.id);
           },
-          icon: '🔗'
+          icon: '🔗',
         },
         {
           label: '高亮相关节点',
@@ -174,8 +194,8 @@ export const createStartupContextMenu = () => {
             // TODO: 实现高亮相关节点逻辑
             highlightRelatedNodes(node.id);
           },
-          icon: '✨'
-        }
+          icon: '✨',
+        },
       ];
     },
     // 菜单样式
@@ -185,7 +205,7 @@ export const createStartupContextMenu = () => {
     // 防止默认右键菜单
     preventDefault: true,
     // 菜单位置偏移
-    offset: { x: 0, y: 0 }
+    offset: { x: 0, y: 0 },
   });
 };
 

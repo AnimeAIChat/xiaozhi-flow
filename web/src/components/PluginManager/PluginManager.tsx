@@ -1,67 +1,72 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Card,
-  Tabs,
-  Table,
-  Button,
-  Space,
-  Tag,
-  Badge,
-  Tooltip,
-  Modal,
-  Form,
-  Input,
-  Upload,
-  message,
-  Progress,
-  Alert,
-  Divider,
-  Row,
-  Col,
-  Statistic,
-  List,
-  Avatar,
-  Typography,
-  Switch,
-  Dropdown,
-  Menu
-} from 'antd';
 import {
   AppstoreOutlined,
-  SettingOutlined,
-  CloudOutlined,
-  UploadOutlined,
-  DownloadOutlined,
-  DeleteOutlined,
-  EditOutlined,
-  ReloadOutlined,
-  PlayCircleOutlined,
-  StopOutlined,
-  EyeOutlined,
   CheckCircleOutlined,
-  ExclamationCircleOutlined,
   CloseCircleOutlined,
-  MoreOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  FilterOutlined,
+  CloudOutlined,
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  ExclamationCircleOutlined,
   ExportOutlined,
-  ImportOutlined
+  EyeOutlined,
+  FilterOutlined,
+  ImportOutlined,
+  MoreOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  SettingOutlined,
+  StopOutlined,
+  UploadOutlined,
 } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
-import { PluginMarket } from './PluginMarket';
-import { PluginList } from './PluginList';
-import { PluginInstaller } from './PluginInstaller';
-import { useInstalledPlugins, usePluginManagerState, useInstallationProgress } from '../../stores/useAppStore';
 import {
-  IPlugin,
+  Alert,
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Col,
+  Divider,
+  Dropdown,
+  Form,
+  Input,
+  List,
+  Menu,
+  Modal,
+  message,
+  Progress,
+  Row,
+  Space,
+  Statistic,
+  Switch,
+  Table,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+  Upload,
+} from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import type React from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { backendServiceManager } from '../../plugins/core/BackendServiceManager';
+import { pluginInstaller } from '../../plugins/core/PluginInstaller';
+import { pluginManager } from '../../plugins/core/PluginManager';
+import {
+  type IPlugin,
+  PluginConfig,
   PluginStatus,
   ServiceInfo,
-  PluginConfig
 } from '../../plugins/types';
-import { pluginManager } from '../../plugins/core/PluginManager';
-import { pluginInstaller } from '../../plugins/core/PluginInstaller';
-import { backendServiceManager } from '../../plugins/core/BackendServiceManager';
+import {
+  useInstallationProgress,
+  useInstalledPlugins,
+  usePluginManagerState,
+} from '../../stores/useAppStore';
+import { PluginInstaller } from './PluginInstaller';
+import { PluginList } from './PluginList';
+import { PluginMarket } from './PluginMarket';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -70,7 +75,10 @@ interface PluginManagerProps {
   onClose: () => void;
 }
 
-export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }) => {
+export const PluginManager: React.FC<PluginManagerProps> = ({
+  visible,
+  onClose,
+}) => {
   const plugins = useInstalledPlugins();
   const managerState = usePluginManagerState();
   const installationProgress = useInstallationProgress();
@@ -103,40 +111,46 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
   }, []);
 
   // 卸载插件
-  const handleUninstallPlugin = useCallback(async (plugin: IPlugin) => {
-    Modal.confirm({
-      title: '卸载插件',
-      content: `确定要卸载插件 "${plugin.name}" 吗？这将删除所有相关文件和配置。`,
-      okText: '卸载',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: async () => {
-        try {
-          await pluginInstaller.uninstall(plugin.id);
-          message.success(`插件 ${plugin.name} 卸载成功`);
-          await refreshPlugins();
-        } catch (error) {
-          message.error(`卸载失败: ${error}`);
-        }
-      }
-    });
-  }, [refreshPlugins]);
+  const handleUninstallPlugin = useCallback(
+    async (plugin: IPlugin) => {
+      Modal.confirm({
+        title: '卸载插件',
+        content: `确定要卸载插件 "${plugin.name}" 吗？这将删除所有相关文件和配置。`,
+        okText: '卸载',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk: async () => {
+          try {
+            await pluginInstaller.uninstall(plugin.id);
+            message.success(`插件 ${plugin.name} 卸载成功`);
+            await refreshPlugins();
+          } catch (error) {
+            message.error(`卸载失败: ${error}`);
+          }
+        },
+      });
+    },
+    [refreshPlugins],
+  );
 
   // 启用/禁用插件
-  const handleTogglePlugin = useCallback(async (plugin: IPlugin, enabled: boolean) => {
-    try {
-      if (enabled) {
-        await pluginManager.activatePlugin(plugin.id);
-        message.success(`插件 ${plugin.name} 已启用`);
-      } else {
-        await pluginManager.deactivatePlugin(plugin.id);
-        message.success(`插件 ${plugin.name} 已禁用`);
+  const handleTogglePlugin = useCallback(
+    async (plugin: IPlugin, enabled: boolean) => {
+      try {
+        if (enabled) {
+          await pluginManager.activatePlugin(plugin.id);
+          message.success(`插件 ${plugin.name} 已启用`);
+        } else {
+          await pluginManager.deactivatePlugin(plugin.id);
+          message.success(`插件 ${plugin.name} 已禁用`);
+        }
+        await refreshPlugins();
+      } catch (error) {
+        message.error(`操作失败: ${error}`);
       }
-      await refreshPlugins();
-    } catch (error) {
-      message.error(`操作失败: ${error}`);
-    }
-  }, [refreshPlugins]);
+    },
+    [refreshPlugins],
+  );
 
   // 重启插件服务
   const handleRestartPlugin = useCallback(async (plugin: IPlugin) => {
@@ -163,13 +177,11 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
     if (!installationProgress.inProgress) return null;
 
     return (
-      <Card
-        title="安装进度"
-        size="small"
-        style={{ marginBottom: 16 }}
-      >
+      <Card title="安装进度" size="small" style={{ marginBottom: 16 }}>
         <div style={{ marginBottom: 8 }}>
-          <Text strong>{installationProgress.progress?.stage || '安装中...'}</Text>
+          <Text strong>
+            {installationProgress.progress?.stage || '安装中...'}
+          </Text>
         </div>
         <Progress
           percent={installationProgress.progress?.progress || 0}
@@ -187,9 +199,9 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
   const PluginStats = useCallback(() => {
     const stats = {
       total: Object.keys(plugins).length,
-      active: Object.values(plugins).filter(p => p.enabled).length,
+      active: Object.values(plugins).filter((p) => p.enabled).length,
       running: 0, // 需要从后端服务管理器获取
-      withBackend: Object.values(plugins).filter(p => p.backend).length
+      withBackend: Object.values(plugins).filter((p) => p.backend).length,
     };
 
     return (
@@ -239,34 +251,37 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
   }, [plugins]);
 
   // 操作菜单
-  const ActionMenu = useCallback(({ plugin }: { plugin: IPlugin }) => (
-    <Menu>
-      <Menu.Item
-        key="view"
-        icon={<EyeOutlined />}
-        onClick={() => handleViewPlugin(plugin)}
-      >
-        查看详情
-      </Menu.Item>
-      <Menu.Item
-        key="restart"
-        icon={<ReloadOutlined />}
-        onClick={() => handleRestartPlugin(plugin)}
-        disabled={!plugin.backend}
-      >
-        重启服务
-      </Menu.Item>
-      <Menu.Divider />
-      <Menu.Item
-        key="uninstall"
-        icon={<DeleteOutlined />}
-        danger
-        onClick={() => handleUninstallPlugin(plugin)}
-      >
-        卸载插件
-      </Menu.Item>
-    </Menu>
-  ), [handleViewPlugin, handleRestartPlugin, handleUninstallPlugin]);
+  const ActionMenu = useCallback(
+    ({ plugin }: { plugin: IPlugin }) => (
+      <Menu>
+        <Menu.Item
+          key="view"
+          icon={<EyeOutlined />}
+          onClick={() => handleViewPlugin(plugin)}
+        >
+          查看详情
+        </Menu.Item>
+        <Menu.Item
+          key="restart"
+          icon={<ReloadOutlined />}
+          onClick={() => handleRestartPlugin(plugin)}
+          disabled={!plugin.backend}
+        >
+          重启服务
+        </Menu.Item>
+        <Menu.Divider />
+        <Menu.Item
+          key="uninstall"
+          icon={<DeleteOutlined />}
+          danger
+          onClick={() => handleUninstallPlugin(plugin)}
+        >
+          卸载插件
+        </Menu.Item>
+      </Menu>
+    ),
+    [handleViewPlugin, handleRestartPlugin, handleUninstallPlugin],
+  );
 
   return (
     <Modal
@@ -297,16 +312,10 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
         onChange={setActiveTab}
         tabBarExtraContent={
           <Space>
-            <Button
-              icon={<SearchOutlined />}
-              size="small"
-            >
+            <Button icon={<SearchOutlined />} size="small">
               搜索
             </Button>
-            <Button
-              icon={<FilterOutlined />}
-              size="small"
-            >
+            <Button icon={<FilterOutlined />} size="small">
               筛选
             </Button>
             <Button
@@ -342,7 +351,7 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
                 onUninstall={handleUninstallPlugin}
                 onView={handleViewPlugin}
               />
-            )
+            ),
           },
           {
             key: 'market',
@@ -354,7 +363,7 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
                   setActiveTab('installed');
                 }}
               />
-            )
+            ),
           },
           {
             key: 'config',
@@ -363,7 +372,7 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
               <div style={{ textAlign: 'center', padding: '40px' }}>
                 <Text type="secondary">插件配置功能开发中...</Text>
               </div>
-            )
+            ),
           },
           {
             key: 'services',
@@ -372,8 +381,8 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
               <div style={{ textAlign: 'center', padding: '40px' }}>
                 <Text type="secondary">服务状态监控功能开发中...</Text>
               </div>
-            )
-          }
+            ),
+          },
         ]}
       />
 
@@ -402,7 +411,7 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
         footer={[
           <Button key="close" onClick={() => setSelectedPlugin(null)}>
             关闭
-          </Button>
+          </Button>,
         ]}
         width={600}
       >
@@ -415,19 +424,24 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
                     style={{
                       width: 80,
                       height: 80,
-                      backgroundColor: selectedPlugin.metadata.color || '#1890ff',
+                      backgroundColor:
+                        selectedPlugin.metadata.color || '#1890ff',
                       borderRadius: 8,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      margin: '0 auto 16px'
+                      margin: '0 auto 16px',
                     }}
                   >
                     {selectedPlugin.metadata.icon || (
-                      <AppstoreOutlined style={{ fontSize: 32, color: 'white' }} />
+                      <AppstoreOutlined
+                        style={{ fontSize: 32, color: 'white' }}
+                      />
                     )}
                   </div>
-                  <Tag color={selectedPlugin.type === 'backend' ? 'red' : 'blue'}>
+                  <Tag
+                    color={selectedPlugin.type === 'backend' ? 'red' : 'blue'}
+                  >
                     {selectedPlugin.type}
                   </Tag>
                 </div>
@@ -439,7 +453,11 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
                 </Paragraph>
                 <Space wrap>
                   <Tag>版本 {selectedPlugin.version}</Tag>
-                  <Tag color={selectedPlugin.runtime === 'python' ? 'green' : 'orange'}>
+                  <Tag
+                    color={
+                      selectedPlugin.runtime === 'python' ? 'green' : 'orange'
+                    }
+                  >
                     {selectedPlugin.runtime}
                   </Tag>
                   <Tag>作者: {selectedPlugin.author}</Tag>
@@ -464,7 +482,9 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
               <Col span={12}>
                 <Text strong>参数数量:</Text>
                 <div style={{ marginTop: 8 }}>
-                  <Badge count={selectedPlugin.nodeDefinition.parameters.length} />
+                  <Badge
+                    count={selectedPlugin.nodeDefinition.parameters.length}
+                  />
                   <Text type="secondary" style={{ marginLeft: 8 }}>
                     个参数
                   </Text>
@@ -484,15 +504,19 @@ export const PluginManager: React.FC<PluginManagerProps> = ({ visible, onClose }
                     </div>
                     <div>
                       <Text type="secondary">端口: </Text>
-                      <Text code>{selectedPlugin.backend.port || '自动分配'}</Text>
+                      <Text code>
+                        {selectedPlugin.backend.port || '自动分配'}
+                      </Text>
                     </div>
                     {selectedPlugin.backend.dependencies && (
                       <div>
                         <Text type="secondary">依赖: </Text>
                         <Space wrap size="small">
-                          {selectedPlugin.backend.dependencies.map((dep, index) => (
-                            <Tag key={index}>{dep}</Tag>
-                          ))}
+                          {selectedPlugin.backend.dependencies.map(
+                            (dep, index) => (
+                              <Tag key={index}>{dep}</Tag>
+                            ),
+                          )}
                         </Space>
                       </div>
                     )}

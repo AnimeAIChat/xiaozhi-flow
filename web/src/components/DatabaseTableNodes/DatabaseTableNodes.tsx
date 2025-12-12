@@ -1,43 +1,72 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react';
 import {
-  ReactFlow,
-  Node,
-  Edge,
   addEdge,
-  ConnectionLineType,
-  Panel,
-  useNodesState,
-  useEdgesState,
-  Controls,
-  MiniMap,
   Background,
   BackgroundVariant,
+  ConnectionLineType,
+  Controls,
+  type Edge,
   Handle,
+  MiniMap,
+  type Node,
+  type NodeProps,
+  Panel,
   Position,
-  NodeProps,
+  ReactFlow,
   ReactFlowProvider,
+  useEdgesState,
+  useNodesState,
 } from '@xyflow/react';
+import type React from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import '@xyflow/react/dist/style.css';
-import { TableNode, ColumnNode, DatabaseSchema, RelationshipEdge } from '../../types';
-import { Card, Badge, Button, Space, Tooltip, Typography, Tag, Switch, Input, Select } from 'antd';
-import { TableOutlined, KeyOutlined, NumberOutlined, FieldStringOutlined } from '@ant-design/icons';
+import {
+  FieldStringOutlined,
+  KeyOutlined,
+  NumberOutlined,
+  TableOutlined,
+} from '@ant-design/icons';
+import {
+  Badge,
+  Button,
+  Card,
+  Input,
+  Select,
+  Space,
+  Switch,
+  Tag,
+  Tooltip,
+  Typography,
+} from 'antd';
+import {
+  type ColumnNode,
+  type DatabaseSchema,
+  RelationshipEdge,
+  type TableNode,
+} from '../../types';
 import { log } from '../../utils/logger';
 
 const { Text, Title } = Typography;
 
 // 表节点组件
-const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) => {
+const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({
+  data,
+  selected,
+}) => {
   const [expanded, setExpanded] = useState(false); // 默认收起
 
-  const primaryKeys = data.columns.filter(col => col.primaryKey);
-  const regularColumns = data.columns.filter(col => !col.primaryKey);
+  const primaryKeys = data.columns.filter((col) => col.primaryKey);
+  const regularColumns = data.columns.filter((col) => !col.primaryKey);
 
   const getColumnIcon = (type: string) => {
     const lowerType = type.toLowerCase();
     if (lowerType.includes('int') || lowerType.includes('number')) {
       return <NumberOutlined style={{ color: '#1890ff' }} />;
     }
-    if (lowerType.includes('text') || lowerType.includes('char') || lowerType.includes('varchar')) {
+    if (
+      lowerType.includes('text') ||
+      lowerType.includes('char') ||
+      lowerType.includes('varchar')
+    ) {
       return <FieldStringOutlined style={{ color: '#52c41a' }} />;
     }
     return <KeyOutlined style={{ color: '#faad14' }} />;
@@ -63,13 +92,18 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
           type="text"
           size="small"
           onClick={() => {
-            log.debug('用户切换表节点展开状态', {
-              tableName: data.name,
-              from: expanded ? 'expanded' : 'collapsed',
-              to: expanded ? 'collapsed' : 'expanded',
-              columnCount: data.columns.length,
-              primaryKeyCount: primaryKeys.length,
-            }, 'ui', 'TableNode');
+            log.debug(
+              '用户切换表节点展开状态',
+              {
+                tableName: data.name,
+                from: expanded ? 'expanded' : 'collapsed',
+                to: expanded ? 'collapsed' : 'expanded',
+                columnCount: data.columns.length,
+                primaryKeyCount: primaryKeys.length,
+              },
+              'ui',
+              'TableNode',
+            );
             setExpanded(!expanded);
           }}
         >
@@ -82,7 +116,9 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
         border: selected ? '2px solid #1890ff' : '1px solid #d9d9d9',
         backgroundColor: '#ffffff',
         borderRadius: '8px',
-        boxShadow: selected ? '0 4px 12px rgba(24, 144, 255, 0.15)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+        boxShadow: selected
+          ? '0 4px 12px rgba(24, 144, 255, 0.15)'
+          : '0 2px 8px rgba(0, 0, 0, 0.1)',
       }}
     >
       <Handle
@@ -95,7 +131,12 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
         <div style={{ marginTop: 8 }}>
           {primaryKeys.length > 0 && (
             <div style={{ marginBottom: 8 }}>
-              <Text type="secondary" style={{ fontSize: 11, fontWeight: 'bold' }}>PRIMARY KEYS</Text>
+              <Text
+                type="secondary"
+                style={{ fontSize: 11, fontWeight: 'bold' }}
+              >
+                PRIMARY KEYS
+              </Text>
               {primaryKeys.map((column: ColumnNode) => (
                 <div
                   key={column.id}
@@ -112,14 +153,22 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
                 >
                   <Space size={4}>
                     <KeyOutlined style={{ color: '#ff4d4f', fontSize: 12 }} />
-                    <Text style={{ fontSize: 12, fontWeight: 500 }}>{column.name}</Text>
+                    <Text style={{ fontSize: 12, fontWeight: 500 }}>
+                      {column.name}
+                    </Text>
                   </Space>
                   <Space size={4}>
-                    <Tag color="volcano" style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
+                    <Tag
+                      color="volcano"
+                      style={{ fontSize: 10, margin: 0, padding: '0 4px' }}
+                    >
                       {formatDataType(column.type)}
                     </Tag>
                     {column.nullable && (
-                      <Tag color="default" style={{ fontSize: 10, margin: 0, padding: '0 4px' }}>
+                      <Tag
+                        color="default"
+                        style={{ fontSize: 10, margin: 0, padding: '0 4px' }}
+                      >
                         NULL
                       </Tag>
                     )}
@@ -131,7 +180,12 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
 
           {regularColumns.length > 0 && (
             <div>
-              <Text type="secondary" style={{ fontSize: 11, fontWeight: 'bold' }}>COLUMNS</Text>
+              <Text
+                type="secondary"
+                style={{ fontSize: 11, fontWeight: 'bold' }}
+              >
+                COLUMNS
+              </Text>
               {regularColumns.map((column: ColumnNode) => (
                 <Tooltip
                   key={column.id}
@@ -139,7 +193,9 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
                     <div>
                       <div>Type: {formatDataType(column.type)}</div>
                       <div>Nullable: {column.nullable ? 'Yes' : 'No'}</div>
-                      {column.defaultValue && <div>Default: {column.defaultValue}</div>}
+                      {column.defaultValue && (
+                        <div>Default: {column.defaultValue}</div>
+                      )}
                     </div>
                   }
                 >
@@ -170,7 +226,12 @@ const TableNodeComponent: React.FC<NodeProps<TableNode>> = ({ data, selected }) 
                         {formatDataType(column.type)}
                       </Text>
                       {column.nullable && (
-                        <Text type="secondary" style={{ fontSize: 10, opacity: 0.7 }}>NULL</Text>
+                        <Text
+                          type="secondary"
+                          style={{ fontSize: 10, opacity: 0.7 }}
+                        >
+                          NULL
+                        </Text>
                       )}
                     </Space>
                   </div>
@@ -202,9 +263,12 @@ export const DatabaseTableNodes: React.FC<DatabaseTableNodesProps> = ({
   onTableSelect,
 }) => {
   // 记忆化节点类型定义以避免 React Flow 警告
-  const nodeTypes = useMemo(() => ({
-    table: TableNodeComponent,
-  }), []);
+  const nodeTypes = useMemo(
+    () => ({
+      table: TableNodeComponent,
+    }),
+    [],
+  );
 
   // 将数据库schema转换为ReactFlow的节点和边
   const { initialNodes, initialEdges } = useMemo(() => {
@@ -230,8 +294,8 @@ export const DatabaseTableNodes: React.FC<DatabaseTableNodesProps> = ({
 
     // 创建边 - 基于外键关系
     schema.relationships?.forEach((relationship, index) => {
-      const sourceNode = nodes.find(n => n.id === relationship.sourceTable);
-      const targetNode = nodes.find(n => n.id === relationship.targetTable);
+      const sourceNode = nodes.find((n) => n.id === relationship.sourceTable);
+      const targetNode = nodes.find((n) => n.id === relationship.targetTable);
 
       if (sourceNode && targetNode) {
         edges.push({
@@ -261,8 +325,9 @@ export const DatabaseTableNodes: React.FC<DatabaseTableNodesProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onConnect = useCallback(
-    (params: any) => setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
-    [setEdges]
+    (params: any) =>
+      setEdges((eds) => addEdge({ ...params, type: 'smoothstep' }, eds)),
+    [setEdges],
   );
 
   // 更新节点和边当数据变化时
@@ -272,16 +337,18 @@ export const DatabaseTableNodes: React.FC<DatabaseTableNodesProps> = ({
   }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   // 节点点击处理
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    if (onTableSelect) {
-      onTableSelect(node.id);
-    }
-  }, [onTableSelect]);
+  const onNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      if (onTableSelect) {
+        onTableSelect(node.id);
+      }
+    },
+    [onTableSelect],
+  );
 
   return (
     <ReactFlowProvider>
       <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
-
         {/* ReactFlow */}
         <ReactFlow
           nodes={nodes}

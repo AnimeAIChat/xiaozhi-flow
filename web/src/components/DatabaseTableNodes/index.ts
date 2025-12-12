@@ -1,2 +1,2 @@
-export { default as DatabaseTableNodes } from './DatabaseTableNodes';
 export * from './DatabaseTableNodes';
+export { default as DatabaseTableNodes } from './DatabaseTableNodes';

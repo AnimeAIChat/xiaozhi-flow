@@ -18,7 +18,8 @@ export const createStartupMinimap = () => {
 
         // 根据状态调整颜色透明度
         const baseColor = getTypeColor(nodeType);
-        const alpha = nodeStatus === 'running' ? 1 : nodeStatus === 'warning' ? 0.7 : 0.5;
+        const alpha =
+          nodeStatus === 'running' ? 1 : nodeStatus === 'warning' ? 0.7 : 0.5;
 
         return hexToRgba(baseColor, alpha);
       } catch (error) {
@@ -36,7 +37,7 @@ export const createStartupMinimap = () => {
     // 缩放比例
     scale: 0.15,
     // 自定义样式
-    className: 'startup-minimap'
+    className: 'startup-minimap',
   });
 };
 

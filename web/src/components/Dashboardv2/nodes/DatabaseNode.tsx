@@ -1,4 +1,4 @@
-import { BaseNode, NodeData, renderNode } from './BaseNode';
+import { BaseNode, type NodeData, renderNode } from './BaseNode';
 
 export class DatabaseNode extends BaseNode {
   constructor(id: string, label: string, data?: Partial<NodeData>) {
@@ -6,9 +6,9 @@ export class DatabaseNode extends BaseNode {
       description: '数据库连接节点',
       metrics: {
         connections: 0,
-        queries: 0
+        queries: 0,
       },
-      ...data
+      ...data,
     });
   }
 }

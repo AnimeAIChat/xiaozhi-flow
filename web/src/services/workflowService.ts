@@ -53,5 +53,5 @@ export const workflowService = {
   saveWorkflow: async (workflow: Workflow): Promise<Workflow> => {
     const response = await axios.post(API_BASE_URL, workflow);
     return response.data.data;
-  }
+  },
 };

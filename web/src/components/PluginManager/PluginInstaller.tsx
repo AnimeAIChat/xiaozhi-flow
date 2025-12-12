@@ -1,42 +1,43 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
-  Modal,
-  Steps,
-  Card,
-  Form,
-  Input,
-  Select,
-  Upload,
-  Button,
-  Space,
-  Alert,
-  Progress,
-  Typography,
-  Divider,
-  Row,
-  Col,
-  Radio,
-  Checkbox,
-  message,
-  Tabs,
-  List,
-  Descriptions,
-  Tag
-} from 'antd';
-import {
+  CheckCircleOutlined,
   CloudUploadOutlined,
-  LinkOutlined,
   FileTextOutlined,
-  UploadOutlined,
   InboxOutlined,
   InfoCircleOutlined,
-  CheckCircleOutlined,
+  LinkOutlined,
   LoadingOutlined,
-  WarningOutlined
+  UploadOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Descriptions,
+  Divider,
+  Form,
+  Input,
+  List,
+  Modal,
+  message,
+  Progress,
+  Radio,
+  Row,
+  Select,
+  Space,
+  Steps,
+  Tabs,
+  Tag,
+  Typography,
+  Upload,
+} from 'antd';
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface';
-import type { PluginSource } from '../../plugins/types';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { pluginInstaller } from '../../plugins/core/PluginInstaller';
+import type { PluginSource } from '../../plugins/types';
 
 const { Title, Text, Paragraph } = Typography;
 const { Step } = Steps;
@@ -62,13 +63,15 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
   visible,
   onClose,
   onComplete,
-  initialSource
+  initialSource,
 }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [sourceType, setSourceType] = useState<'local' | 'url' | 'market'>(
-    initialSource?.type || 'local'
+    initialSource?.type || 'local',
   );
-  const [installationSteps, setInstallationSteps] = useState<InstallationStep[]>([]);
+  const [installationSteps, setInstallationSteps] = useState<
+    InstallationStep[]
+  >([]);
   const [progress, setProgress] = useState(0);
   const [loading, setLoading] = useState(false);
   const [installedPlugin, setInstalledPlugin] = useState<any>(null);
@@ -80,7 +83,7 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
   const [advancedOptions, setAdvancedOptions] = useState({
     force: false,
     autoStart: true,
-    overwrite: false
+    overwrite: false,
   });
 
   const formRef = useRef<any>(null);
@@ -99,32 +102,35 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
   }, []);
 
   // 验证输入
-  const validateInput = useCallback((type: typeof sourceType): boolean => {
-    const errors: string[] = [];
+  const validateInput = useCallback(
+    (type: typeof sourceType): boolean => {
+      const errors: string[] = [];
 
-    switch (type) {
-      case 'local':
-        if (!localPath.trim()) {
-          errors.push('请选择插件文件夹');
-        }
-        break;
-      case 'url':
-        if (!urlPath.trim()) {
-          errors.push('请输入插件URL');
-        } else if (!isValidUrl(urlPath.trim())) {
-          errors.push('请输入有效的URL');
-        }
-        break;
-      case 'market':
-        if (!marketplacePlugin) {
-          errors.push('请选择要安装的插件');
-        }
-        break;
-    }
+      switch (type) {
+        case 'local':
+          if (!localPath.trim()) {
+            errors.push('请选择插件文件夹');
+          }
+          break;
+        case 'url':
+          if (!urlPath.trim()) {
+            errors.push('请输入插件URL');
+          } else if (!isValidUrl(urlPath.trim())) {
+            errors.push('请输入有效的URL');
+          }
+          break;
+        case 'market':
+          if (!marketplacePlugin) {
+            errors.push('请选择要安装的插件');
+          }
+          break;
+      }
 
-    setValidationErrors(errors);
-    return errors.length === 0;
-  }, [localPath, urlPath, marketplacePlugin]);
+      setValidationErrors(errors);
+      return errors.length === 0;
+    },
+    [localPath, urlPath, marketplacePlugin],
+  );
 
   // URL验证
   const isValidUrl = useCallback((url: string): boolean => {
@@ -137,73 +143,79 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
   }, []);
 
   // 创建安装步骤
-  const createInstallationSteps = useCallback((type: typeof sourceType): InstallationStep[] => {
-    const steps: InstallationStep[] = [
-      {
-        title: '准备安装',
-        description: '验证插件源',
-        status: 'wait',
-        icon: <FileTextOutlined />
+  const createInstallationSteps = useCallback(
+    (type: typeof sourceType): InstallationStep[] => {
+      const steps: InstallationStep[] = [
+        {
+          title: '准备安装',
+          description: '验证插件源',
+          status: 'wait',
+          icon: <FileTextOutlined />,
+        },
+      ];
+
+      if (type === 'local') {
+        steps.push({
+          title: '读取本地文件',
+          description: '检查插件配置文件',
+          status: 'wait',
+          icon: <CloudUploadOutlined />,
+        });
+      } else if (type === 'url') {
+        steps.push({
+          title: '下载插件',
+          description: '从远程URL下载插件文件',
+          status: 'wait',
+          icon: <CloudUploadOutlined />,
+        });
+      } else if (type === 'market') {
+        steps.push({
+          title: '获取插件',
+          description: '从市场获取插件文件',
+          status: 'wait',
+          icon: <CloudUploadOutlined />,
+        });
       }
-    ];
 
-    if (type === 'local') {
-      steps.push({
-        title: '读取本地文件',
-        description: '检查插件配置文件',
-        status: 'wait',
-        icon: <CloudUploadOutlined />
-      });
-    } else if (type === 'url') {
-      steps.push({
-        title: '下载插件',
-        description: '从远程URL下载插件文件',
-        status: 'wait',
-        icon: <CloudUploadOutlined />
-      });
-    } else if (type === 'market') {
-      steps.push({
-        title: '获取插件',
-        description: '从市场获取插件文件',
-        status: 'wait',
-        icon: <CloudUploadOutlined />
-      });
-    }
+      steps.push(
+        {
+          title: '验证插件',
+          description: '验证插件配置和依赖',
+          status: 'wait',
+          icon: <CheckCircleOutlined />,
+        },
+        {
+          title: '安装插件',
+          description: '复制文件并注册插件',
+          status: 'wait',
+          icon: <LoadingOutlined />,
+        },
+        {
+          title: '完成安装',
+          description: '插件安装成功',
+          status: 'wait',
+          icon: <CheckCircleOutlined />,
+        },
+      );
 
-    steps.push(
-      {
-        title: '验证插件',
-        description: '验证插件配置和依赖',
-        status: 'wait',
-        icon: <CheckCircleOutlined />
-      },
-      {
-        title: '安装插件',
-        description: '复制文件并注册插件',
-        status: 'wait',
-        icon: <LoadingOutlined />
-      },
-      {
-        title: '完成安装',
-        description: '插件安装成功',
-        status: 'wait',
-        icon: <CheckCircleOutlined />
-      }
-    );
-
-    return steps;
-  }, []);
+      return steps;
+    },
+    [],
+  );
 
   // 更新步骤状态
-  const updateStepStatus = useCallback((stepIndex: number, status: InstallationStep['status'], error?: string) => {
-    setInstallationSteps(prev => {
-      const newSteps = [...prev];
-      if (stepIndex < newSteps.length) {
-        newSteps[stepIndex] = { ...newSteps[stepIndex], status, error };
-      }
-      return newSteps;
-    });
-  }, []);
+  const updateStepStatus = useCallback(
+    (stepIndex: number, status: InstallationStep['status'], error?: string) => {
+      setInstallationSteps((prev) => {
+        const newSteps = [...prev];
+        if (stepIndex < newSteps.length) {
+          newSteps[stepIndex] = { ...newSteps[stepIndex], status, error };
+        }
+        return newSteps;
+      });
+    },
+    [],
+  );
 
   // 开始安装
   const startInstallation = useCallback(async () => {
@@ -225,21 +237,21 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
           source = {
             type: 'local',
             localPath: localPath.trim(),
-            options: advancedOptions
+            options: advancedOptions,
           };
           break;
         case 'url':
           source = {
             type: 'url',
             url: urlPath.trim(),
-            options: advancedOptions
+            options: advancedOptions,
           };
           break;
         case 'market':
           source = {
             type: 'market',
             marketId: marketplacePlugin.id,
-            options: advancedOptions
+            options: advancedOptions,
           };
           break;
       }
@@ -264,15 +276,28 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
 
       setProgress(100);
       message.success(`插件 "${plugin.name}" 安装成功！`);
-
     } catch (error) {
       // 标记错误步骤
-      updateStepStatus(currentStep, 'error', error instanceof Error ? error.message : '安装失败');
+      updateStepStatus(
+        currentStep,
+        'error',
+        error instanceof Error ? error.message : '安装失败',
+      );
       message.error(`安装失败: ${error}`);
     } finally {
       setLoading(false);
     }
-  }, [sourceType, validateInput, createInstallationSteps, installationSteps, updateStepStatus, localPath, urlPath, marketplacePlugin, advancedOptions]);
+  }, [
+    sourceType,
+    validateInput,
+    createInstallationSteps,
+    installationSteps,
+    updateStepStatus,
+    localPath,
+    urlPath,
+    marketplacePlugin,
+    advancedOptions,
+  ]);
 
   // 本地文件夹上传配置
   const localUploadProps: UploadProps = {
@@ -288,7 +313,7 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
       if (info.file.status === 'done') {
         setLocalPath(info.file.name);
       }
-    }
+    },
   };
 
   // 插件信息展示
@@ -298,9 +323,15 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
     return (
       <Card title="插件信息" size="small" style={{ marginBottom: 16 }}>
         <Descriptions column={1} size="small">
-          <Descriptions.Item label="名称">{installedPlugin.name}</Descriptions.Item>
-          <Descriptions.Item label="版本">{installedPlugin.version}</Descriptions.Item>
-          <Descriptions.Item label="作者">{installedPlugin.author}</Descriptions.Item>
+          <Descriptions.Item label="名称">
+            {installedPlugin.name}
+          </Descriptions.Item>
+          <Descriptions.Item label="版本">
+            {installedPlugin.version}
+          </Descriptions.Item>
+          <Descriptions.Item label="作者">
+            {installedPlugin.author}
+          </Descriptions.Item>
           <Descriptions.Item label="类型">
             <Tag color={installedPlugin.type === 'backend' ? 'red' : 'blue'}>
               {installedPlugin.type}
@@ -450,12 +481,12 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
             {currentStep < 4 ? (
               <LoadingOutlined style={{ fontSize: 48, marginBottom: 16 }} />
             ) : (
-              <CheckCircleOutlined style={{ fontSize: 48, marginBottom: 16, color: '#52c41a' }} />
+              <CheckCircleOutlined
+                style={{ fontSize: 48, marginBottom: 16, color: '#52c41a' }}
+              />
             )}
             <div>
-              <Title level={4}>
-                {installationSteps[currentStep]?.title}
-              </Title>
+              <Title level={4}>{installationSteps[currentStep]?.title}</Title>
               <Text type="secondary">
                 {installationSteps[currentStep]?.description}
               </Text>
@@ -466,7 +497,15 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
       default:
         return null;
     }
-  }, [currentStep, sourceType, localUploadProps, localPath, urlPath, installationSteps, validationErrors]);
+  }, [
+    currentStep,
+    sourceType,
+    localUploadProps,
+    localPath,
+    urlPath,
+    installationSteps,
+    validationErrors,
+  ]);
 
   return (
     <Modal
@@ -483,16 +522,16 @@ export const PluginInstaller: React.FC<PluginInstallerProps> = ({
       destroyOnHidden
       afterClose={resetState}
     >
-      <Steps
-        current={currentStep}
-        items={installationSteps}
-        size="small"
-      />
+      <Steps current={currentStep} items={installationSteps} size="small" />
 
       <div style={{ margin: '24px 0' }}>
         <Progress
           percent={progress}
-          status={installationSteps[currentStep]?.status === 'error' ? 'exception' : 'active'}
+          status={
+            installationSteps[currentStep]?.status === 'error'
+              ? 'exception'
+              : 'active'
+          }
           style={{ marginBottom: 16 }}
         />
         {renderStepContent()}

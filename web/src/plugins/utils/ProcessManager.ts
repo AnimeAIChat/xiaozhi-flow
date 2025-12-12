@@ -12,7 +12,7 @@ export class SimpleEventEmitter {
   emit(event: string, data?: any): void {
     const eventListeners = this.listeners.get(event);
     if (eventListeners) {
-      eventListeners.forEach(listener => listener(data));
+      eventListeners.forEach((listener) => listener(data));
     }
   }
 
@@ -95,7 +95,7 @@ export class ProcessManager extends SimpleEventEmitter {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(options)
+        body: JSON.stringify(options),
       });
 
       if (!response.ok) {
@@ -119,7 +119,7 @@ export class ProcessManager extends SimpleEventEmitter {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(options)
+        body: JSON.stringify(options),
       });
 
       if (!response.ok) {
@@ -133,11 +133,15 @@ export class ProcessManager extends SimpleEventEmitter {
         process: processData, // 存储后端返回的进程信息
         startTime: new Date(processData.startTime),
         status: 'starting',
-        lastActivity: new Date()
+        lastActivity: new Date(),
       };
 
       this.processes.set(processData.pid, runningProcess);
-      this.emit('process-started', { pid: processData.pid, command: options.command, args: options.args });
+      this.emit('process-started', {
+        pid: processData.pid,
+        command: options.command,
+        args: options.args,
+      });
 
       // 开始监控进程状态
       this.monitorProcess(processData.pid);
@@ -163,7 +167,7 @@ export class ProcessManager extends SimpleEventEmitter {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ pid, signal })
+        body: JSON.stringify({ pid, signal }),
       });
 
       if (!response.ok) {
@@ -217,7 +221,7 @@ export class ProcessManager extends SimpleEventEmitter {
         args: [],
         cwd: '',
         startTime: new Date(),
-        status: 'error'
+        status: 'error',
       };
     }
   }
@@ -285,7 +289,11 @@ export class ProcessManager extends SimpleEventEmitter {
       try {
         const isRunning = await this.isProcessRunning(pid);
 
-        if (!isRunning && runningProcess.status !== 'stopped' && runningProcess.status !== 'error') {
+        if (
+          !isRunning &&
+          runningProcess.status !== 'stopped' &&
+          runningProcess.status !== 'error'
+        ) {
           // 进程已停止，更新状态
           runningProcess.status = 'stopped';
           this.processes.delete(pid);
@@ -321,7 +329,8 @@ export class ProcessManager extends SimpleEventEmitter {
 
     for (const [pid, process] of this.processes) {
       const now = new Date();
-      const timeSinceLastActivity = now.getTime() - process.lastActivity.getTime();
+      const timeSinceLastActivity =
+        now.getTime() - process.lastActivity.getTime();
 
       // 清理超过5分钟没有活动且状态为停止的进程
       if (
@@ -332,7 +341,7 @@ export class ProcessManager extends SimpleEventEmitter {
       }
     }
 
-    deadPids.forEach(pid => {
+    deadPids.forEach((pid) => {
       this.processes.delete(pid);
     });
   }
@@ -341,10 +350,10 @@ export class ProcessManager extends SimpleEventEmitter {
    * 杀死所有进程
    */
   async killAll(): Promise<void> {
-    const killPromises = Array.from(this.processes.keys()).map(pid =>
-      this.killProcess(pid).catch(error =>
-        console.error(`Failed to kill process ${pid}:`, error)
-      )
+    const killPromises = Array.from(this.processes.keys()).map((pid) =>
+      this.killProcess(pid).catch((error) =>
+        console.error(`Failed to kill process ${pid}:`, error),
+      ),
     );
 
     await Promise.all(killPromises);

@@ -1,7 +1,34 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Card, Button, Select, Space, Tooltip, Modal, Form, Input, InputNumber, App, Badge, Progress } from 'antd';
-import { DatabaseOutlined, ApiOutlined, RobotOutlined, CloudOutlined, SettingOutlined, PlusOutlined, DeleteOutlined, EditOutlined, PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
-import { BaseNode, NodeData } from './nodes';
+import {
+  ApiOutlined,
+  CloudOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
+  EditOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  RobotOutlined,
+  SettingOutlined,
+  StopOutlined,
+} from '@ant-design/icons';
+import {
+  App,
+  Badge,
+  Button,
+  Card,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Progress,
+  Select,
+  Space,
+  Tooltip,
+} from 'antd';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { BaseNode, NodeData } from './nodes';
 
 const { Option } = Select;
 
@@ -33,7 +60,7 @@ export const SimpleReteEditor: React.FC<{
   onExecute,
   workflowId = 'xiaozhi-flow-default-startup',
   autoConnect = true,
-  adapter
+  adapter,
 }) => {
   const { message } = App.useApp();
   const [nodes, setNodes] = useState<SimpleNode[]>([]);
@@ -50,12 +77,14 @@ export const SimpleReteEditor: React.FC<{
   // 启动流程相关状态
   const [startupAdapter] = useState(() => {
     if (adapter) return adapter;
-    throw new Error("Adapter is required");
+    throw new Error('Adapter is required');
   });
   const [isLoading, setIsLoading] = useState(false);
   const [execution, setExecution] = useState<any>(null);
   const [executionStats, setExecutionStats] = useState<any>(null);
-  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(null);
+  const [pollingInterval, setPollingInterval] = useState<NodeJS.Timeout | null>(
+    null,
+  );
   const [availableNodeTypes, setAvailableNodeTypes] = useState<any[]>([]);
 
   // 使用 useRef 来防止重复初始化
@@ -64,12 +93,15 @@ export const SimpleReteEditor: React.FC<{
   // 加载可用节点类型
   useEffect(() => {
     if (adapter && adapter.getCapabilities) {
-      adapter.getCapabilities().then((caps: any[]) => {
-        setAvailableNodeTypes(Array.isArray(caps) ? caps : []);
-      }).catch((err: any) => {
-        console.error('Failed to load capabilities:', err);
-        setAvailableNodeTypes([]);
-      });
+      adapter
+        .getCapabilities()
+        .then((caps: any[]) => {
+          setAvailableNodeTypes(Array.isArray(caps) ? caps : []);
+        })
+        .catch((err: any) => {
+          console.error('Failed to load capabilities:', err);
+          setAvailableNodeTypes([]);
+        });
     }
   }, [adapter]);
 
@@ -85,8 +117,10 @@ export const SimpleReteEditor: React.FC<{
         // 获取工作流数据
         const workflow = await startupAdapter.getWorkflow(workflowId);
         if (workflow) {
-          const workflowNodes = startupAdapter.convertWorkflowToEditorNodes(workflow);
-          const workflowConnections = startupAdapter.convertWorkflowToEditorConnections(workflow);
+          const workflowNodes =
+            startupAdapter.convertWorkflowToEditorNodes(workflow);
+          const workflowConnections =
+            startupAdapter.convertWorkflowToEditorConnections(workflow);
 
           setNodes(workflowNodes);
           setConnections(workflowConnections);
@@ -110,10 +144,10 @@ export const SimpleReteEditor: React.FC<{
               type: 'database',
               status: 'stopped',
               description: '初始化数据库连接和存储系统',
-              metrics: { '关键节点': '是', '超时时间': '30s' }
+              metrics: { 关键节点: '是', 超时时间: '30s' },
             },
             x: 100,
-            y: 100
+            y: 100,
           } as SimpleNode,
           {
             id: 'config-load',
@@ -122,11 +156,11 @@ export const SimpleReteEditor: React.FC<{
               type: 'config',
               status: 'stopped',
               description: '加载系统配置和环境变量',
-              metrics: { '关键节点': '是', '超时时间': '10s' }
+              metrics: { 关键节点: '是', 超时时间: '10s' },
             },
             x: 400,
-            y: 100
-          } as SimpleNode
+            y: 100,
+          } as SimpleNode,
         ];
 
         setNodes(fallbackNodes);
@@ -159,10 +193,10 @@ export const SimpleReteEditor: React.FC<{
             type: 'database',
             status: 'stopped',
             description: '初始化数据库连接和存储系统',
-            metrics: { '关键节点': '是', '超时时间': '30s' }
+            metrics: { 关键节点: '是', 超时时间: '30s' },
           },
           x: 100,
-          y: 100
+          y: 100,
         } as SimpleNode,
         {
           id: 'config-load',
@@ -171,10 +205,10 @@ export const SimpleReteEditor: React.FC<{
             type: 'config',
             status: 'stopped',
             description: '加载系统配置和环境变量',
-            metrics: { '关键节点': '是', '超时时间': '10s' }
+            metrics: { 关键节点: '是', 超时时间: '10s' },
           },
           x: 400,
-          y: 100
+          y: 100,
         } as SimpleNode,
         {
           id: 'service-start',
@@ -183,10 +217,10 @@ export const SimpleReteEditor: React.FC<{
             type: 'api',
             status: 'stopped',
             description: '启动核心服务组件',
-            metrics: { '关键节点': '是', '超时时间': '60s' }
+            metrics: { 关键节点: '是', 超时时间: '60s' },
           },
           x: 700,
-          y: 100
+          y: 100,
         } as SimpleNode,
         {
           id: 'auth-setup',
@@ -195,10 +229,10 @@ export const SimpleReteEditor: React.FC<{
             type: 'api',
             status: 'stopped',
             description: '配置认证和授权系统',
-            metrics: { '关键节点': '是', '超时时间': '20s' }
+            metrics: { 关键节点: '是', 超时时间: '20s' },
           },
           x: 100,
-          y: 300
+          y: 300,
         } as SimpleNode,
         {
           id: 'plugin-load',
@@ -207,11 +241,11 @@ export const SimpleReteEditor: React.FC<{
             type: 'cloud',
             status: 'stopped',
             description: '加载和初始化插件系统',
-            metrics: { '可选节点': '是', '超时时间': '30s' }
+            metrics: { 可选节点: '是', 超时时间: '30s' },
           },
           x: 400,
-          y: 300
-        } as SimpleNode
+          y: 300,
+        } as SimpleNode,
       ];
 
       setNodes(initialNodes);
@@ -222,36 +256,36 @@ export const SimpleReteEditor: React.FC<{
           from: 'storage-init',
           to: 'config-load',
           fromOutput: 'data',
-          toInput: 'input'
+          toInput: 'input',
         },
         {
           id: 'conn-2',
           from: 'config-load',
           to: 'service-start',
           fromOutput: 'response',
-          toInput: 'prompt'
+          toInput: 'prompt',
         },
         {
           id: 'conn-3',
           from: 'storage-init',
           to: 'auth-setup',
           fromOutput: 'data',
-          toInput: 'input'
+          toInput: 'input',
         },
         {
           id: 'conn-4',
           from: 'config-load',
           to: 'plugin-load',
           fromOutput: 'response',
-          toInput: 'prompt'
+          toInput: 'prompt',
         },
         {
           id: 'conn-5',
           from: 'auth-setup',
           to: 'plugin-load',
           fromOutput: 'response',
-          toInput: 'context'
-        }
+          toInput: 'context',
+        },
       ];
 
       setConnections(initialConnections);
@@ -269,69 +303,80 @@ export const SimpleReteEditor: React.FC<{
   }, [workflowId, autoConnect]); // 移除会导致重新执行的不必要依赖项
 
   // 添加新节点
-  const addNode = useCallback((nodeType: NodeData['type']) => {
-    const newNode: SimpleNode = {
-      id: `${nodeType}-${Date.now()}`,
-      data: {
-        label: `New ${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}`,
-        type: nodeType,
-        status: 'stopped',
-        description: `${nodeType} 节点`,
-        metrics: {}
-      },
-      x: 300,
-      y: 200
-    };
+  const addNode = useCallback(
+    (nodeType: NodeData['type']) => {
+      const newNode: SimpleNode = {
+        id: `${nodeType}-${Date.now()}`,
+        data: {
+          label: `New ${nodeType.charAt(0).toUpperCase() + nodeType.slice(1)}`,
+          type: nodeType,
+          status: 'stopped',
+          description: `${nodeType} 节点`,
+          metrics: {},
+        },
+        x: 300,
+        y: 200,
+      };
 
-    setNodes(prev => {
-      const updated = [...prev, newNode];
-      onNodesChange?.(updated);
-      return updated;
-    });
-  }, [onNodesChange]);
+      setNodes((prev) => {
+        const updated = [...prev, newNode];
+        onNodesChange?.(updated);
+        return updated;
+      });
+    },
+    [onNodesChange],
+  );
 
   // 删除节点
-  const deleteNode = useCallback((nodeId: string) => {
-    setNodes(prev => {
-      const updated = prev.filter(n => n.id !== nodeId);
-      onNodesChange?.(updated);
-      return updated;
-    });
+  const deleteNode = useCallback(
+    (nodeId: string) => {
+      setNodes((prev) => {
+        const updated = prev.filter((n) => n.id !== nodeId);
+        onNodesChange?.(updated);
+        return updated;
+      });
 
-    setConnections(prev => {
-      const updated = prev.filter(c => c.from !== nodeId && c.to !== nodeId);
-      onConnectionsChange?.(updated);
-      return updated;
-    });
-  }, [onNodesChange, onConnectionsChange]);
+      setConnections((prev) => {
+        const updated = prev.filter(
+          (c) => c.from !== nodeId && c.to !== nodeId,
+        );
+        onConnectionsChange?.(updated);
+        return updated;
+      });
+    },
+    [onNodesChange, onConnectionsChange],
+  );
 
   // 编辑节点
-  const startEditNode = useCallback((node: SimpleNode) => {
-    setEditingNode(node);
-    setEditModalVisible(true);
-    form.setFieldsValue({
-      label: node.data.label,
-      description: node.data.description
-    });
-  }, [form]);
+  const startEditNode = useCallback(
+    (node: SimpleNode) => {
+      setEditingNode(node);
+      setEditModalVisible(true);
+      form.setFieldsValue({
+        label: node.data.label,
+        description: node.data.description,
+      });
+    },
+    [form],
+  );
 
   // 保存节点编辑
   const saveNodeEdit = useCallback(() => {
     if (!editingNode) return;
 
-    form.validateFields().then(values => {
-      setNodes(prev => {
-        const updated = prev.map(node =>
+    form.validateFields().then((values) => {
+      setNodes((prev) => {
+        const updated = prev.map((node) =>
           node.id === editingNode.id
             ? {
                 ...node,
                 data: {
                   ...node.data,
                   label: values.label,
-                  description: values.description
-                }
+                  description: values.description,
+                },
               }
-            : node
+            : node,
         );
         onNodesChange?.(updated);
         return updated;
@@ -353,32 +398,37 @@ export const SimpleReteEditor: React.FC<{
     if (rect) {
       setMousePos({
         x: e.clientX - rect.left,
-        y: e.clientY - rect.top
+        y: e.clientY - rect.top,
       });
     }
   }, []);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !draggedNode) return;
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!isDragging || !draggedNode) return;
 
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
-      const currentX = e.clientX - rect.left;
-      const currentY = e.clientY - rect.top;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const currentX = e.clientX - rect.left;
+        const currentY = e.clientY - rect.top;
 
-      setNodes(prev => prev.map(node =>
-        node.id === draggedNode
-          ? {
-              ...node,
-              x: node.x + (currentX - mousePos.x),
-              y: node.y + (currentY - mousePos.y)
-            }
-          : node
-      ));
+        setNodes((prev) =>
+          prev.map((node) =>
+            node.id === draggedNode
+              ? {
+                  ...node,
+                  x: node.x + (currentX - mousePos.x),
+                  y: node.y + (currentY - mousePos.y),
+                }
+              : node,
+          ),
+        );
 
-      setMousePos({ x: currentX, y: currentY });
-    }
-  }, [isDragging, draggedNode, mousePos]);
+        setMousePos({ x: currentX, y: currentY });
+      }
+    },
+    [isDragging, draggedNode, mousePos],
+  );
 
   const handleMouseUp = useCallback(() => {
     setIsDragging(false);
@@ -386,21 +436,24 @@ export const SimpleReteEditor: React.FC<{
   }, []);
 
   // 创建连接
-  const createConnection = useCallback((fromNode: string, toNode: string) => {
-    const newConnection: SimpleConnection = {
-      id: `conn-${Date.now()}`,
-      from: fromNode,
-      to: toNode,
-      fromOutput: 'data',
-      toInput: 'input'
-    };
+  const createConnection = useCallback(
+    (fromNode: string, toNode: string) => {
+      const newConnection: SimpleConnection = {
+        id: `conn-${Date.now()}`,
+        from: fromNode,
+        to: toNode,
+        fromOutput: 'data',
+        toInput: 'input',
+      };
 
-    setConnections(prev => {
-      const updated = [...prev, newConnection];
-      onConnectionsChange?.(updated);
-      return updated;
-    });
-  }, [onConnectionsChange]);
+      setConnections((prev) => {
+        const updated = [...prev, newConnection];
+        onConnectionsChange?.(updated);
+        return updated;
+      });
+    },
+    [onConnectionsChange],
+  );
 
   // 执行工作流
   const executeWorkflow = useCallback(async () => {
@@ -417,7 +470,10 @@ export const SimpleReteEditor: React.FC<{
       message.success(`启动流程执行开始: ${executionId}`);
 
       // 创建初始执行对象
-      const mockExecution = startupAdapter.createMockExecution(workflowId, nodes);
+      const mockExecution = startupAdapter.createMockExecution(
+        workflowId,
+        nodes,
+      );
       setExecution(mockExecution);
       const initialStats = startupAdapter.generateExecutionStats(mockExecution);
       setExecutionStats(initialStats);
@@ -428,8 +484,14 @@ export const SimpleReteEditor: React.FC<{
         setExecution(updatedExecution);
 
         // 更新节点状态
-        const updatedNodes = startupAdapter.updateNodesByExecution(nodes, updatedExecution);
-        const updatedConnections = startupAdapter.updateConnectionsByExecution(connections, updatedExecution);
+        const updatedNodes = startupAdapter.updateNodesByExecution(
+          nodes,
+          updatedExecution,
+        );
+        const updatedConnections = startupAdapter.updateConnectionsByExecution(
+          connections,
+          updatedExecution,
+        );
 
         setNodes(updatedNodes);
         setConnections(updatedConnections);
@@ -442,12 +504,18 @@ export const SimpleReteEditor: React.FC<{
         onConnectionsChange?.(updatedConnections);
 
         // 执行完成时停止轮询
-        if (status.status === 'completed' || status.status === 'failed' || status.status === 'cancelled') {
+        if (
+          status.status === 'completed' ||
+          status.status === 'failed' ||
+          status.status === 'cancelled'
+        ) {
           if (pollingInterval) {
             clearInterval(pollingInterval);
             setPollingInterval(null);
           }
-          message.success(`启动流程${status.status === 'completed' ? '执行完成' : '执行结束'}`);
+          message.success(
+            `启动流程${status.status === 'completed' ? '执行完成' : '执行结束'}`,
+          );
         }
       });
 
@@ -457,7 +525,17 @@ export const SimpleReteEditor: React.FC<{
       message.error('执行启动流程失败，使用模拟执行');
       simulateExecution();
     }
-  }, [startupAdapter, workflowId, nodes, connections, onExecute, execution, pollingInterval, onNodesChange, onConnectionsChange]);
+  }, [
+    startupAdapter,
+    workflowId,
+    nodes,
+    connections,
+    onExecute,
+    execution,
+    pollingInterval,
+    onNodesChange,
+    onConnectionsChange,
+  ]);
 
   // 模拟执行（用于演示或降级）
   const simulateExecution = useCallback(() => {
@@ -471,11 +549,13 @@ export const SimpleReteEditor: React.FC<{
       const node = nodes[currentNodeIndex];
 
       // 设置为运行中
-      setNodes(prev => prev.map(n =>
-        n.id === node.id
-          ? { ...n, data: { ...n.data, status: 'running' } }
-          : n
-      ));
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === node.id
+            ? { ...n, data: { ...n.data, status: 'running' } }
+            : n,
+        ),
+      );
 
       // 模拟执行进度
       let progress = 0;
@@ -485,20 +565,40 @@ export const SimpleReteEditor: React.FC<{
           clearInterval(progressInterval);
 
           // 设置为完成
-          setNodes(prev => prev.map(n =>
-            n.id === node.id
-              ? { ...n, data: { ...n.data, status: 'stopped', metrics: { ...n.data.metrics, '进度': '100%' } } }
-              : n
-          ));
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.id === node.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      status: 'stopped',
+                      metrics: { ...n.data.metrics, 进度: '100%' },
+                    },
+                  }
+                : n,
+            ),
+          );
 
           currentNodeIndex++;
           setTimeout(executeNextNode, 500);
         } else {
-          setNodes(prev => prev.map(n =>
-            n.id === node.id
-              ? { ...n, data: { ...n.data, metrics: { ...n.data.metrics, '进度': `${Math.round(progress * 100)}%` } } }
-              : n
-          ));
+          setNodes((prev) =>
+            prev.map((n) =>
+              n.id === node.id
+                ? {
+                    ...n,
+                    data: {
+                      ...n.data,
+                      metrics: {
+                        ...n.data.metrics,
+                        进度: `${Math.round(progress * 100)}%`,
+                      },
+                    },
+                  }
+                : n,
+            ),
+          );
         }
       }, 200);
     };
@@ -573,34 +673,48 @@ export const SimpleReteEditor: React.FC<{
   // 获取节点图标
   const getNodeIcon = (type: NodeData['type']) => {
     switch (type) {
-      case 'database': return <DatabaseOutlined style={{ color: '#1890ff', fontSize: '20px' }} />;
-      case 'api': return <ApiOutlined style={{ color: '#52c41a', fontSize: '20px' }} />;
-      case 'ai': return <RobotOutlined style={{ color: '#722ed1', fontSize: '20px' }} />;
-      case 'cloud': return <CloudOutlined style={{ color: '#fa8c16', fontSize: '20px' }} />;
-      case 'config': return <SettingOutlined style={{ color: '#eb2f96', fontSize: '20px' }} />;
-      default: return <SettingOutlined style={{ fontSize: '20px' }} />;
+      case 'database':
+        return (
+          <DatabaseOutlined style={{ color: '#1890ff', fontSize: '20px' }} />
+        );
+      case 'api':
+        return <ApiOutlined style={{ color: '#52c41a', fontSize: '20px' }} />;
+      case 'ai':
+        return <RobotOutlined style={{ color: '#722ed1', fontSize: '20px' }} />;
+      case 'cloud':
+        return <CloudOutlined style={{ color: '#fa8c16', fontSize: '20px' }} />;
+      case 'config':
+        return (
+          <SettingOutlined style={{ color: '#eb2f96', fontSize: '20px' }} />
+        );
+      default:
+        return <SettingOutlined style={{ fontSize: '20px' }} />;
     }
   };
 
   // 获取状态颜色
   const getStatusColor = (status: NodeData['status']) => {
     switch (status) {
-      case 'running': return '#52c41a';
-      case 'warning': return '#faad14';
-      case 'stopped': return '#ff4d4f';
-      default: return '#d9d9d9';
+      case 'running':
+        return '#52c41a';
+      case 'warning':
+        return '#faad14';
+      case 'stopped':
+        return '#ff4d4f';
+      default:
+        return '#d9d9d9';
     }
   };
 
   // 获取连接路径
   const getConnectionPath = (connection: SimpleConnection) => {
-    const fromNode = nodes.find(n => n.id === connection.from);
-    const toNode = nodes.find(n => n.id === connection.to);
+    const fromNode = nodes.find((n) => n.id === connection.from);
+    const toNode = nodes.find((n) => n.id === connection.to);
 
     if (!fromNode || !toNode) return '';
 
     const x1 = fromNode.x + 150; // 节点宽度的一半
-    const y1 = fromNode.y + 50;  // 节点高度的一半
+    const y1 = fromNode.y + 50; // 节点高度的一半
     const x2 = toNode.x;
     const y2 = toNode.y + 50;
 
@@ -615,10 +729,11 @@ export const SimpleReteEditor: React.FC<{
 
   return (
     <div className="w-full h-full relative bg-gray-50 overflow-hidden">
-
       {/* 状态信息 */}
       <div className="absolute bottom-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4">
-        <div className="text-sm font-semibold text-gray-600 mb-2">工作流信息</div>
+        <div className="text-sm font-semibold text-gray-600 mb-2">
+          工作流信息
+        </div>
         <div className="text-xs text-gray-600 space-y-1">
           <div>工作流ID: {workflowId}</div>
           <div>节点数量: {nodes.length}</div>
@@ -647,22 +762,30 @@ export const SimpleReteEditor: React.FC<{
         onClick={() => setSelectedNode(null)}
       >
         {/* SVG 连接线 */}
-        <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }}>
-          {connections.map(connection => (
+        <svg
+          className="absolute inset-0 pointer-events-none"
+          style={{ width: '100%', height: '100%' }}
+        >
+          {connections.map((connection) => (
             <path
               key={connection.id}
               d={getConnectionPath(connection)}
               fill="none"
               stroke="#1890ff"
               strokeWidth="2"
-              strokeDasharray={nodes.find(n => n.id === connection.from)?.data.status === 'running' ? '5,5' : '0'}
+              strokeDasharray={
+                nodes.find((n) => n.id === connection.from)?.data.status ===
+                'running'
+                  ? '5,5'
+                  : '0'
+              }
               opacity="0.6"
             />
           ))}
         </svg>
 
         {/* 节点 */}
-        {nodes.map(node => (
+        {nodes.map((node) => (
           <Card
             key={node.id}
             className={`absolute cursor-move transition-all duration-200 ${
@@ -673,7 +796,10 @@ export const SimpleReteEditor: React.FC<{
               top: `${node.y}px`,
               width: '300px',
               borderLeft: `4px solid ${getStatusColor(node.data.status)}`,
-              boxShadow: selectedNode === node.id ? '0 4px 12px rgba(24, 144, 255, 0.15)' : '0 2px 8px rgba(0,0,0,0.1)'
+              boxShadow:
+                selectedNode === node.id
+                  ? '0 4px 12px rgba(24, 144, 255, 0.15)'
+                  : '0 2px 8px rgba(0,0,0,0.1)',
             }}
             onMouseDown={(e) => handleMouseDown(e, node.id)}
             onClick={(e) => {
@@ -688,28 +814,35 @@ export const SimpleReteEditor: React.FC<{
             hoverable
           >
             <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                {getNodeIcon(node.data.type)}
-              </div>
+              <div className="flex-shrink-0">{getNodeIcon(node.data.type)}</div>
               <div className="flex-grow min-w-0">
-                <div className="font-semibold text-gray-800 text-sm truncate">{node.data.label}</div>
+                <div className="font-semibold text-gray-800 text-sm truncate">
+                  {node.data.label}
+                </div>
                 {node.data.description && (
-                  <div className="text-xs text-gray-500 mt-1 truncate">{node.data.description}</div>
+                  <div className="text-xs text-gray-500 mt-1 truncate">
+                    {node.data.description}
+                  </div>
                 )}
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex items-center space-x-2">
                     <div
                       className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: getStatusColor(node.data.status) }}
+                      style={{
+                        backgroundColor: getStatusColor(node.data.status),
+                      }}
                     />
-                    <span className="text-xs text-gray-500">{node.data.status}</span>
+                    <span className="text-xs text-gray-500">
+                      {node.data.status}
+                    </span>
                   </div>
                   <div className="flex space-x-1">
-                    {node.data.metrics && Object.keys(node.data.metrics).length > 0 && (
-                      <div className="text-xs text-gray-400">
-                        {Object.keys(node.data.metrics).length} 指标
-                      </div>
-                    )}
+                    {node.data.metrics &&
+                      Object.keys(node.data.metrics).length > 0 && (
+                        <div className="text-xs text-gray-400">
+                          {Object.keys(node.data.metrics).length} 指标
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>

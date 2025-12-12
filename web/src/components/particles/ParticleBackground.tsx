@@ -1,10 +1,11 @@
-import React from 'react';
+import type React from 'react';
+import type { AIStatus } from '../../types/particle';
+import type { ParticleSystemComponentProps } from './ParticleSystemComponent';
 import { ParticleSystemComponent } from './ParticleSystemComponent';
 import { getRecommendedPreset } from './presets';
-import type { ParticleSystemComponentProps } from './ParticleSystemComponent';
-import type { AIStatus } from '../../types/particle';
 
-export interface ParticleBackgroundProps extends Omit<ParticleSystemComponentProps, 'type'> {
+export interface ParticleBackgroundProps
+  extends Omit<ParticleSystemComponentProps, 'type'> {
   children?: React.ReactNode;
   showControls?: boolean;
   onPresetChange?: (preset: string) => void;
@@ -29,7 +30,9 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
   const presetConfig = config || getRecommendedPreset().config;
 
   return (
-    <div className={`particle-background relative w-full h-full overflow-hidden ${className}`}>
+    <div
+      className={`particle-background relative w-full h-full overflow-hidden ${className}`}
+    >
       {/* 粒子系统 */}
       <ParticleSystemComponent
         type="background"
@@ -42,11 +45,7 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
       />
 
       {/* 内容 */}
-      {children && (
-        <div className="relative z-10">
-          {children}
-        </div>
-      )}
+      {children && <div className="relative z-10">{children}</div>}
 
       {/* 控制面板 */}
       {showControls && (
@@ -56,9 +55,7 @@ export const ParticleBackground: React.FC<ParticleBackgroundProps> = ({
             <div>状态: {aiStatus}</div>
             <div>模式: 背景</div>
             {performance && (
-              <div className="text-green-400">
-                性能监控已启用
-              </div>
+              <div className="text-green-400">性能监控已启用</div>
             )}
           </div>
         </div>

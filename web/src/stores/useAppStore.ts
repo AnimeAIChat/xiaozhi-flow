@@ -1,10 +1,15 @@
 import { create } from 'zustand';
 import { devtools, persist, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
-import type { AppState, AppActions, AppStore } from '../types/store';
-import type { AIStatus, Theme, Language } from '../types/index';
-import type { ServerConfig, SystemConfig, ProviderConfig, ProviderType } from '../types/api';
+import type {
+  ProviderConfig,
+  ProviderType,
+  ServerConfig,
+  SystemConfig,
+} from '../types/api';
+import type { AIStatus, Language, Theme } from '../types/index';
 import type { ParticleConfig } from '../types/particle';
+import type { AppActions, AppState, AppStore } from '../types/store';
 
 // 稳定的默认对象，防止 getSnapshot 无限循环
 const DEFAULT_INSTALLATION_STATE = { inProgress: false, progress: null };
@@ -660,10 +665,15 @@ export const useAppStore = create<AppStore>()(
           setAuth: (auth) => set((state) => ({ auth })),
           setServerConfig: (config) =>
             set((state) => ({
-              config: { ...state.config, server: { ...state.config.server, config } },
+              config: {
+                ...state.config,
+                server: { ...state.config.server, config },
+              },
             })),
-          setAIStatus: (status) => set((state) => ({ ai: { ...state.ai, status } })),
-          setTheme: (theme: Theme) => set((state) => ({ ui: { ...state.ui, theme } })),
+          setAIStatus: (status) =>
+            set((state) => ({ ai: { ...state.ai, status } })),
+          setTheme: (theme: Theme) =>
+            set((state) => ({ ui: { ...state.ui, theme } })),
           setLanguage: (language: Language) =>
             set((state) => ({ ui: { ...state.ui, language } })),
           toggleSidebar: () =>
@@ -705,7 +715,7 @@ export const useAppStore = create<AppStore>()(
                   ...state.ui.configSidebar,
                   width: Math.max(
                     state.ui.configSidebar.minWidth,
-                    Math.min(state.ui.configSidebar.maxWidth, width)
+                    Math.min(state.ui.configSidebar.maxWidth, width),
                   ),
                 },
               },
@@ -787,13 +797,13 @@ export const useAppStore = create<AppStore>()(
               server: state.config.server,
             },
           }),
-        }
-      )
+        },
+      ),
     ),
     {
       name: 'xiaozhi-flow-store',
-    }
-  )
+    },
+  ),
 );
 
 // 选择器hooks
@@ -803,28 +813,48 @@ export const useUI = () => useAppStore((state) => state.ui);
 export const useAI = () => useAppStore((state) => state.ai);
 export const useParticles = () => useAppStore((state) => state.particles);
 export const usePlugins = () => useAppStore((state) => state.plugins);
-export const useNotifications = () => useAppStore((state) => state.notifications);
+export const useNotifications = () =>
+  useAppStore((state) => state.notifications);
 
 // 特定状态的选择器
-export const useServerConfig = () => useAppStore((state) => state.config.server);
+export const useServerConfig = () =>
+  useAppStore((state) => state.config.server);
 export const useProviders = (type: ProviderType) =>
   useAppStore((state) => state.config.providers[type]);
-export const useSystemConfig = () => useAppStore((state) => state.config.system);
+export const useSystemConfig = () =>
+  useAppStore((state) => state.config.system);
 export const useTheme = () => useAppStore((state) => state.ui.theme);
 export const useLanguage = () => useAppStore((state) => state.ui.language);
 export const useSidebar = () => useAppStore((state) => state.ui.sidebar);
-export const useConfigSidebar = () => useAppStore((state) => state.ui.configSidebar);
-export const useComponentLibraryPanel = () => useAppStore((state) => state.ui.componentLibraryPanel);
+export const useConfigSidebar = () =>
+  useAppStore((state) => state.ui.configSidebar);
+export const useComponentLibraryPanel = () =>
+  useAppStore((state) => state.ui.componentLibraryPanel);
 
 // 插件相关选择器
-export const usePluginList = () => useAppStore((state) => state.plugins?.plugins?.list || DEFAULT_EMPTY_ARRAY);
-export const usePluginStatuses = () => useAppStore((state) => state.plugins?.statuses || DEFAULT_EMPTY_OBJECT);
-export const useInstalledPlugins = () => useAppStore((state) => state.plugins?.installed || DEFAULT_EMPTY_OBJECT);
-export const usePluginServices = () => useAppStore((state) => state.plugins?.services || DEFAULT_EMPTY_OBJECT);
-export const usePluginConfigs = () => useAppStore((state) => state.plugins?.configs || DEFAULT_EMPTY_OBJECT);
-export const useMarketplacePlugins = () => useAppStore((state) => state.plugins?.marketplace?.available || DEFAULT_EMPTY_ARRAY);
-export const usePluginSearchResults = () => useAppStore((state) => state.plugins?.marketplace?.searchResults || DEFAULT_EMPTY_ARRAY);
-export const usePluginManagerState = () => useAppStore((state) => state.plugins?.manager || DEFAULT_MANAGER_STATE);
-export const useInstallationProgress = () => useAppStore((state) => state.plugins?.installation || DEFAULT_INSTALLATION_STATE);
+export const usePluginList = () =>
+  useAppStore((state) => state.plugins?.plugins?.list || DEFAULT_EMPTY_ARRAY);
+export const usePluginStatuses = () =>
+  useAppStore((state) => state.plugins?.statuses || DEFAULT_EMPTY_OBJECT);
+export const useInstalledPlugins = () =>
+  useAppStore((state) => state.plugins?.installed || DEFAULT_EMPTY_OBJECT);
+export const usePluginServices = () =>
+  useAppStore((state) => state.plugins?.services || DEFAULT_EMPTY_OBJECT);
+export const usePluginConfigs = () =>
+  useAppStore((state) => state.plugins?.configs || DEFAULT_EMPTY_OBJECT);
+export const useMarketplacePlugins = () =>
+  useAppStore(
+    (state) => state.plugins?.marketplace?.available || DEFAULT_EMPTY_ARRAY,
+  );
+export const usePluginSearchResults = () =>
+  useAppStore(
+    (state) => state.plugins?.marketplace?.searchResults || DEFAULT_EMPTY_ARRAY,
+  );
+export const usePluginManagerState = () =>
+  useAppStore((state) => state.plugins?.manager || DEFAULT_MANAGER_STATE);
+export const useInstallationProgress = () =>
+  useAppStore(
+    (state) => state.plugins?.installation || DEFAULT_INSTALLATION_STATE,
+  );
 
 export default useAppStore;

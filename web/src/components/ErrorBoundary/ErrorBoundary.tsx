@@ -1,12 +1,22 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Result, Button, Typography, Card, Collapse, Space, Tag, Divider } from 'antd';
 import {
   BugOutlined,
-  ReloadOutlined,
-  HomeOutlined,
   ExceptionOutlined,
   FileTextOutlined,
+  HomeOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
+import {
+  Button,
+  Card,
+  Collapse,
+  Divider,
+  Result,
+  Space,
+  Tag,
+  Typography,
+} from 'antd';
+import type React from 'react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { envConfig } from '../../utils/envConfig';
 
 const { Text, Title, Paragraph } = Typography;
@@ -37,7 +47,10 @@ interface ErrorBoundaryProps {
  * React 错误边界组件
  * 捕获和处理 React 组件树中的错误，提供调试信息和恢复机制
  */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   private retryCount: number = 0;
   private errorBoundaryId: string;
 
@@ -97,7 +110,11 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   // 错误上报函数
-  private reportError = async (error: Error, errorInfo: ErrorInfo, errorId: string) => {
+  private reportError = async (
+    error: Error,
+    errorInfo: ErrorInfo,
+    errorId: string,
+  ) => {
     try {
       const errorData = {
         id: errorId,
@@ -106,7 +123,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         componentStack: errorInfo.componentStack,
         componentName: this.props.componentName,
         timestamp: new Date().toISOString(),
-        userAgent: envConfig.errorIncludeUserAgent ? navigator.userAgent : undefined,
+        userAgent: envConfig.errorIncludeUserAgent
+          ? navigator.userAgent
+          : undefined,
         url: window.location.href,
         errorBoundaryId: this.errorBoundaryId,
       };
@@ -181,8 +200,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   render() {
-    const { hasError, error, errorInfo, errorId, componentName, timestamp } = this.state;
-    const { children, fallback, enableRetry = true, enableDetails = envConfig.isDevelopment } = this.props;
+    const { hasError, error, errorInfo, errorId, componentName, timestamp } =
+      this.state;
+    const {
+      children,
+      fallback,
+      enableRetry = true,
+      enableDetails = envConfig.isDevelopment,
+    } = this.props;
 
     // 如果有自定义 fallback，优先使用
     if (hasError && fallback) {
@@ -192,20 +217,22 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     // 错误状态显示
     if (hasError && error) {
       return (
-        <div style={{
-          padding: '40px 20px',
-          minHeight: '400px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#fafafa'
-        }}>
+        <div
+          style={{
+            padding: '40px 20px',
+            minHeight: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#fafafa',
+          }}
+        >
           <Card
             style={{
               maxWidth: 800,
               width: '100%',
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-              borderRadius: '8px'
+              borderRadius: '8px',
             }}
           >
             <Result
@@ -228,8 +255,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                   <Text type="secondary">
                     {envConfig.isDevelopment
                       ? '组件发生了错误，请查看详细信息进行调试。'
-                      : '抱歉，应用程序遇到了意外错误，请尝试刷新页面。'
-                    }
+                      : '抱歉，应用程序遇到了意外错误，请尝试刷新页面。'}
                   </Text>
                 </Paragraph>
               }
@@ -244,7 +270,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                       重试组件
                     </Button>
                   )}
-                  <Button icon={<ReloadOutlined />} onClick={this.handleRefresh}>
+                  <Button
+                    icon={<ReloadOutlined />}
+                    onClick={this.handleRefresh}
+                  >
                     刷新页面
                   </Button>
                   <Button icon={<HomeOutlined />} onClick={this.handleGoHome}>
@@ -272,7 +301,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                       <Space>
                         <ExceptionOutlined />
                         <Text strong>错误详情</Text>
-                        <Tag color="orange" size="small">开发者模式</Tag>
+                        <Tag color="orange" size="small">
+                          开发者模式
+                        </Tag>
                       </Space>
                     }
                     key="error-details"
@@ -280,12 +311,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                     <Space orientation="vertical" style={{ width: '100%' }}>
                       {/* 错误信息 */}
                       <Card size="small" title={<Text strong>错误信息</Text>}>
-                        <Text code style={{
-                          whiteSpace: 'pre-wrap',
-                          wordBreak: 'break-all',
-                          fontSize: '12px',
-                          color: '#ff4d4f'
-                        }}>
+                        <Text
+                          code
+                          style={{
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                            fontSize: '12px',
+                            color: '#ff4d4f',
+                          }}
+                        >
                           {error.message}
                         </Text>
                       </Card>
@@ -293,11 +327,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                       {/* 错误堆栈 */}
                       {error.stack && (
                         <Card size="small" title={<Text strong>错误堆栈</Text>}>
-                          <Text code style={{
-                            whiteSpace: 'pre-wrap',
-                            fontSize: '11px',
-                            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
-                          }}>
+                          <Text
+                            code
+                            style={{
+                              whiteSpace: 'pre-wrap',
+                              fontSize: '11px',
+                              fontFamily:
+                                'Monaco, Menlo, "Ubuntu Mono", monospace',
+                            }}
+                          >
                             {error.stack}
                           </Text>
                         </Card>
@@ -306,11 +344,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                       {/* 组件堆栈 */}
                       {errorInfo?.componentStack && (
                         <Card size="small" title={<Text strong>组件堆栈</Text>}>
-                          <Text code style={{
-                            whiteSpace: 'pre-wrap',
-                            fontSize: '11px',
-                            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace'
-                          }}>
+                          <Text
+                            code
+                            style={{
+                              whiteSpace: 'pre-wrap',
+                              fontSize: '11px',
+                              fontFamily:
+                                'Monaco, Menlo, "Ubuntu Mono", monospace',
+                            }}
+                          >
                             {errorInfo.componentStack}
                           </Text>
                         </Card>
@@ -319,10 +361,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
                       {/* 环境信息 */}
                       <Card size="small" title={<Text strong>环境信息</Text>}>
                         <Space orientation="vertical" style={{ width: '100%' }}>
-                          <Text><strong>用户代理:</strong> {navigator.userAgent}</Text>
-                          <Text><strong>当前URL:</strong> {window.location.href}</Text>
-                          <Text><strong>错误边界ID:</strong> {this.errorBoundaryId}</Text>
-                          <Text><strong>重试次数:</strong> {this.retryCount}</Text>
+                          <Text>
+                            <strong>用户代理:</strong> {navigator.userAgent}
+                          </Text>
+                          <Text>
+                            <strong>当前URL:</strong> {window.location.href}
+                          </Text>
+                          <Text>
+                            <strong>错误边界ID:</strong> {this.errorBoundaryId}
+                          </Text>
+                          <Text>
+                            <strong>重试次数:</strong> {this.retryCount}
+                          </Text>
                         </Space>
                       </Card>
                     </Space>
@@ -341,14 +391,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 }
 
 // 默认错误边界组件
-export const DefaultErrorBoundary: React.FC<{ children: ReactNode }> = ({ children }) => (
-  <ErrorBoundary>{children}</ErrorBoundary>
-);
+export const DefaultErrorBoundary: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => <ErrorBoundary>{children}</ErrorBoundary>;
 
 // 高阶组件：为组件添加错误边界
 export const withErrorBoundary = <P extends object>(
   Component: React.ComponentType<P>,
-  errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>
+  errorBoundaryProps?: Omit<ErrorBoundaryProps, 'children'>,
 ) => {
   const WrappedComponent = (props: P) => (
     <ErrorBoundary {...errorBoundaryProps}>

@@ -1,4 +1,4 @@
-import { BaseNode, NodeData, renderNode } from './BaseNode';
+import { BaseNode, type NodeData, renderNode } from './BaseNode';
 
 export class AiNode extends BaseNode {
   constructor(id: string, label: string, data?: Partial<NodeData>) {
@@ -7,9 +7,9 @@ export class AiNode extends BaseNode {
       metrics: {
         tokens: 0,
         cost: '$0.00',
-        latency: '0ms'
+        latency: '0ms',
       },
-      ...data
+      ...data,
     });
   }
 }

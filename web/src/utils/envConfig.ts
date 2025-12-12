@@ -109,12 +109,19 @@ export const envConfig: EnvConfig = {
   // 调试配置
   enableSourceMap: getEnvBoolean('VITE_ENABLE_SOURCE_MAP', true),
   enableConsoleLog: getEnvBoolean('VITE_ENABLE_CONSOLE_LOG', false), // 减少控制台日志
-  enablePerformanceMonitoring: getEnvBoolean('VITE_ENABLE_PERFORMANCE_MONITORING', false), // 关闭性能监控
+  enablePerformanceMonitoring: getEnvBoolean(
+    'VITE_ENABLE_PERFORMANCE_MONITORING',
+    false,
+  ), // 关闭性能监控
   enableErrorBoundary: getEnvBoolean('VITE_ENABLE_ERROR_BOUNDARY', true),
   enableApiDebugging: getEnvBoolean('VITE_ENABLE_API_DEBUGGING', false), // 关闭API调试
 
   // 日志配置
-  logLevel: (getEnvVar('VITE_LOG_LEVEL', 'error') as 'debug' | 'info' | 'warn' | 'error'), // 提高日志级别
+  logLevel: getEnvVar('VITE_LOG_LEVEL', 'error') as
+    | 'debug'
+    | 'info'
+    | 'warn'
+    | 'error', // 提高日志级别
   logMaxEntries: getEnvNumber('VITE_LOG_MAX_ENTRIES', 500), // 减少日志条目
   logPersistToStorage: getEnvBoolean('VITE_LOG_PERSIST_TO_STORAGE', false), // 关闭持久化
   logIncludeTimestamp: getEnvBoolean('VITE_LOG_INCLUDE_TIMESTAMP', false), // 关闭时间戳
@@ -127,18 +134,28 @@ export const envConfig: EnvConfig = {
 
   // 性能监控配置
   enablePerformanceApi: getEnvBoolean('VITE_ENABLE_PERFORMANCE_API', true),
-  performanceSampleRate: getEnvNumber('VITE_PERFORMANCE_SAMPLE_RATE', 100) / 100,
-  performanceReportInterval: getEnvNumber('VITE_PERFORMANCE_REPORT_INTERVAL', 30000),
+  performanceSampleRate:
+    getEnvNumber('VITE_PERFORMANCE_SAMPLE_RATE', 100) / 100,
+  performanceReportInterval: getEnvNumber(
+    'VITE_PERFORMANCE_REPORT_INTERVAL',
+    30000,
+  ),
 
   // 开发工具配置
   enableDevtools: getEnvBoolean('VITE_ENABLE_DEVTOOLS', true),
-  enableComponentInspector: getEnvBoolean('VITE_ENABLE_COMPONENT_INSPECTOR', true),
+  enableComponentInspector: getEnvBoolean(
+    'VITE_ENABLE_COMPONENT_INSPECTOR',
+    true,
+  ),
   enableStateInspector: getEnvBoolean('VITE_ENABLE_STATE_INSPECTOR', true),
   enableReactDevtools: getEnvBoolean('VITE_ENABLE_REACT_DEVTOOLS', true),
 
   // 特性开关
   enableMockData: getEnvBoolean('VITE_ENABLE_MOCK_DATA', false),
-  enableExperimentalFeatures: getEnvBoolean('VITE_ENABLE_EXPERIMENTAL_FEATURES', false),
+  enableExperimentalFeatures: getEnvBoolean(
+    'VITE_ENABLE_EXPERIMENTAL_FEATURES',
+    false,
+  ),
 
   // 开发服务器配置
   devServerPort: getEnvNumber('VITE_DEV_SERVER_PORT', 3000),
@@ -181,7 +198,10 @@ export const validateEnvConfig = (): boolean => {
     }
 
     // 验证性能采样率
-    if (envConfig.performanceSampleRate < 0 || envConfig.performanceSampleRate > 1) {
+    if (
+      envConfig.performanceSampleRate < 0 ||
+      envConfig.performanceSampleRate > 1
+    ) {
       console.warn('⚠️ 性能采样率配置无效');
       return false;
     }
@@ -215,7 +235,9 @@ export const shouldEnable = (feature: keyof EnvConfig): boolean => {
 export default envConfig;
 
 // 类型守卫函数
-export const isDebugMode = (): boolean => envConfig.debug && envConfig.isDevelopment;
+export const isDebugMode = (): boolean =>
+  envConfig.debug && envConfig.isDevelopment;
 export const isProductionMode = (): boolean => envConfig.isProduction;
-export const shouldLogToConsole = (): boolean => envConfig.enableConsoleLog && envConfig.debug;
+export const shouldLogToConsole = (): boolean =>
+  envConfig.enableConsoleLog && envConfig.debug;
 export const shouldReportErrors = (): boolean => envConfig.enableErrorReporting;

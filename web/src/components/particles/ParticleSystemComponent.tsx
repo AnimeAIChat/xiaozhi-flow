@@ -1,6 +1,11 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type {
+  AIStatus,
+  ParticleConfig,
+  PerformanceStats,
+} from '../../types/particle';
 import { ParticleSystem } from './ParticleSystem';
-import type { ParticleConfig, AIStatus, PerformanceStats } from '../../types/particle';
 
 export interface ParticleSystemComponentProps {
   className?: string;
@@ -16,7 +21,9 @@ export interface ParticleSystemComponentProps {
  * 粒子系统React组件
  * 提供React接口来使用粒子系统
  */
-export const ParticleSystemComponent: React.FC<ParticleSystemComponentProps> = ({
+export const ParticleSystemComponent: React.FC<
+  ParticleSystemComponentProps
+> = ({
   className = '',
   type = 'all',
   aiStatus = 'idle',
@@ -105,20 +112,26 @@ export const ParticleSystemComponent: React.FC<ParticleSystemComponentProps> = (
   }, [initializeParticleSystem, cleanupParticleSystem]);
 
   // 处理鼠标移动
-  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    onMouseMove?.({ x, y });
-  }, [onMouseMove]);
+  const handleMouseMove = useCallback(
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      onMouseMove?.({ x, y });
+    },
+    [onMouseMove],
+  );
 
   // 处理点击
-  const handleClick = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    onClick?.({ x, y });
-  }, [onClick]);
+  const handleClick = useCallback(
+    (event: React.MouseEvent<HTMLCanvasElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      onClick?.({ x, y });
+    },
+    [onClick],
+  );
 
   return (
     <div className={`particle-system ${className}`}>

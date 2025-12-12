@@ -9,7 +9,9 @@ export interface NodeData {
   metrics?: Record<string, string | number>;
 }
 
-export class BaseNode<T extends NodeData = NodeData> extends ClassicPreset.Node {
+export class BaseNode<
+  T extends NodeData = NodeData,
+> extends ClassicPreset.Node {
   width = 200;
   height = 120;
 
@@ -20,7 +22,7 @@ export class BaseNode<T extends NodeData = NodeData> extends ClassicPreset.Node 
       label,
       type,
       status: 'stopped',
-      ...data
+      ...data,
     } as T;
 
     this.setData(nodeData);
@@ -56,7 +58,11 @@ export class BaseNode<T extends NodeData = NodeData> extends ClassicPreset.Node 
 }
 
 // React 组件渲染函数
-export const renderNode = (props: { data: NodeData; emitter: any; node: any }) => {
+export const renderNode = (props: {
+  data: NodeData;
+  emitter: any;
+  node: any;
+}) => {
   const { data, emitter, node } = props;
 
   const getStatusColor = (status: NodeData['status']) => {
@@ -95,14 +101,16 @@ export const renderNode = (props: { data: NodeData; emitter: any; node: any }) =
       style={{
         width: '200px',
         minHeight: '120px',
-        borderLeft: `4px solid ${getStatusColor(data.status)}`
+        borderLeft: `4px solid ${getStatusColor(data.status)}`,
       }}
     >
       {/* 节点头部 */}
       <div className="flex items-center justify-between p-3 border-b border-gray-100">
         <div className="flex items-center space-x-2">
           <span className="text-lg">{getTypeIcon(data.type)}</span>
-          <span className="font-semibold text-gray-800 text-sm">{data.label}</span>
+          <span className="font-semibold text-gray-800 text-sm">
+            {data.label}
+          </span>
         </div>
         <div
           className="w-3 h-3 rounded-full"

@@ -1,22 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { App } from 'antd';
-import { useProviders as useProvidersFromStore } from '../stores/useAppStore';
 import {
   apiService,
-  type ServerConfig,
   type ConnectionTestResult,
-  type InitConfig,
-  type InitResult,
-  type ProviderType,
+  type DatabaseTestResult,
   type ProviderConfig,
   type ProviderTestResult,
+  type ProviderType,
+  type ServerConfig,
   type SystemConfig,
-  type DatabaseTestResult,
 } from '../services/api';
+import { useProviders as useProvidersFromStore } from '../stores/useAppStore';
 
 // 查询键
 export const queryKeys = {
-  systemStatus: ['system', 'status'],
   systemLogs: ['system', 'logs'],
   providers: (type?: ProviderType) => ['providers', type].filter(Boolean),
   systemConfig: ['system', 'config'],
@@ -46,63 +43,6 @@ export const useTestConnection = () => {
 };
 
 /**
- * 测试数据库步骤的Hook
- */
-export const useTestDatabaseStep = () => {
-  return useMutation({
-    mutationFn: ({ step, config }: { step: string; config: any }): Promise<DatabaseTestResult> =>
-      apiService.testDatabaseStep(step, config),
-    onSuccess: (result, variables) => {
-      // 这里不显示消息，让组件自己处理
-      console.log(`数据库测试步骤 ${variables.step} 完成:`, result);
-    },
-    onError: (error) => {
-      console.error('数据库测试步骤出错:', error);
-    },
-  });
-};
-
-/**
- * 初始化项目的Hook
- */
-export const useInitializeProject = () => {
-  const queryClient = useQueryClient();
-  const { message } = App.useApp();
-
-  return useMutation({
-    mutationFn: (config: InitConfig): Promise<InitResult> =>
-      apiService.initializeProject(config),
-    onSuccess: (result) => {
-      if (result.success) {
-        message.success('项目初始化成功！');
-        // 刷新相关查询
-        queryClient.invalidateQueries(queryKeys.systemStatus);
-        queryClient.invalidateQueries(queryKeys.systemConfig);
-      } else {
-        message.error(`项目初始化失败: ${result.message}`);
-      }
-    },
-    onError: (error) => {
-      message.error(`项目初始化出错: ${error.message}`);
-    },
-  });
-};
-
-/**
- * 获取系统状态的Hook
- */
-export const useSystemStatus = () => {
-  return useQuery({
-    queryKey: queryKeys.systemStatus,
-    queryFn: () => apiService.getSystemStatus(),
-    refetchInterval: 30000, // 每30秒刷新一次
-    retry: 3,
-    retryDelay: 1000,
-    staleTime: 10000, // 10秒内的数据被认为是新的
-  });
-};
-
-/**
  * 获取系统日志的Hook
  */
 export const useSystemLogs = (level?: string) => {
@@ -115,7 +55,6 @@ export const useSystemLogs = (level?: string) => {
   });
 };
 
-
 /**
  * 更新提供商配置的Hook
  */
@@ -124,8 +63,13 @@ export const useUpdateProvider = () => {
   const { message } = App.useApp();
 
   return useMutation({
-    mutationFn: ({ type, config }: { type: ProviderType; config: ProviderConfig }) =>
-      apiService.updateProvider(type, config),
+    mutationFn: ({
+      type,
+      config,
+    }: {
+      type: ProviderType;
+      config: ProviderConfig;
+    }) => apiService.updateProvider(type, config),
     onSuccess: (_, variables) => {
       message.success(`${variables.config.name} 配置更新成功！`);
       // 刷新提供商列表
@@ -183,7 +127,9 @@ export const useValidateConfig = () => {
       if (result.valid) {
         message.success('配置验证通过！');
       } else {
-        message.error(`配置验证失败: ${result.errors?.join(', ') || '未知错误'}`);
+        message.error(
+          `配置验证失败: ${result.errors?.join(', ') || '未知错误'}`,
+        );
       }
     },
     onError: (error) => {
@@ -192,32 +138,13 @@ export const useValidateConfig = () => {
   });
 };
 
-/**
- * API状态监控Hook
- */
-export const useApiHealth = () => {
-  const { data: systemStatus, isLoading, error } = useSystemStatus();
-
-  return {
-    isHealthy: !error && systemStatus,
-    isLoading,
-    lastCheck: systemStatus?.timestamp,
-    uptime: systemStatus?.uptime,
-    version: systemStatus?.version,
-  };
-};
-
 export default {
   useTestConnection,
-  useTestDatabaseStep,
-  useInitializeProject,
-  useSystemStatus,
   useSystemLogs,
   useProviders: useProvidersFromStore,
   useUpdateProvider,
   useSystemConfig,
   useUpdateSystemConfig,
   useValidateConfig,
-  useApiHealth,
   queryKeys,
 };

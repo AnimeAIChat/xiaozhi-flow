@@ -1,11 +1,11 @@
-import { SimpleEventEmitter } from '../../plugins/utils/ProcessManager';
-import {
+import type { Point } from '@xyflow/react';
+import { v4 as uuidv4 } from 'uuid';
+import type {
+  ConfigNode,
   NodeDefinition,
   ParameterDefinition,
-  ConfigNode
 } from '../../plugins/types';
-import { Point } from '@xyflow/react';
-import { v4 as uuidv4 } from 'uuid';
+import { SimpleEventEmitter } from '../../plugins/utils/ProcessManager';
 
 interface NodeTemplate {
   id: string;
@@ -49,7 +49,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   createNode(
     nodeId: string,
     definition: NodeDefinition,
-    options: NodeCreationOptions = {}
+    options: NodeCreationOptions = {},
   ): ConfigNode {
     try {
       // 验证节点定义
@@ -72,9 +72,12 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
           ...nodeData,
           pluginId: this.extractPluginId(definition.id),
           nodeDefinition: definition,
-          dynamicParameters: this.extractDynamicParameters(definition, options.data),
-          serviceStatus: 'idle'
-        }
+          dynamicParameters: this.extractDynamicParameters(
+            definition,
+            options.data,
+          ),
+          serviceStatus: 'idle',
+        },
       };
 
       // 更新节点计数器
@@ -84,16 +87,15 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
         nodeId: finalNodeId,
         node,
         definition,
-        options
+        options,
       });
 
       return node;
-
     } catch (error) {
       this.emit('node-creation-error', {
         nodeId,
         definition,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -104,7 +106,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
    */
   createNodeFromTemplate(
     templateId: string,
-    options: NodeCreationOptions = {}
+    options: NodeCreationOptions = {},
   ): ConfigNode {
     const template = this.templates.get(templateId);
     if (!template) {
@@ -114,12 +116,12 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
     // 合并默认数据和提供的数据
     const mergedData = {
       ...template.defaultData,
-      ...options.data
+      ...options.data,
     };
 
     return this.createNode(templateId, template.definition, {
       ...options,
-      data: mergedData
+      data: mergedData,
     });
   }
 
@@ -128,13 +130,13 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
    */
   cloneNode(
     sourceNode: ConfigNode,
-    options: NodeCloneOptions = {}
+    options: NodeCloneOptions = {},
   ): ConfigNode {
     try {
       const offset = options.offset || { x: 50, y: 50 };
       const newPosition = {
         x: sourceNode.position.x + offset.x,
-        y: sourceNode.position.y + offset.y
+        y: sourceNode.position.y + offset.y,
       };
 
       const clonedData = options.deepClone
@@ -142,7 +144,8 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
         : { ...sourceNode.data };
 
       // 生成新ID
-      const newId = options.newId || this.generateNodeId(sourceNode.data.key || 'node');
+      const newId =
+        options.newId || this.generateNodeId(sourceNode.data.key || 'node');
 
       // 克隆节点
       const clonedNode: ConfigNode = {
@@ -153,22 +156,21 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
           ...clonedData,
           key: newId,
           label: `${clonedData.label} (Copy)`,
-          serviceStatus: 'idle'
-        }
+          serviceStatus: 'idle',
+        },
       };
 
       this.emit('node-cloned', {
         sourceNode,
         clonedNode,
-        options
+        options,
       });
 
       return clonedNode;
-
     } catch (error) {
       this.emit('node-clone-error', {
         sourceNode,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -182,19 +184,23 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
       nodeId: string;
       definition: NodeDefinition;
       options?: NodeCreationOptions;
-    }>
+    }>,
   ): ConfigNode[] {
     const results: ConfigNode[] = [];
     const errors: Array<{ index: number; error: string }> = [];
 
     nodeSpecs.forEach((spec, index) => {
       try {
-        const node = this.createNode(spec.nodeId, spec.definition, spec.options);
+        const node = this.createNode(
+          spec.nodeId,
+          spec.definition,
+          spec.options,
+        );
         results.push(node);
       } catch (error) {
         errors.push({
           index,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     });
@@ -203,11 +209,14 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
       total: nodeSpecs.length,
       success: results.length,
       errors,
-      nodes: results
+      nodes: results,
     });
 
     if (errors.length > 0) {
-      console.warn(`Node batch creation completed with ${errors.length} errors:`, errors);
+      console.warn(
+        `Node batch creation completed with ${errors.length} errors:`,
+        errors,
+      );
     }
 
     return results;
@@ -252,12 +261,12 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   createTemplate(
     templateId: string,
     definition: NodeDefinition,
-    defaultData: any = {}
+    defaultData: any = {},
   ): NodeTemplate {
     const template: NodeTemplate = {
       id: templateId,
       definition,
-      defaultData: this.prepareNodeData(definition, defaultData)
+      defaultData: this.prepareNodeData(definition, defaultData),
     };
 
     this.registerTemplate(template);
@@ -270,7 +279,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   createTemplateFromNode(
     templateId: string,
     node: ConfigNode,
-    includeData = true
+    includeData = true,
   ): NodeTemplate {
     if (!node.data.nodeDefinition) {
       throw new Error('Node does not have a node definition');
@@ -320,21 +329,38 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
         }
 
         if (param.required && param.defaultValue !== undefined) {
-          warnings.push(`Parameter ${param.id} is required but has a default value`);
+          warnings.push(
+            `Parameter ${param.id} is required but has a default value`,
+          );
         }
 
         // 验证动态配置
         if (param.dynamic) {
-          if (param.dynamic.options && typeof param.dynamic.options !== 'function') {
-            errors.push(`Parameter ${param.id} dynamic.options must be a function`);
+          if (
+            param.dynamic.options &&
+            typeof param.dynamic.options !== 'function'
+          ) {
+            errors.push(
+              `Parameter ${param.id} dynamic.options must be a function`,
+            );
           }
 
-          if (param.dynamic.validation && typeof param.dynamic.validation !== 'function') {
-            errors.push(`Parameter ${param.id} dynamic.validation must be a function`);
+          if (
+            param.dynamic.validation &&
+            typeof param.dynamic.validation !== 'function'
+          ) {
+            errors.push(
+              `Parameter ${param.id} dynamic.validation must be a function`,
+            );
           }
 
-          if (param.dynamic.visible && typeof param.dynamic.visible !== 'function') {
-            errors.push(`Parameter ${param.id} dynamic.visible must be a function`);
+          if (
+            param.dynamic.visible &&
+            typeof param.dynamic.visible !== 'function'
+          ) {
+            errors.push(
+              `Parameter ${param.id} dynamic.visible must be a function`,
+            );
           }
         }
       });
@@ -360,7 +386,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
     return {
       valid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -370,7 +396,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   updateNodeParameters(
     node: ConfigNode,
     parameterUpdates: Record<string, any>,
-    validate = true
+    validate = true,
   ): ConfigNode {
     try {
       if (!node.data.nodeDefinition) {
@@ -382,7 +408,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
 
       // 应用参数更新
       for (const [paramId, value] of Object.entries(parameterUpdates)) {
-        const param = definition.parameters.find(p => p.id === paramId);
+        const param = definition.parameters.find((p) => p.id === paramId);
         if (!param) {
           throw new Error(`Parameter ${paramId} not found in node definition`);
         }
@@ -405,28 +431,27 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
       if (node.data.dynamicParameters) {
         updatedData.dynamicParameters = {
           ...node.data.dynamicParameters,
-          ...parameterUpdates
+          ...parameterUpdates,
         };
       }
 
       const updatedNode = {
         ...node,
-        data: updatedData
+        data: updatedData,
       };
 
       this.emit('node-updated', {
         node: updatedNode,
         parameterUpdates,
-        validate
+        validate,
       });
 
       return updatedNode;
-
     } catch (error) {
       this.emit('node-update-error', {
         node,
         parameterUpdates,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw error;
     }
@@ -463,7 +488,11 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
         break;
 
       case 'object':
-        if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+        if (
+          typeof value !== 'object' ||
+          value === null ||
+          Array.isArray(value)
+        ) {
           throw new Error(`Parameter ${param.id} must be an object`);
         }
         break;
@@ -473,24 +502,52 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
     if (param.constraints) {
       const numValue = Number(value);
 
-      if (param.constraints.min !== undefined && numValue < param.constraints.min) {
-        throw new Error(`Parameter ${param.id} must be >= ${param.constraints.min}`);
+      if (
+        param.constraints.min !== undefined &&
+        numValue < param.constraints.min
+      ) {
+        throw new Error(
+          `Parameter ${param.id} must be >= ${param.constraints.min}`,
+        );
       }
 
-      if (param.constraints.max !== undefined && numValue > param.constraints.max) {
-        throw new Error(`Parameter ${param.id} must be <= ${param.constraints.max}`);
+      if (
+        param.constraints.max !== undefined &&
+        numValue > param.constraints.max
+      ) {
+        throw new Error(
+          `Parameter ${param.id} must be <= ${param.constraints.max}`,
+        );
       }
 
-      if (param.constraints.minLength !== undefined && typeof value === 'string' && value.length < param.constraints.minLength) {
-        throw new Error(`Parameter ${param.id} must have at least ${param.constraints.minLength} characters`);
+      if (
+        param.constraints.minLength !== undefined &&
+        typeof value === 'string' &&
+        value.length < param.constraints.minLength
+      ) {
+        throw new Error(
+          `Parameter ${param.id} must have at least ${param.constraints.minLength} characters`,
+        );
       }
 
-      if (param.constraints.maxLength !== undefined && typeof value === 'string' && value.length > param.constraints.maxLength) {
-        throw new Error(`Parameter ${param.id} must have at most ${param.constraints.maxLength} characters`);
+      if (
+        param.constraints.maxLength !== undefined &&
+        typeof value === 'string' &&
+        value.length > param.constraints.maxLength
+      ) {
+        throw new Error(
+          `Parameter ${param.id} must have at most ${param.constraints.maxLength} characters`,
+        );
       }
 
-      if (param.constraints.pattern && typeof value === 'string' && !new RegExp(param.constraints.pattern).test(value)) {
-        throw new Error(`Parameter ${param.id} does not match required pattern`);
+      if (
+        param.constraints.pattern &&
+        typeof value === 'string' &&
+        !new RegExp(param.constraints.pattern).test(value)
+      ) {
+        throw new Error(
+          `Parameter ${param.id} does not match required pattern`,
+        );
       }
     }
   }
@@ -509,7 +566,7 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
       editable: true,
       icon: definition.category,
       color: definition.color,
-      value: {}
+      value: {},
     };
 
     // 设置默认参数值
@@ -530,7 +587,10 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   /**
    * 提取动态参数
    */
-  private extractDynamicParameters(definition: NodeDefinition, data?: any): Record<string, any> {
+  private extractDynamicParameters(
+    definition: NodeDefinition,
+    data?: any,
+  ): Record<string, any> {
     const dynamicParams: Record<string, any> = {};
 
     for (const param of definition.parameters) {
@@ -565,7 +625,10 @@ export class DynamicNodeFactory extends SimpleEventEmitter {
   private updateNodeCounter(nodeId: string): void {
     const baseId = nodeId.split('-')[0];
     const counter = this.nodeCounters.get(baseId) || 0;
-    this.nodeCounters.set(baseId, Math.max(counter, this.extractNodeNumber(nodeId)));
+    this.nodeCounters.set(
+      baseId,
+      Math.max(counter, this.extractNodeNumber(nodeId)),
+    );
   }
 
   /**

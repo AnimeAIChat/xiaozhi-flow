@@ -1,4 +1,4 @@
-import { BaseNode, NodeData, renderNode } from './BaseNode';
+import { BaseNode, type NodeData, renderNode } from './BaseNode';
 
 export class CloudNode extends BaseNode {
   constructor(id: string, label: string, data?: Partial<NodeData>) {
@@ -7,9 +7,9 @@ export class CloudNode extends BaseNode {
       metrics: {
         bandwidth: '0MB/s',
         storage: '0GB',
-        cpu: '0%'
+        cpu: '0%',
       },
-      ...data
+      ...data,
     });
   }
 }
