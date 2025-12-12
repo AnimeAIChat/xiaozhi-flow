@@ -1,7 +1,6 @@
 package httptransport
 
 import (
-	"xiaozhi-server-go/internal/platform/logging"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"xiaozhi-server-go/internal/platform/config"
+	"xiaozhi-server-go/internal/platform/logging"
 	"xiaozhi-server-go/internal/platform/observability"
 	httpMiddleware "xiaozhi-server-go/internal/transport/http/middleware"
 	v1 "xiaozhi-server-go/internal/transport/http/v1"

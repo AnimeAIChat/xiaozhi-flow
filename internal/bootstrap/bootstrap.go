@@ -268,18 +268,18 @@ func InitGraph() []initStep {
 			Execute:   loadDefaultConfigStep,
 		},
 		{
-			ID:        "llm:init-manager",
-			Title:     "Initialise LLM manager",
-			DependsOn: []string{"config:load-default"},
-			Kind:      platformerrors.KindBootstrap,
-			Execute:   initLLMManagerStep,
-		},
-		{
 			ID:        "logging:init-provider",
 			Title:     "Initialise logging provider",
 			DependsOn: []string{"config:load-default"},
 			Kind:      platformerrors.KindBootstrap,
 			Execute:   initLoggingStep,
+		},
+		{
+			ID:        "llm:init-manager",
+			Title:     "Initialise LLM manager",
+			DependsOn: []string{"config:load-default"},
+			Kind:      platformerrors.KindBootstrap,
+			Execute:   initLLMManagerStep,
 		},
 		{
 			ID:        "plugin:init-port-manager",
@@ -420,7 +420,9 @@ func initStorageStep(_ context.Context, _ *appState) error {
 	return nil
 }
 
-func initDatabaseStep(_ context.Context, _ *appState) error {
+func initDatabaseStep(ctx context.Context, state *appState) error {
+	// 注意：此时 logger 可能还没有初始化，所以不能使用
+
 	// 尝试从 db.json 读取数据库配置
 	configManager := platformstorage.NewDatabaseConfigManager()
 
@@ -442,12 +444,58 @@ func initDatabaseStep(_ context.Context, _ *appState) error {
 			if err := platformstorage.InitDatabaseWithConfig(dbConfig.Database); err != nil {
 				return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database with config", err)
 			}
+
+			// 创建默认管理员用户（如果不存在）
+			if err := createDefaultAdminUser(platformstorage.GetDB()); err != nil {
+				fmt.Printf("Failed to create default admin user: %v\n", err)
+			}
+
+			// 标记为已初始化
+			dbConfig.Initialized = true
+			if err := configManager.SaveConfig(dbConfig); err != nil {
+				return platformerrors.Wrap(platformerrors.KindConfig, "storage:init-database", "failed to save database config", err)
+			}
 		}
 	} else {
-		// 如果 db.json 不存在，使用原有的初始化逻辑
-		if err := platformstorage.InitDatabase(); err != nil {
-			return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database", err)
+		// 配置文件不存在，使用默认SQLite配置并初始化
+		defaultConfig := platformstorage.DatabaseConfig{
+			Database: platformstorage.DatabaseConnection{
+				Type: "sqlite",
+				Path: "./data/xiaozhi.db",
+				ConnectionPool: platformstorage.ConnectionPool{
+					MaxOpenConns: 25,
+					MaxIdleConns: 25,
+				},
+			},
+			Admin: platformstorage.AdminConfig{
+				Username: "admin",
+				Password: "admin123",
+				Email:    "admin@xiaozhi.local",
+			},
+			Initialized: true, // 直接标记为已初始化
 		}
+
+		// 创建配置目录
+		if err := os.MkdirAll("data", 0755); err != nil {
+			return fmt.Errorf("failed to create data directory: %w", err)
+		}
+
+		// 初始化数据库
+		if err := platformstorage.InitDatabaseWithConfig(defaultConfig.Database); err != nil {
+			return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to initialize database with default config", err)
+		}
+
+		// 创建默认管理员用户
+		if err := createDefaultAdminUser(platformstorage.GetDB()); err != nil {
+			return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-database", "failed to create default admin user", err)
+		}
+
+		// 保存配置
+		if err := configManager.SaveConfig(&defaultConfig); err != nil {
+			return platformerrors.Wrap(platformerrors.KindConfig, "storage:init-database", "failed to save default database config", err)
+		}
+
+		fmt.Println("Database initialized with default SQLite configuration")
 	}
 
 	return nil

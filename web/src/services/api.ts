@@ -466,89 +466,12 @@ export class ApiService {
   }
 
   /**
-   * 测试服务器连接
-   */
-  async testConnection(config: ServerConfig): Promise<ConnectionTestResult> {
-    try {
-      const startTime = Date.now();
-      const response = await this.client.post('/admin/system/test-connection', config);
-      const latency = Date.now() - startTime;
-
-      return {
-        success: response.data.success,
-        message: response.data.message,
-        latency,
-        version: response.data.data?.version,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Connection test failed',
-      };
-    }
-  }
-
-  async testDatabaseStep(step: string, config: any): Promise<DatabaseTestResult> {
-    try {
-      const response = await this.client.post(`/admin/system/test-database-step?step=${step}`, config);
-      const apiResponse = response.data;
-
-      // API返回的数据结构: {code: 200, data: {...}, message: '...', success: true}
-      // 需要转换为 DatabaseTestResult 格式
-      if (apiResponse.success && apiResponse.data) {
-        return {
-          step,
-          status: apiResponse.data.status || 'success',
-          message: apiResponse.data.message || apiResponse.message,
-          latency: apiResponse.data.latency,
-          details: apiResponse.data.details
-        };
-      } else {
-        return {
-          step,
-          status: 'failed',
-          message: apiResponse.message || 'Database test step failed'
-        };
-      }
-    } catch (error) {
-      return {
-        step,
-        status: 'failed',
-        message: error instanceof Error ? error.message : 'Database test step failed'
-      };
-    }
-  }
-
-  /**
-   * 保存数据库配置
-   */
-  async saveDatabaseConfig(config: any): Promise<ApiResponse> {
-    try {
-      const response = await this.client.post('/admin/system/save-database-config', config);
-      return response.data;
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Failed to save database config');
-    }
-  }
-
-  /**
-   * 初始化项目
-   */
-  async initializeProject(config: InitConfig): Promise<InitResult> {
-    try {
-      const response = await this.client.post('/admin/system/init', config);
-      return response.data.data;
-    } catch (error) {
-      throw new Error(error instanceof Error ? error.message : 'Project initialization failed');
-    }
-  }
-
-  /**
    * 获取系统状态
+   * 更新为使用新的 API 端点 /api/v1/system/status
    */
   async getSystemStatus(): Promise<any> {
     try {
-      const response = await this.client.get('/admin/system/status');
+      const response = await this.client.get('/api/v1/system/status');
       return response.data.data;
     } catch (error) {
       throw new Error(error instanceof Error ? error.message : 'Failed to get system status');
