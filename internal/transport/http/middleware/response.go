@@ -63,7 +63,7 @@ func SuccessResponse(c *gin.Context, data interface{}, message string) {
 		Data:      data,
 		Message:   message,
 		Timestamp: time.Now().Unix(),
-		Version:   GetAPIVersion(c),
+		Version:   "v1", // 固定为 v1 版本
 		RequestID: getRequestID(c),
 	}
 	c.JSON(http.StatusOK, response)
@@ -84,7 +84,7 @@ func ErrorResponse(c *gin.Context, errorCode, errorMessage string, details ...in
 			Details: detailsData,
 		},
 		Timestamp: time.Now().Unix(),
-		Version:   GetAPIVersion(c),
+		Version:   "v1", // 固定为 v1 版本
 		RequestID: getRequestID(c),
 	}
 

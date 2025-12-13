@@ -77,9 +77,8 @@ func Build(opts Options) (*Router, error) {
 
 	api := engine.Group("/api")
 
-	// 创建 V1 API 路由组
+	// 创建 V1 API 路由组（移除版本中间件，因为只支持 v1）
 	v1Group := api.Group("/v1")
-	v1Group.Use(httpMiddleware.VersionMiddleware())
 
 	// Initialize Workflow Service
 	if opts.Registry != nil {

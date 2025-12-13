@@ -67,7 +67,7 @@ func (r *ResponseHelper) Created(c *gin.Context, data interface{}, message strin
 		Data:      data,
 		Message:   message,
 		Timestamp: httpMiddleware.APIResponse{}.Timestamp, // 将在中间件中设置
-		Version:   httpMiddleware.GetAPIVersion(c),
+		Version:   "v1", // 固定为 v1 版本
 		RequestID: getRequestIDFromContext(c),
 	})
 }
@@ -96,7 +96,7 @@ func (r *ResponseHelper) Accepted(c *gin.Context, data interface{}, message stri
 		Data:      data,
 		Message:   message,
 		Timestamp: httpMiddleware.APIResponse{}.Timestamp,
-		Version:   httpMiddleware.GetAPIVersion(c),
+		Version:   "v1", // 固定为 v1 版本
 		RequestID: getRequestIDFromContext(c),
 	})
 }

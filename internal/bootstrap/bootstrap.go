@@ -416,9 +416,7 @@ func initLLMManagerStep(_ context.Context, state *appState) error {
 }
 
 func initStorageStep(_ context.Context, _ *appState) error {
-	if err := platformstorage.InitConfigStore(); err != nil {
-		return platformerrors.Wrap(platformerrors.KindStorage, "storage:init-config-store", "failed to initialize config store", err)
-	}
+	// Config store initialization removed - no longer needed
 	return nil
 }
 

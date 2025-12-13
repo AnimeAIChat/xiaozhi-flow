@@ -19,19 +19,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// InitConfigStore ensures the underlying configuration store is ready.
-// Since we no longer use database-backed configuration, this is a no-op.
-func InitConfigStore() error {
-	return nil
-}
-
-// ConfigStore returns the default configuration store implementation.
-// Since we no longer use database-backed configuration, this returns nil.
-func ConfigStore() interface{} {
-	return nil
-}
-
-// Global database instance for backward compatibility
+// Global database instance
 var db *gorm.DB
 
 // dbInitOnce ensures InitDatabase is only executed once
